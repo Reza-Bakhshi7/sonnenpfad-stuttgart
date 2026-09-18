@@ -1,0 +1,14 @@
+{
+  "name": "sonnenpfad-stuttgart",
+  "version": "0.7.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-cloudflare.mjs",
+    "test": "npm run build && node scripts/check_engine.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.134.0"
+  }
+}

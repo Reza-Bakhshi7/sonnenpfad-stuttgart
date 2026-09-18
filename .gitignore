@@ -1,0 +1,9 @@
+.sites-runtime/
+.env
+*.tar.gz
+*.gpkg
+__pycache__/
+node_modules/
+build_data/*.json
+dist/app-v7.mjs
+dist/vendor/maplibre-v3.js
