@@ -1,6 +1,6 @@
 # Eight-week roadmap
 
-1. Governance, repository and Cloudflare baseline.
+1. Governance, repository and Cloudflare baseline. Technical baseline completed for 0.7.0; assignment of the organizational backup administrator remains an external handover action.
 2. Versioned data catalogue and reproducible export pipeline.
 3. Full Stuttgart coverage, tiled data and terrain.
 4. Basemaps, thematic layers and optimized 3D presentation.
