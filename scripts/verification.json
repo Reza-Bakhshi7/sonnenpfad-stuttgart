@@ -1,0 +1,77 @@
+{
+  "passed": true,
+  "runs": [
+    {
+      "iso": "2026-09-16T07:00:00Z",
+      "sun": {
+        "altitude": 18.487099929912084,
+        "azimuth": 107.99169493042672
+      },
+      "routes": {
+        "balanced": {
+          "m": 1510,
+          "shade": 86,
+          "minutes": 24
+        },
+        "shade": {
+          "m": 1602,
+          "shade": 94,
+          "minutes": 25
+        },
+        "sun": {
+          "m": 1648,
+          "shade": 71,
+          "minutes": 26
+        }
+      }
+    },
+    {
+      "iso": "2026-09-16T12:00:00Z",
+      "sun": {
+        "altitude": 42.88482551054155,
+        "azimuth": 194.34486241927036
+      },
+      "routes": {
+        "balanced": {
+          "m": 1510,
+          "shade": 58,
+          "minutes": 24
+        },
+        "shade": {
+          "m": 1652,
+          "shade": 77,
+          "minutes": 26
+        },
+        "sun": {
+          "m": 1763,
+          "shade": 26,
+          "minutes": 28
+        }
+      }
+    },
+    {
+      "iso": "2026-12-21T11:00:00Z",
+      "sun": {
+        "altitude": 17.631348734813376,
+        "azimuth": 174.8688449508118
+      },
+      "routes": {
+        "balanced": {
+          "m": 1510,
+          "shade": 78,
+          "minutes": 24
+        },
+        "shade": {
+          "m": 1520,
+          "shade": 81,
+          "minutes": 24
+        },
+        "sun": {
+          "m": 1640,
+          "shade": 46,
+          "minutes": 26
+        }
+      }
+    }
+  ]
+}

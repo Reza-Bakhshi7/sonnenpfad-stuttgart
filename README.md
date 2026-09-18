@@ -1,2 +1,68 @@
-# Routing_App
-----
+# Sonnenpfad Stuttgart — Prototype 0.7
+
+A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the Stuttgart Pedestrian Atlas. German and English, desktop and mobile. No application server, paid API key or database service required.
+
+## Run and deploy
+
+Run `npm ci`, `npm run build`, and then serve `dist/` over HTTP (for example `python -m http.server 8080 --directory dist`). ES module workers do not run from `file://` URLs. Cloudflare Workers Static Assets uses `wrangler.jsonc`; `npm run deploy` performs a manual deployment. Cloudflare Builds should use `npm run build` as its build command and `npx wrangler deploy` as its deploy command.
+
+Prepared application data is split into size-bounded static chunks so the browser can load it reliably and Cloudflare can cache it efficiently. The routing and shadow worker remains embedded as a Blob. The original GeoPackage is a local, read-only pipeline input and is not committed.
+
+## Included
+
+- Selected central-Stuttgart real network, building footprints/heights and trees.
+- Direct, shade-preferring and sun-preferring Dijkstra routes with stair avoidance and a slope penalty.
+- Changing date/time updates solar geometry, shadow display and route weighting.
+- A worker rasterizes shadow polygons for responsive rendering. Route sampling uses those same polygons (up to 4 m intervals); rendered mask resolution is approximately 1.7 m.
+- A locally generated 3D terrain surface beneath the OSM basemap, plus hillshade, building extrusion and height-aware tree crowns; map-point and named-place selection, draggable endpoints, swap, optional device location and share links.
+- Elevation profile with absolute route heights, ascent and descent.
+- DE/EN interface and explicit out-of-area feedback.
+
+## Data pipeline
+
+```bash
+python scripts/prepare_data.py /path/to/Fussgaengeratlas_Stuttgart.gpkg
+python scripts/generate_terrain.py
+python scripts/chunk_data.py
+npm run build
+```
+
+Requires Python with shapely, pyproj, NumPy, SciPy and Pillow. Input is read-only; it is not stored in the repository. The preparation step creates local `build_data/{meta,network,obstacles}.json`; `chunk_data.py` converts them into cacheable browser assets. `npm run build` embeds only the Web Worker and reconstructs the vendored MapLibre bundle. Bounds: 9.162–9.198 E, 48.765–48.790 N. Obstacle buffers extend beyond the routing area.
+
+The script converts EPSG:25832 to WGS84, then to local equirectangular metres around Stuttgart for browser processing. Only geometric/data fields needed by the prototype are exported. It excludes explicit foot prohibitions and private/no access without explicit pedestrian permission, motorways, trunk roads, construction/proposed roads and indoor=yes.
+
+`python scripts/generate_terrain.py` reconstructs static Mapbox Terrain-RGB tiles at zooms 12–14 from the DEM-derived elevation values at network endpoints. It uses 8-neighbour inverse-distance interpolation followed by light smoothing. Run it before `python scripts/bundle_app.py`; the generated tiles are written to `dist/dem/` and need no external terrain API.
+
+Every existing line vertex is a routing node. Exact coincident vertices connect; geometry-only intersections are not noded. No arbitrary network edges are inserted across gaps. Segment endpoint elevation and slope are inherited; elevation is interpolated along subedges. Source `atlas_id` is preserved per subedge.
+
+## Scientific limitations
+
+This is not a validated heat-risk, accessibility or navigation service.
+
+- The displayed 3D surface is an interpolation of elevations sampled along the walking network, not the original continuous DEM and not a survey model. Visual terrain exaggeration is 1.3×. It should not be used to infer precise ground heights away from sampled streets.
+- Geometric clear-sky shadows still assume flat ground, simplified vertical building prisms and spherical opaque tree crowns. Building heights include source estimates. Terrain occlusion, reflected radiation, cloud attenuation and thermal inertia are not modelled.
+- Tree heights fall back to 8 m when absent; radius falls back to 2 m (minimum 1 m). April–October is the simplified leaf-on season; winter shade includes only trees explicitly classified evergreen. This is not phenology.
+- At solar elevations ≤2°, shade geometry is disabled; the UI suppresses percentage and uses direct weighting. Night is not represented as a sun/shade choice.
+- The selected instant applies to the whole route. Time-dependent arrival along a route is not modelled. Finite obstacle buffers can underestimate long shadows near the pilot edge.
+- Network centre lines can differ from actual sidewalks. Existing coincident vertices can still contain topology issues, especially at multi-level structures. Live access, closures and entrance availability are not verified.
+- Points search nearby network components within 200 m and use the closest component reachable from both endpoints. Dashed access lines make the snap explicit and are excluded from route length.
+- Walking time assumes 75 m/min plus 1 minute per 10 m of ascent. Elevation/slope inherit the atlas's uncertainties.
+- Shade/sun preference uses `length * (1 + 1.6 * undesired_exposure)`; gentler routes add `min(4, abs(slope_pct)/6)` to the multiplier. All costs are nonnegative. Additional distance is shown against the direct route with the same other settings. There is no hard detour cap in 0.7.
+- No live weather, UTCI, SOLWEIG or turn-by-turn guidance in 0.7.
+
+## Verification
+
+`node scripts/check_engine.mjs` checks solar direction/elevation, a known shadow geometry, route continuity, varied sun/shade route choices, edge snapping, automatic fallback from isolated fragments, the elevation profile and out-of-area rejection. Recorded results are in `scripts/verification.json`. Static source/asset checks were also run. Browser rendering and device-specific WebGL performance have not yet been verified in this environment. Optional WebMCP state read-back is feature-detected; supported-browser registration validation was unavailable.
+
+## Privacy and attribution
+
+Routes are calculated locally in the browser. Location is requested only after a click and is not sent to an application backend. Shared URLs contain selected coordinates. External basemap providers receive tile requests (and associated IP/request metadata); Google Fonts is currently used with system-font fallback. No analytics, accounts or advertising.
+
+Base map: OpenFreeMap / OpenMapTiles / © OpenStreetMap contributors. MapLibre GL JS 5.6.2 is vendored under its BSD-3-Clause licence, see `dist/vendor/LICENSE-maplibre.txt`. Atlas-derived data retains its original source obligations; the code licence does not relicense geodata. The input package's full source documentation remains authoritative.
+
+## Next useful increments
+
+1. Inspect the pilot visually and validate a few known route/shadow cases in the field.
+2. Replace the interpolated display terrain with an authoritative raster DEM when redistribution and hosting terms are confirmed; audit sidewalk alignment and topology.
+3. Add a suitable weather service, show its issue/validity time, and reduce automatic shade preference when direct radiation is low.
+4. Add a user detour budget and expand coverage after performance measurements.
