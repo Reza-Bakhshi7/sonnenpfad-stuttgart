@@ -2,6 +2,10 @@
 
 A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the Stuttgart Pedestrian Atlas. German and English, desktop and mobile. No application server, paid API key or database service required.
 
+Production: <https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/>
+
+Project rules are documented in [GOVERNANCE.md](GOVERNANCE.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [release process](docs/release-process.md). The current architecture and eight-step roadmap are in `docs/`.
+
 ## Run and deploy
 
 Run `npm ci`, `npm run build`, and then serve `dist/` over HTTP (for example `python -m http.server 8080 --directory dist`). ES module workers do not run from `file://` URLs. Cloudflare Workers Static Assets uses `wrangler.jsonc`; `npm run deploy` performs a manual deployment. Cloudflare Builds should use `npm run build` as its build command and `npx wrangler deploy` as its deploy command.
@@ -53,6 +57,8 @@ This is not a validated heat-risk, accessibility or navigation service.
 ## Verification
 
 `node scripts/check_engine.mjs` checks solar direction/elevation, a known shadow geometry, route continuity, varied sun/shade route choices, edge snapping, automatic fallback from isolated fragments, the elevation profile and out-of-area rejection. Recorded results are in `scripts/verification.json`. Static source/asset checks were also run. Browser rendering and device-specific WebGL performance have not yet been verified in this environment. Optional WebMCP state read-back is feature-detected; supported-browser registration validation was unavailable.
+
+Pull requests and pushes to `main` run `npm test` in GitHub Actions. Operational smoke tests and rollback instructions are documented in [`docs/operations-runbook.md`](docs/operations-runbook.md).
 
 ## Privacy and attribution
 

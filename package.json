@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-cloudflare.mjs",
-    "test": "npm run build && node scripts/check_engine.mjs",
+    "test": "npm run build && node scripts/check_engine.mjs && node scripts/check_governance.mjs",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
