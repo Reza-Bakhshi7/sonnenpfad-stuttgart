@@ -67,7 +67,10 @@ def main() -> int:
                     snap_index[f"{x}_{y}"].append(index)
     dump_json(network_dir / "snap-index.json", snap_index)
 
-    tiles: dict[str, dict[str, list]] = collections.defaultdict(lambda: {"buildings": [], "trees": []})
+    tiles: dict[str, dict[str, list]] = collections.defaultdict(lambda: {"buildings": [], "trees": [], "lines": []})
+    for edge in network["edges"]:
+        a, b = edge["c"]
+        tiles[tile_key([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], args.obstacle_grid)]["lines"].append(edge["c"])
     for building in obstacles["buildings"]:
         exterior = building["r"][0]
         center = [sum(p[0] for p in exterior) / len(exterior), sum(p[1] for p in exterior) / len(exterior)]
@@ -90,6 +93,7 @@ def main() -> int:
             "file": relative,
             "buildings": len(payload["buildings"]),
             "trees": len(payload["trees"]),
+            "lines": len(payload["lines"]),
         }
 
     manifest = {
@@ -106,7 +110,7 @@ def main() -> int:
             "snapIndex": "network/snap-index.json", "snapGrid": args.snap_grid,
         },
         "obstacles": {"grid": args.obstacle_grid, "paddingTiles": 1, "tiles": tile_manifest},
-        "counts": {"buildings": len(obstacles["buildings"]), "trees": len(obstacles["trees"]), "largeTreesScaled": large_trees},
+        "counts": {"buildings": len(obstacles["buildings"]), "trees": len(obstacles["trees"]), "lines": len(network["edges"]), "largeTreesScaled": large_trees},
         "elevationQuality": meta["elevationQuality"],
     }
     dump_json(output / "manifest.json", manifest)
