@@ -1,0 +1,198 @@
+{
+  "catalog_version": 1,
+  "product": "Sonnenpfad Stuttgart",
+  "dataset": "Pedestrian Atlas Stuttgart",
+  "baseline": {
+    "release": "v0.7.0",
+    "source_date": "2026-09-15",
+    "filename": "Fussgaengeratlas_Stuttgart.gpkg",
+    "sha256": "ccc2e6b3f406e530547da73b7d1f7e02f01ea5ddb0ca3300996398603c34a1e7",
+    "crs": 25832,
+    "feature_layer_count": 21
+  },
+  "rules": {
+    "source_is_read_only": true,
+    "source_is_committed_to_git": false,
+    "public_outputs_contain_selected_fields_only": true,
+    "stable_feature_key": "atlas_id",
+    "geometry_column": "geom"
+  },
+  "layers": [
+    {
+      "name": "Pedestrian_Network",
+      "role": "routing_network",
+      "geometry": "LINESTRING",
+      "baseline_count": 69769,
+      "required_fields": ["fid", "geom", "atlas_id", "fclass", "length_m", "elev_start", "elev_end", "slope_pct", "tunnel", "display_name", "highway_current", "access_current", "foot_current", "indoor_current", "covered_current", "osm_tags_current"],
+      "provenance": "Derived pedestrian network, primarily from OpenStreetMap/Geofabrik with documented manual and analytical corrections",
+      "license_status": "documented_in_project"
+    },
+    {
+      "name": "Buildings",
+      "role": "shadow_obstacles",
+      "geometry": "MULTIPOLYGON",
+      "baseline_count": 105521,
+      "required_fields": ["fid", "geom", "atlas_id", "hoehe_m"],
+      "provenance": "Building footprints and derived/estimated heights from the atlas production workflow",
+      "license_status": "source_metadata_to_be_consolidated"
+    },
+    {
+      "name": "Trees",
+      "role": "shadow_obstacles",
+      "geometry": "POINT",
+      "baseline_count": 23486,
+      "required_fields": ["fid", "geom", "atlas_id", "height_calculated", "crown_radius", "leaf_cycle"],
+      "provenance": "OpenStreetMap tree positions enriched with nDOM1-derived height and crown estimates",
+      "license_status": "source_metadata_to_be_consolidated"
+    },
+    {
+      "name": "Stuttgart_Municipality",
+      "role": "study_area",
+      "geometry": "MULTIPOLYGON",
+      "baseline_count": 1,
+      "required_fields": ["fid", "geom", "atlas_id", "Gemeindeschlüssel_AGS"],
+      "provenance": "Official Stuttgart municipal boundary included in the final atlas package",
+      "license_status": "source_metadata_to_be_consolidated"
+    },
+    {
+      "name": "Surface",
+      "role": "network_theme",
+      "geometry": "LINESTRING",
+      "baseline_count": 69769,
+      "required_fields": ["fid", "geom", "atlas_id", "surface", "surface_class"],
+      "must_match_network_atlas_ids": true,
+      "provenance": "Derived from OpenStreetMap surface attributes",
+      "license_status": "derived"
+    },
+    {
+      "name": "Noise",
+      "role": "network_theme",
+      "geometry": "LINESTRING",
+      "baseline_count": 69769,
+      "required_fields": ["fid", "geom", "atlas_id", "noise_db", "noise_class"],
+      "must_match_network_atlas_ids": true,
+      "provenance": "Derived from Stuttgart INSPIRE road, rail and industrial noise layers",
+      "license_status": "documented_in_project"
+    },
+    {
+      "name": "Shade_Summer",
+      "role": "network_theme",
+      "geometry": "LINESTRING",
+      "baseline_count": 69769,
+      "required_fields": ["fid", "geom", "atlas_id", "shadow_pct", "sun_pct", "shadow_class"],
+      "must_match_network_atlas_ids": true,
+      "provenance": "Derived clear-sky summer shadow model using buildings and trees",
+      "license_status": "derived"
+    },
+    {
+      "name": "Shade_Winter",
+      "role": "network_theme",
+      "geometry": "LINESTRING",
+      "baseline_count": 69769,
+      "required_fields": ["fid", "geom", "atlas_id", "shadow_pct_winter", "sun_pct_winter", "shadow_class_winter"],
+      "must_match_network_atlas_ids": true,
+      "provenance": "Derived clear-sky winter shadow model using buildings",
+      "license_status": "derived"
+    },
+    {
+      "name": "UTCI_Summer",
+      "role": "network_theme",
+      "geometry": "LINESTRING",
+      "baseline_count": 69769,
+      "required_fields": ["fid", "geom", "atlas_id", "utci_avg", "utci_class"],
+      "must_match_network_atlas_ids": true,
+      "provenance": "Derived summer UTCI approximation",
+      "license_status": "derived"
+    },
+    {
+      "name": "UTCI_Winter",
+      "role": "network_theme",
+      "geometry": "LINESTRING",
+      "baseline_count": 69769,
+      "required_fields": ["fid", "geom", "atlas_id", "utci_avg_winter", "utci_class_winter"],
+      "must_match_network_atlas_ids": true,
+      "provenance": "Derived winter UTCI approximation",
+      "license_status": "derived"
+    },
+    {
+      "name": "Wind",
+      "role": "network_theme",
+      "geometry": "LINESTRING",
+      "baseline_count": 69769,
+      "required_fields": ["fid", "geom", "atlas_id", "wind_exposure_index", "wind_exposure_class", "wind_comfort_summer", "wind_comfort_winter"],
+      "must_match_network_atlas_ids": true,
+      "provenance": "Derived relative wind-exposure indicator; not a physical wind-speed product",
+      "license_status": "derived"
+    },
+    {
+      "name": "Signalized_Crossings",
+      "role": "accessibility_poi",
+      "geometry": "POINT",
+      "baseline_count": 4261,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    },
+    {
+      "name": "Elevators",
+      "role": "accessibility_poi",
+      "geometry": "POINT",
+      "baseline_count": 147,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    },
+    {
+      "name": "Escalators",
+      "role": "accessibility_poi",
+      "geometry": "POINT",
+      "baseline_count": 59,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    },
+    {
+      "name": "Ramps",
+      "role": "accessibility_poi",
+      "geometry": "POINT",
+      "baseline_count": 132,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    },
+    {
+      "name": "Stairs",
+      "role": "accessibility_poi",
+      "geometry": "POINT",
+      "baseline_count": 208,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    },
+    {
+      "name": "Barriers_and_Gates",
+      "role": "accessibility_poi",
+      "geometry": "POINT",
+      "baseline_count": 2127,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    },
+    {
+      "name": "Lowered_Curbs",
+      "role": "accessibility_poi",
+      "geometry": "POINT",
+      "baseline_count": 378,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    },
+    {
+      "name": "Raised_Curbs",
+      "role": "accessibility_poi",
+      "geometry": "POINT",
+      "baseline_count": 154,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    },
+    {
+      "name": "Shelters",
+      "role": "comfort_poi",
+      "geometry": "POINT",
+      "baseline_count": 70,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    },
+    {
+      "name": "Benches",
+      "role": "comfort_poi",
+      "geometry": "POINT",
+      "baseline_count": 5643,
+      "required_fields": ["fid", "geom", "atlas_id", "source", "osm_id"]
+    }
+  ]
+}
