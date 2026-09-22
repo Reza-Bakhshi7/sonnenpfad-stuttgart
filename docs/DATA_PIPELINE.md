@@ -39,6 +39,23 @@ python scripts/validate_source.py /path/to/Fussgaengeratlas_Stuttgart.gpkg --str
 
 Use strict validation when reproducing the released pilot. Use contract validation only for an explicitly approved successor dataset.
 
+## One-command rebuild
+
+Create an isolated Python environment and run the complete publication path
+from the repository root:
+
+```bash
+python -m venv .venv-etl
+.venv-etl/bin/pip install -r requirements-etl.txt
+.venv-etl/bin/python scripts/run_etl.py /path/to/Fussgaengeratlas_Stuttgart.gpkg
+```
+
+The command validates the immutable release checksum by default, prepares the
+pilot data in stable `atlas_id` order, generates Terrain-RGB tiles, creates the
+size-bounded browser chunks, and runs the application tests. For an intentionally
+new but contract-compatible source, add `--allow-compatible-source`; this is an
+explicit review decision and is recorded by the validation report.
+
 ## Safety rules
 
 - Open the source with `mode=ro`, `immutable=1` and `query_only=ON`.
