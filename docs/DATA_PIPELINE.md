@@ -56,6 +56,29 @@ size-bounded browser chunks, and runs the application tests. For an intentionall
 new but contract-compatible source, add `--allow-compatible-source`; this is an
 explicit review decision and is recorded by the validation report.
 
+## Complete Stuttgart build
+
+Generate the static Cloudflare-ready dataset for the entire municipality with:
+
+```bash
+.venv-etl/bin/python scripts/run_etl.py /path/to/Fussgaengeratlas_Stuttgart.gpkg --scope city
+```
+
+The city build keeps the GeoPackage read-only and writes:
+
+- compact little-endian routing arrays to `dist/city/network/`;
+- a precomputed 500 m snapping index;
+- 1 km on-demand building and tree tiles under `dist/city/obstacles/`;
+- Terrain-RGB tiles for the municipality under `dist/dem/`.
+
+`dist/city/manifest.json` is the public data contract. Edge records retain the
+curated slope magnitude and add a signed forward slope plus a quality flag.
+Unknown directions are never extrapolated from a zero elevation and are
+penalised conservatively when an accessible slope profile is active.
+
+Trees at least 15 m high carry separate `dh`/`dr` display dimensions at 80%.
+Their original `h`/`r` dimensions remain unchanged for the shadow model.
+
 ## Safety rules
 
 - Open the source with `mode=ro`, `immutable=1` and `query_only=ON`.
@@ -71,4 +94,5 @@ explicit review decision and is recorded by the validation report.
 - UTCI values are model approximations and are not coupled to live weather.
 - Terrain tiles are interpolated from network endpoint elevations and are for visualisation only.
 - Building and tree heights include documented fallback values.
-- The current pilot is spatially limited to Stuttgart-Mitte.
+- The released `v0.7.0` assets remain spatially limited to Stuttgart-Mitte;
+  the city build uses the versioned `dist/city/manifest.json` contract.
