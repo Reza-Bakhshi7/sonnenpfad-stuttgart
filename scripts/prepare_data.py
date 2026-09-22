@@ -10,6 +10,7 @@ import json
 import math
 import pathlib
 import sqlite3
+import statistics
 
 from pyproj import Transformer
 from shapely import wkb
@@ -17,7 +18,27 @@ from shapely import wkb
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ORIGIN = [9.18, 48.777]
-BOUNDS = [9.162, 48.765, 9.198, 48.790]
+PILOT_BOUNDS = [9.162, 48.765, 9.198, 48.790]
+CITY_BOUNDS = [9.038567797048666, 48.69221214216576, 9.316378372618532, 48.86616944479957]
+
+
+def valid_elevation(value) -> bool:
+    """Return whether an atlas elevation can be used as a real Stuttgart height."""
+    try:
+        converted = float(value)
+    except (TypeError, ValueError):
+        return False
+    return math.isfinite(converted) and converted >= 100
+
+
+def signed_slope(magnitude: float, z0: float, z1: float, quality: int) -> float | None:
+    """Attach direction to the curated magnitude without inventing missing height data."""
+    magnitude = abs(magnitude)
+    if magnitude == 0:
+        return 0.0
+    if quality >= 2 or math.isclose(z0, z1, abs_tol=0.01):
+        return None
+    return round(math.copysign(magnitude, z1 - z0), 3)
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -33,6 +54,7 @@ def main() -> int:
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "build_data")
     parser.add_argument("--source-date", required=True, help="ISO date recorded in output metadata")
+    parser.add_argument("--scope", choices=("pilot", "city"), default="pilot")
     args = parser.parse_args()
     source = args.source.resolve()
     if not source.is_file():
@@ -44,6 +66,7 @@ def main() -> int:
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA query_only=ON")
     transform = Transformer.from_crs(25832, 4326, always_xy=True)
+    bounds = CITY_BOUNDS if args.scope == "city" else PILOT_BOUNDS
     sx = 111320 * math.cos(math.radians(ORIGIN[1]))
     sy = 111320
 
@@ -60,8 +83,8 @@ def main() -> int:
 
     def inside(point, pad=0):
         return (
-            (BOUNDS[0] - ORIGIN[0]) * sx - pad <= point[0] <= (BOUNDS[2] - ORIGIN[0]) * sx + pad
-            and (BOUNDS[1] - ORIGIN[1]) * sy - pad <= point[1] <= (BOUNDS[3] - ORIGIN[1]) * sy + pad
+            (bounds[0] - ORIGIN[0]) * sx - pad <= point[0] <= (bounds[2] - ORIGIN[0]) * sx + pad
+            and (bounds[1] - ORIGIN[1]) * sy - pad <= point[1] <= (bounds[3] - ORIGIN[1]) * sy + pad
         )
 
     def number(value, default=0):
@@ -73,6 +96,7 @@ def main() -> int:
 
     nodes, edges = [], []
     node_index = {}
+    node_heights = collections.defaultdict(list)
     rejected = collections.Counter()
 
     def node(point):
@@ -105,25 +129,53 @@ def main() -> int:
         length = sum(math.dist(a, b) for a, b in zip(coords, coords[1:]))
         if length < 0.05:
             continue
-        slope = number(row["slope_pct"])
+        slope = abs(number(row["slope_pct"]))
         z0, z1 = number(row["elev_start"], math.nan), number(row["elev_end"], math.nan)
-        valid0, valid1 = math.isfinite(z0) and z0 >= 100, math.isfinite(z1) and z1 >= 100
-        if not valid0 and valid1:
-            z0 = z1 - slope * length / 100
-        elif valid0 and not valid1:
-            z1 = z0 + slope * length / 100
-        elif not valid0 and not valid1:
-            z0, z1 = 250, 250 + slope * length / 100
+        valid0, valid1 = valid_elevation(z0), valid_elevation(z1)
+        if valid0:
+            node_heights[tuple(coords[0])].append(z0)
+        if valid1:
+            node_heights[tuple(coords[-1])].append(z1)
         direction = str(tags.get("oneway:foot", "no")).lower() if isinstance(tags, dict) else "no"
         edges.append({
             "a": node(coords[0]), "b": node(coords[-1]), "c": coords, "l": round(length, 2),
-            "s": slope, "dz": round(z1 - z0, 2), "z0": round(z0, 2), "z1": round(z1, 2),
+            "s": round(slope, 3), "_z0": z0, "_z1": z1,
+            "_valid0": valid0, "_valid1": valid1,
             "steps": highway == "steps" or row["fclass"] == "steps",
             "covered": str(row["covered_current"] or "").lower() == "yes"
             or str(row["tunnel"] or "").lower() in ("t", "yes", "true", "1"),
             "dir": 1 if direction == "yes" else -1 if direction == "-1" else 0,
             "name": row["display_name"] or row["name"] or "", "id": row["atlas_id"],
         })
+
+    all_source_heights = [height for heights in node_heights.values() for height in heights]
+    elevation_fallback = statistics.median(all_source_heights) if all_source_heights else 300.0
+    elevation_quality = collections.Counter()
+    for edge in edges:
+        z0, z1 = edge.pop("_z0"), edge.pop("_z1")
+        valid0, valid1 = edge.pop("_valid0"), edge.pop("_valid1")
+        inferred = False
+        if not valid0 and node_heights.get(tuple(edge["c"][0])):
+            z0 = statistics.median(node_heights[tuple(edge["c"][0])])
+            valid0, inferred = True, True
+        if not valid1 and node_heights.get(tuple(edge["c"][-1])):
+            z1 = statistics.median(node_heights[tuple(edge["c"][-1])])
+            valid1, inferred = True, True
+        if valid0 and valid1:
+            quality = 1 if inferred else 0
+        else:
+            quality = 2
+            if valid0:
+                z1 = z0
+            elif valid1:
+                z0 = z1
+            else:
+                z0 = z1 = elevation_fallback
+        edge["z0"], edge["z1"] = round(z0, 2), round(z1, 2)
+        edge["dz"] = round(z1 - z0, 2)
+        edge["sf"] = signed_slope(edge["s"], z0, z1, quality)
+        edge["sq"] = quality
+        elevation_quality[("source", "connected", "unknown")[quality]] += 1
 
     buildings, estimated = [], 0
     for row in db.execute("SELECT geom, hoehe_m FROM Buildings ORDER BY atlas_id"):
@@ -194,10 +246,12 @@ def main() -> int:
         component_sizes.append(size)
 
     meta = {
-        "origin": ORIGIN, "scale": [sx, sy], "bounds": BOUNDS, "sourceDate": args.source_date,
+        "origin": ORIGIN, "scale": [sx, sy], "bounds": bounds, "scope": args.scope,
+        "sourceDate": args.source_date,
         "nodes": len(nodes), "edges": len(edges), "buildings": len(buildings), "trees": len(trees),
         "components": sorted(component_sizes, reverse=True), "treeHeightFallbacks": tree_default,
-        "buildingHeightFallbacks": estimated, "excluded": dict(rejected), "sourceSha256": sha256(source),
+        "buildingHeightFallbacks": estimated, "excluded": dict(rejected),
+        "elevationQuality": dict(elevation_quality), "sourceSha256": sha256(source),
     }
     payloads = {
         "network": {"nodes": nodes, "edges": edges},
