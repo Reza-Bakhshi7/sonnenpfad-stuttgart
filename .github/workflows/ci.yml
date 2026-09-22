@@ -18,5 +18,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - run: npm ci
       - run: npm test
+      - name: Validate data contract files
+        run: |
+          python -m json.tool config/data_catalog.json >/dev/null
+          python -m py_compile scripts/validate_source.py
+          python -m unittest discover -s tests -v
