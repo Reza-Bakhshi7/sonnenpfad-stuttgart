@@ -23,13 +23,15 @@ def main() -> int:
     assert (root / manifest["network"]["edges"]).stat().st_size == manifest["network"]["edgeCount"] * 32
     snap = json.loads((root / manifest["network"]["snapIndex"]).read_text(encoding="utf-8"))
     assert snap and all(isinstance(indices, list) and indices for indices in snap.values())
-    buildings = trees = scaled = 0
+    buildings = trees = lines = scaled = 0
     for tile in manifest["obstacles"]["tiles"].values():
         payload = json.loads((root / tile["file"]).read_text(encoding="utf-8"))
         assert len(payload["buildings"]) == tile["buildings"]
         assert len(payload["trees"]) == tile["trees"]
+        assert len(payload["lines"]) == tile["lines"]
         buildings += tile["buildings"]
         trees += tile["trees"]
+        lines += tile["lines"]
         for tree in payload["trees"]:
             if tree["h"] >= 15:
                 scaled += 1
@@ -39,8 +41,9 @@ def main() -> int:
                 assert "dh" not in tree and "dr" not in tree
     assert buildings == manifest["counts"]["buildings"]
     assert trees == manifest["counts"]["trees"]
+    assert lines == manifest["counts"]["lines"]
     assert scaled == manifest["counts"]["largeTreesScaled"]
-    print(json.dumps({"passed": True, "tiles": len(manifest["obstacles"]["tiles"]), "buildings": buildings, "trees": trees, "largeTreesScaled": scaled}))
+    print(json.dumps({"passed": True, "tiles": len(manifest["obstacles"]["tiles"]), "lines": lines, "buildings": buildings, "trees": trees, "largeTreesScaled": scaled}))
     return 0
 
 
