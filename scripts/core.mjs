@@ -68,25 +68,25 @@ function nearestByComponent(network,p,components,avoidSteps){
  const best=new Map();for(let i=0;i<network.edges.length;i++){const e=network.edges[i];if(avoidSteps&&e.steps)continue;const component=components[e.a];if(component<0)continue;const projection=edgeProjection(e,p),old=best.get(component);if(!old||projection.distance<old.distance)best.set(component,{i,component,...projection});}return best;
 }
 export function route(network,adj,shades,start,end,options={}){
- const {preference='balanced',avoidSteps=false,gentle=false}=options,components=options.components||buildComponents(network,avoidSteps),maxSnap=200;
+ const {preference='balanced',avoidSteps=false,gentle=false}=options,slopeMode=options.slopeMode||(gentle?'both':'none'),components=options.components||buildComponents(network,avoidSteps),maxSnap=200;
  const starts=nearestByComponent(network,start,components,avoidSteps),ends=nearestByComponent(network,end,components,avoidSteps);let a=null,b=null,bestSnap=Infinity;
  for(const [component,sa] of starts){const sb=ends.get(component);if(!sb||sa.distance>maxSnap||sb.distance>maxSnap)continue;const score=sa.distance+sb.distance;if(score<bestSnap){bestSnap=score;a=sa;b=sb;}}
  if(!a||!b)return {error:'outside'};
- const penalty=i=>{const e=network.edges[i],exposure=preference==='shade'?1-shades[i]:preference==='sun'?shades[i]:0;return 1+exposure*1.6+(gentle?Math.min(4,Math.abs(e.s)/6):0);};
+ const penalty=(i,forward=true)=>{const e=network.edges[i],exposure=preference==='shade'?1-shades[i]:preference==='sun'?shades[i]:0;if(slopeMode==='none')return 1+exposure*1.6;const raw=Number.isFinite(e.sf)?e.sf:(Number.isFinite(e.dz)&&Math.abs(e.dz)>.01?Math.sign(e.dz)*Math.abs(e.s):null),directed=raw===null?null:(forward?raw:-raw);let slope=0;if(directed===null)slope=24;else if(slopeMode==='uphill')slope=Math.max(0,directed);else if(slopeMode==='downhill')slope=Math.max(0,-directed);else slope=Math.abs(directed);return 1+exposure*1.6+Math.min(4,slope/6);};
  const ae=network.edges[a.i],be=network.edges[b.i];
  if(a.i===b.i){
   const forward=b.t>=a.t,allowed=forward?ae.dir!==-1:ae.dir!==1,frac=Math.abs(b.t-a.t);
   if(allowed){if(frac*ae.l<.01)return {error:'same'};return finish([{i:a.i,forward,frac,t0:a.t,t1:b.t,coords:[a.p,b.p]}],a,b);}
  }
  const d=new Float64Array(network.nodes.length).fill(Infinity),prev=new Int32Array(d.length).fill(-1),pe=new Int32Array(d.length).fill(-1),heap=new Heap(),seedPart=new Map(),finalPart=new Map();
- const seed=(node,part)=>{const cost=network.edges[part.i].l*part.frac*penalty(part.i);if(cost<d[node]){d[node]=cost;seedPart.set(node,part);heap.push([cost,node]);}};
+ const seed=(node,part)=>{const cost=network.edges[part.i].l*part.frac*penalty(part.i,part.forward);if(cost<d[node]){d[node]=cost;seedPart.set(node,part);heap.push([cost,node]);}};
  if(ae.dir!==1)seed(ae.a,{i:a.i,forward:false,frac:a.t,t0:a.t,t1:0,coords:[a.p,network.nodes[ae.a]]});
  if(ae.dir!==-1)seed(ae.b,{i:a.i,forward:true,frac:1-a.t,t0:a.t,t1:1,coords:[a.p,network.nodes[ae.b]]});
- const addFinal=(node,part)=>{const cost=network.edges[part.i].l*part.frac*penalty(part.i),old=finalPart.get(node);if(!old||cost<old.cost)finalPart.set(node,{cost,part});};
+ const addFinal=(node,part)=>{const cost=network.edges[part.i].l*part.frac*penalty(part.i,part.forward),old=finalPart.get(node);if(!old||cost<old.cost)finalPart.set(node,{cost,part});};
  if(be.dir!==-1)addFinal(be.a,{i:b.i,forward:true,frac:b.t,t0:0,t1:b.t,coords:[network.nodes[be.a],b.p]});
  if(be.dir!==1)addFinal(be.b,{i:b.i,forward:false,frac:1-b.t,t0:1,t1:b.t,coords:[network.nodes[be.b],b.p]});
  let best=Infinity,target=-1,targetPart=null;
- while(heap.length){const [cost,u]=heap.pop();if(cost!==d[u])continue;if(cost>=best)break;const fin=finalPart.get(u);if(fin&&cost+fin.cost<best){best=cost+fin.cost;target=u;targetPart=fin.part;}for(const [v,i] of adj[u]){const e=network.edges[i];if(avoidSteps&&e.steps)continue;const nd=cost+e.l*penalty(i);if(nd<d[v]){d[v]=nd;prev[v]=u;pe[v]=i;heap.push([nd,v]);}}}
+ while(heap.length){const [cost,u]=heap.pop();if(cost!==d[u])continue;if(cost>=best)break;const fin=finalPart.get(u);if(fin&&cost+fin.cost<best){best=cost+fin.cost;target=u;targetPart=fin.part;}for(const [v,i,direction] of adj[u]){const e=network.edges[i];if(avoidSteps&&e.steps)continue;const nd=cost+e.l*penalty(i,direction===1);if(nd<d[v]){d[v]=nd;prev[v]=u;pe[v]=i;heap.push([nd,v]);}}}
  if(target<0)return {error:'outside'};
  const full=[];let u=target;while(prev[u]>=0){const i=pe[u],forward=network.edges[i].b===u;full.push({i,forward,frac:1,t0:forward?0:1,t1:forward?1:0,coords:null});u=prev[u];}full.reverse();
  const parts=[seedPart.get(u),...full,targetPart].filter(Boolean);
