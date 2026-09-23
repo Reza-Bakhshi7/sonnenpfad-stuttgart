@@ -19,6 +19,8 @@ const valid = {
 };
 
 assert.deepEqual(parseCityManifest(JSON.stringify(valid)), valid);
+const chunked = { ...valid, network: { ...valid.network, nodes: ['network/nodes-000.bin', 'network/nodes-001.bin'], edges: ['network/edges-000.bin'], snapIndex: ['network/snap-index-000.json'] } };
+assert.deepEqual(parseCityManifest(JSON.stringify(chunked)), chunked);
 assert.equal(parseCityManifest('<!doctype html><title>Sonnenpfad</title>'), null);
 assert.equal(parseCityManifest('{"scope":"city"'), null);
 assert.equal(parseCityManifest(JSON.stringify({ ...valid, network: { edgeCount: 1 } })), null);

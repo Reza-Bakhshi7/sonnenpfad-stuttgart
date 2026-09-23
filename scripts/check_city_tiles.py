@@ -9,6 +9,12 @@ import math
 import pathlib
 
 
+def asset_size(root: pathlib.Path, value: str | list[str]) -> int:
+    files = value if isinstance(value, list) else [value]
+    assert files and all(isinstance(item, str) for item in files)
+    return sum((root / item).stat().st_size for item in files)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=pathlib.Path)
@@ -19,10 +25,13 @@ def main() -> int:
     assert manifest["scope"] == "city"
     assert manifest["network"]["nodeStride"] == 8
     assert manifest["network"]["edgeStride"] == 48
-    assert (root / manifest["network"]["nodes"]).stat().st_size == manifest["network"]["nodeCount"] * 8
-    assert (root / manifest["network"]["edges"]).stat().st_size == manifest["network"]["edgeCount"] * 48
+    assert asset_size(root, manifest["network"]["nodes"]) == manifest["network"]["nodeCount"] * 8
+    assert asset_size(root, manifest["network"]["edges"]) == manifest["network"]["edgeCount"] * 48
     assert "crossingSupport" in manifest["profileFeatures"]
-    snap = json.loads((root / manifest["network"]["snapIndex"]).read_text(encoding="utf-8"))
+    snap_files = manifest["network"]["snapIndex"] if isinstance(manifest["network"]["snapIndex"], list) else [manifest["network"]["snapIndex"]]
+    snap = {}
+    for file in snap_files:
+        snap.update(json.loads((root / file).read_text(encoding="utf-8")))
     assert snap and all(isinstance(indices, list) and indices for indices in snap.values())
     buildings = trees = lines = scaled = 0
     for tile in manifest["obstacles"]["tiles"].values():
