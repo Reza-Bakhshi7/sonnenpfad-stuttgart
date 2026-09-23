@@ -22,6 +22,28 @@ def dump_json(path: pathlib.Path, value) -> None:
     path.write_text(json.dumps(value, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
 
 
+def split_binary(path: pathlib.Path, chunk_bytes: int) -> list[str]:
+    """Split a binary asset into Git/Workers-friendly immutable parts."""
+    data = path.read_bytes()
+    parts = []
+    for index, offset in enumerate(range(0, len(data), chunk_bytes)):
+        part = path.with_name(f"{path.stem}-{index:03d}{path.suffix}")
+        part.write_bytes(data[offset:offset + chunk_bytes])
+        parts.append(f"network/{part.name}")
+    path.unlink()
+    return parts
+
+
+def dump_mapping_chunks(directory: pathlib.Path, stem: str, value: dict, keys_per_chunk: int) -> list[str]:
+    items = sorted(value.items())
+    files = []
+    for index, offset in enumerate(range(0, len(items), keys_per_chunk)):
+        name = f"{stem}-{index:03d}.json"
+        dump_json(directory / name, dict(items[offset:offset + keys_per_chunk]))
+        files.append(f"network/{name}")
+    return files
+
+
 def tile_key(point, size: int) -> str:
     return f"{math.floor(point[0] / size)}_{math.floor(point[1] / size)}"
 
@@ -32,6 +54,8 @@ def main() -> int:
     parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "dist" / "city")
     parser.add_argument("--obstacle-grid", type=int, default=1000)
     parser.add_argument("--snap-grid", type=int, default=500)
+    parser.add_argument("--binary-chunk-bytes", type=int, default=524288)
+    parser.add_argument("--snap-index-keys", type=int, default=200)
     args = parser.parse_args()
 
     source = args.input_dir.resolve()
@@ -74,7 +98,9 @@ def main() -> int:
             for x in range(x0, x1 + 1):
                 for y in range(y0, y1 + 1):
                     snap_index[f"{x}_{y}"].append(index)
-    dump_json(network_dir / "snap-index.json", snap_index)
+    snap_files = dump_mapping_chunks(network_dir, "snap-index", snap_index, args.snap_index_keys)
+    node_files = split_binary(network_dir / "nodes.bin", args.binary_chunk_bytes)
+    edge_files = split_binary(network_dir / "edges.bin", args.binary_chunk_bytes)
 
     tiles: dict[str, dict[str, list]] = collections.defaultdict(lambda: {"buildings": [], "trees": [], "lines": [], "edgeIds": []})
     for edge_id, edge in enumerate(network["edges"]):
@@ -117,9 +143,9 @@ def main() -> int:
         "sourceDate": meta["sourceDate"],
         "sourceSha256": meta["sourceSha256"],
         "network": {
-            "nodes": "network/nodes.bin", "nodeCount": len(network["nodes"]), "nodeStride": NODE_STRUCT.size,
-            "edges": "network/edges.bin", "edgeCount": len(network["edges"]), "edgeStride": EDGE_STRUCT.size,
-            "snapIndex": "network/snap-index.json", "snapGrid": args.snap_grid,
+            "nodes": node_files, "nodeCount": len(network["nodes"]), "nodeStride": NODE_STRUCT.size,
+            "edges": edge_files, "edgeCount": len(network["edges"]), "edgeStride": EDGE_STRUCT.size,
+            "snapIndex": snap_files, "snapGrid": args.snap_grid,
         },
         "obstacles": {"grid": args.obstacle_grid, "paddingTiles": 1, "tiles": tile_manifest},
         "counts": {"buildings": len(obstacles["buildings"]), "trees": len(obstacles["trees"]), "lines": len(network["edges"]), "largeTreesScaled": large_trees},

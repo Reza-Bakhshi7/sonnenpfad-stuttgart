@@ -3,12 +3,24 @@ let network,obstacles={buildings:[],trees:[]},activeEdgeIds=null,meta,adj,compon
 
 function finishNetwork(){adj=buildAdj(network);componentCache=new Map();shades=new Float32Array(network.edges.length);self.postMessage({type:'ready'});}
 
+async function fetchBinary(files,base,label){
+ const names=Array.isArray(files)?files:[files],buffers=await Promise.all(names.map(name=>fetch(new URL(name,base)).then(r=>{if(!r.ok)throw Error(label);return r.arrayBuffer();})));
+ const length=buffers.reduce((sum,buffer)=>sum+buffer.byteLength,0),combined=new Uint8Array(length);let offset=0;
+ for(const buffer of buffers){combined.set(new Uint8Array(buffer),offset);offset+=buffer.byteLength;}
+ return combined.buffer;
+}
+
+async function fetchMapping(files,base,label){
+ const names=Array.isArray(files)?files:[files],parts=await Promise.all(names.map(name=>fetch(new URL(name,base)).then(r=>{if(!r.ok)throw Error(label);return r.json();})));
+ return Object.assign({},...parts);
+}
+
 async function loadCity(manifest,base){
  meta=manifest;
  const [nodeBuffer,edgeBuffer,snapIndex]=await Promise.all([
-  fetch(new URL(manifest.network.nodes,base)).then(r=>{if(!r.ok)throw Error('nodes');return r.arrayBuffer();}),
-  fetch(new URL(manifest.network.edges,base)).then(r=>{if(!r.ok)throw Error('edges');return r.arrayBuffer();}),
-  fetch(new URL(manifest.network.snapIndex,base)).then(r=>{if(!r.ok)throw Error('snap index');return r.json();}),
+  fetchBinary(manifest.network.nodes,base,'nodes'),
+  fetchBinary(manifest.network.edges,base,'edges'),
+  fetchMapping(manifest.network.snapIndex,base,'snap index'),
  ]);
  const nodeView=new DataView(nodeBuffer),edgeView=new DataView(edgeBuffer),nodes=new Array(manifest.network.nodeCount),edges=new Array(manifest.network.edgeCount);
  for(let i=0;i<nodes.length;i++){const o=i*8;nodes[i]=[nodeView.getFloat32(o,true),nodeView.getFloat32(o+4,true)];}
