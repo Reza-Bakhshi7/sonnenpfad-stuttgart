@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { parseCityManifest } from './app-data.mjs';
 
 const valid = {
-  version: 2,
+  version: 3,
   scope: 'city',
   origin: [9.03, 48.69],
   scale: [73000, 111000],
@@ -12,6 +12,7 @@ const valid = {
     nodeCount: 224121,
     edges: 'network/edges.bin',
     edgeCount: 248725,
+    edgeStride: 48,
     snapIndex: 'network/snap-index.json',
   },
   obstacles: { grid: 1000, tiles: {} },

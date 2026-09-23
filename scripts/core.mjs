@@ -45,8 +45,25 @@ export function edgeShades(edges,polys,night=false){
 }
 class Heap{constructor(){this.a=[];}push(v){const a=this.a;let i=a.length;a.push(v);while(i){const p=(i-1)>>1;if(a[p][0]<=v[0])break;a[i]=a[p];i=p;}a[i]=v;}pop(){const a=this.a,v=a[0],last=a.pop();if(a.length){let i=0;while(i*2+1<a.length){let c=i*2+1;if(c+1<a.length&&a[c+1][0]<a[c][0])c++;if(a[c][0]>=last[0])break;a[i]=a[c];i=c;}a[i]=last;}return v;}get length(){return this.a.length;}}
 export function buildAdj(network){const adj=network.nodes.map(()=>[]);network.edges.forEach((e,i)=>{if(e.dir!==-1)adj[e.a].push([e.b,i,1]);if(e.dir!==1)adj[e.b].push([e.a,i,-1]);});return adj;}
-export function buildComponents(network,avoidSteps=false){
- const links=network.nodes.map(()=>[]);network.edges.forEach(e=>{if(avoidSteps&&e.steps)return;links[e.a].push(e.b);links[e.b].push(e.a);});
+export const MOBILITY_PROFILES={
+ standard:{slopeMode:'none'},
+ wheelchair:{avoidSteps:true,avoidEscalators:true,slopeMode:'both',slopeFactor:.85,surfaceFactor:1.3,wayFactor:1.1,widthMin:1.2,wheelchairFactor:1.4},
+ powerWheelchair:{avoidSteps:true,avoidEscalators:true,slopeMode:'both',slopeFactor:.5,surfaceFactor:1,wayFactor:1,widthMin:1.1,wheelchairFactor:1.1},
+ walkingAid:{avoidSteps:true,avoidEscalators:true,slopeMode:'both',slopeFactor:.6,surfaceFactor:.8,wayFactor:.7,benchFactor:1.2,shelterFactor:.35},
+ vision:{avoidEscalators:true,slopeMode:'none',wayFactor:.9,crossingFactor:1.5,stairGuidanceFactor:1.2},
+ stroller:{avoidSteps:true,avoidEscalators:true,slopeMode:'uphill',slopeFactor:.65,downhillFactor:.25,surfaceFactor:1,wayFactor:1.2,widthMin:1.1,benchFactor:.35},
+};
+export function resolvedOptions(options={}){
+ const profile=options.mobilityProfile||'standard';
+ return profile==='custom'?{...options}:{...MOBILITY_PROFILES[profile]||MOBILITY_PROFILES.standard,...options};
+}
+export function edgeAllowed(e,options={}){
+ return !(options.avoidSteps&&e.steps)&&!(options.avoidEscalators&&e.escalator);
+}
+export function buildComponents(network,options={}){
+ if(typeof options==='boolean')options={avoidSteps:options};
+ options=resolvedOptions(options);
+ const links=network.nodes.map(()=>[]);network.edges.forEach(e=>{if(!edgeAllowed(e,options))return;links[e.a].push(e.b);links[e.b].push(e.a);});
  const ids=new Int32Array(network.nodes.length).fill(-1);let id=0;
  for(let start=0;start<links.length;start++){if(ids[start]>=0||!links[start].length)continue;ids[start]=id;const q=[start];while(q.length){const u=q.pop();for(const v of links[u])if(ids[v]<0){ids[v]=id;q.push(v);}}id++;}
  return ids;
@@ -64,15 +81,21 @@ export function nearestEdge(network,p,avoidSteps=false){
  }
  return best;
 }
-function nearestByComponent(network,p,components,avoidSteps){
- const best=new Map();for(let i=0;i<network.edges.length;i++){const e=network.edges[i];if(avoidSteps&&e.steps)continue;const component=components[e.a];if(component<0)continue;const projection=edgeProjection(e,p),old=best.get(component);if(!old||projection.distance<old.distance)best.set(component,{i,component,...projection});}return best;
+function snapCandidates(network,p,maxSnap){
+ if(!network.snapIndex||!network.snapGrid)return null;
+ const cell=network.snapGrid,reach=Math.max(1,Math.ceil(maxSnap/cell)+1),cx=Math.floor(p[0]/cell),cy=Math.floor(p[1]/cell),indices=new Set();
+ for(let x=cx-reach;x<=cx+reach;x++)for(let y=cy-reach;y<=cy+reach;y++)for(const i of network.snapIndex[`${x}_${y}`]||[])indices.add(i);
+ return indices.size?[...indices]:null;
+}
+function nearestByComponent(network,p,components,options,maxSnap){
+ const candidates=snapCandidates(network,p,maxSnap)||network.edges.keys(),best=new Map();for(const i of candidates){const e=network.edges[i];if(!edgeAllowed(e,options))continue;const component=components[e.a];if(component<0)continue;const projection=edgeProjection(e,p),old=best.get(component);if(!old||projection.distance<old.distance)best.set(component,{i,component,...projection});}return best;
 }
 export function route(network,adj,shades,start,end,options={}){
- const {preference='balanced',avoidSteps=false,gentle=false}=options,slopeMode=options.slopeMode||(gentle?'both':'none'),components=options.components||buildComponents(network,avoidSteps),maxSnap=200;
- const starts=nearestByComponent(network,start,components,avoidSteps),ends=nearestByComponent(network,end,components,avoidSteps);let a=null,b=null,bestSnap=Infinity;
+ options=resolvedOptions(options);const {preference='balanced',gentle=false}=options,slopeMode=options.slopeMode||(gentle?'both':'none'),components=options.components||buildComponents(network,options),maxSnap=options.maxSnap||200;
+ const starts=nearestByComponent(network,start,components,options,maxSnap),ends=nearestByComponent(network,end,components,options,maxSnap);let a=null,b=null,bestSnap=Infinity;
  for(const [component,sa] of starts){const sb=ends.get(component);if(!sb||sa.distance>maxSnap||sb.distance>maxSnap)continue;const score=sa.distance+sb.distance;if(score<bestSnap){bestSnap=score;a=sa;b=sb;}}
  if(!a||!b)return {error:'outside'};
- const penalty=(i,forward=true)=>{const e=network.edges[i],exposure=preference==='shade'?1-shades[i]:preference==='sun'?shades[i]:0;if(slopeMode==='none')return 1+exposure*1.6;const raw=Number.isFinite(e.sf)?e.sf:(Number.isFinite(e.dz)&&Math.abs(e.dz)>.01?Math.sign(e.dz)*Math.abs(e.s):null),directed=raw===null?null:(forward?raw:-raw);let slope=0;if(directed===null)slope=24;else if(slopeMode==='uphill')slope=Math.max(0,directed);else if(slopeMode==='downhill')slope=Math.max(0,-directed);else slope=Math.abs(directed);return 1+exposure*1.6+Math.min(4,slope/6);};
+ const penalty=(i,forward=true)=>{const e=network.edges[i],shade=Number.isFinite(shades[i])?shades[i]:0,exposure=preference==='shade'?1-shade:preference==='sun'?shade:0,raw=Number.isFinite(e.sf)?e.sf:(Number.isFinite(e.dz)&&Math.abs(e.dz)>.01?Math.sign(e.dz)*Math.abs(e.s):null),directed=raw===null?null:(forward?raw:-raw);let cost=1+exposure*1.6,slope=0;if(slopeMode!=='none'){if(directed===null)slope=24;else if(slopeMode==='uphill')slope=Math.max(0,directed);else if(slopeMode==='downhill')slope=Math.max(0,-directed);else slope=Math.abs(directed);cost+=Math.min(5,slope/6)*(options.slopeFactor||1);}if(options.downhillFactor&&directed!==null)cost+=Math.min(3,Math.max(0,-directed)/8)*options.downhillFactor;if(options.surfaceFactor)cost+=(e.surface===3?2.5:e.surface===2?.7:0)*options.surfaceFactor;if(options.wayFactor)cost+=(e.way===3?1.7:e.way===2?.35:0)*options.wayFactor;if(options.widthMin&&e.width>0&&e.width<options.widthMin)cost+=2.2;if(options.wheelchairFactor)cost+=(e.wheelchair===3?4:e.wheelchair===2?1.3:0)*options.wheelchairFactor;if(options.crossingFactor&&e.crossing)cost+=(e.crossing===1?2.4:e.crossing===2?.55:0)*options.crossingFactor;if(options.stairGuidanceFactor&&e.steps)cost+=(!e.handrail?1.2:0)+(!e.tactile?1.2:0);if(options.benchFactor)cost+=Math.min(2,Math.max(0,(Math.min(e.bench||1000,1000)-100)/450))*options.benchFactor;if(options.shelterFactor)cost+=Math.min(1.2,Math.max(0,(Math.min(e.shelter||1000,1000)-200)/650))*options.shelterFactor;return cost;};
  const ae=network.edges[a.i],be=network.edges[b.i];
  if(a.i===b.i){
   const forward=b.t>=a.t,allowed=forward?ae.dir!==-1:ae.dir!==1,frac=Math.abs(b.t-a.t);
@@ -86,7 +109,7 @@ export function route(network,adj,shades,start,end,options={}){
  if(be.dir!==-1)addFinal(be.a,{i:b.i,forward:true,frac:b.t,t0:0,t1:b.t,coords:[network.nodes[be.a],b.p]});
  if(be.dir!==1)addFinal(be.b,{i:b.i,forward:false,frac:1-b.t,t0:1,t1:b.t,coords:[network.nodes[be.b],b.p]});
  let best=Infinity,target=-1,targetPart=null;
- while(heap.length){const [cost,u]=heap.pop();if(cost!==d[u])continue;if(cost>=best)break;const fin=finalPart.get(u);if(fin&&cost+fin.cost<best){best=cost+fin.cost;target=u;targetPart=fin.part;}for(const [v,i,direction] of adj[u]){const e=network.edges[i];if(avoidSteps&&e.steps)continue;const nd=cost+e.l*penalty(i,direction===1);if(nd<d[v]){d[v]=nd;prev[v]=u;pe[v]=i;heap.push([nd,v]);}}}
+ while(heap.length){const [cost,u]=heap.pop();if(cost!==d[u])continue;if(cost>=best)break;const fin=finalPart.get(u);if(fin&&cost+fin.cost<best){best=cost+fin.cost;target=u;targetPart=fin.part;}for(const [v,i,direction] of adj[u]){const e=network.edges[i];if(!edgeAllowed(e,options))continue;const nd=cost+e.l*penalty(i,direction===1);if(nd<d[v]){d[v]=nd;prev[v]=u;pe[v]=i;heap.push([nd,v]);}}}
  if(target<0)return {error:'outside'};
  const full=[];let u=target;while(prev[u]>=0){const i=pe[u],forward=network.edges[i].b===u;full.push({i,forward,frac:1,t0:forward?0:1,t1:forward?1:0,coords:null});u=prev[u];}full.reverse();
  const parts=[seedPart.get(u),...full,targetPart].filter(Boolean);

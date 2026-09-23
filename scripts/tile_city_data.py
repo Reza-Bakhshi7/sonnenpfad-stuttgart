@@ -14,7 +14,7 @@ import struct
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 NODE_STRUCT = struct.Struct("<ff")
-EDGE_STRUCT = struct.Struct("<IIfffffbbbb")
+EDGE_STRUCT = struct.Struct("<IIfffffbbbbHBBHHHBBxxxx")
 
 
 def dump_json(path: pathlib.Path, value) -> None:
@@ -54,10 +54,19 @@ def main() -> int:
     with (network_dir / "edges.bin").open("wb") as stream:
         for index, edge in enumerate(network["edges"]):
             flags = (1 if edge["steps"] else 0) | (2 if edge["covered"] else 0)
+            mobility = (
+                (1 if edge["tactile"] else 0)
+                | (2 if edge["handrail"] else 0)
+                | (4 if edge["ramp"] else 0)
+                | (8 if edge["escalator"] else 0)
+            )
             signed = edge["sf"] if edge["sf"] is not None else math.nan
             stream.write(EDGE_STRUCT.pack(
                 edge["a"], edge["b"], edge["l"], edge["s"], signed,
                 edge["z0"], edge["z1"], edge["dir"], flags, edge["sq"], 0,
+                mobility, edge["surface"], edge["way"],
+                min(65535, round(edge["width"] * 10)), edge["bench"], edge["shelter"],
+                edge["crossing"], edge["wheelchair"],
             ))
             a, b = edge["c"]
             x0, x1 = sorted((math.floor(a[0] / args.snap_grid), math.floor(b[0] / args.snap_grid)))
@@ -67,10 +76,12 @@ def main() -> int:
                     snap_index[f"{x}_{y}"].append(index)
     dump_json(network_dir / "snap-index.json", snap_index)
 
-    tiles: dict[str, dict[str, list]] = collections.defaultdict(lambda: {"buildings": [], "trees": [], "lines": []})
-    for edge in network["edges"]:
+    tiles: dict[str, dict[str, list]] = collections.defaultdict(lambda: {"buildings": [], "trees": [], "lines": [], "edgeIds": []})
+    for edge_id, edge in enumerate(network["edges"]):
         a, b = edge["c"]
-        tiles[tile_key([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], args.obstacle_grid)]["lines"].append(edge["c"])
+        tile = tiles[tile_key([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], args.obstacle_grid)]
+        tile["lines"].append(edge["c"])
+        tile["edgeIds"].append(edge_id)
     for building in obstacles["buildings"]:
         exterior = building["r"][0]
         center = [sum(p[0] for p in exterior) / len(exterior), sum(p[1] for p in exterior) / len(exterior)]
@@ -94,10 +105,11 @@ def main() -> int:
             "buildings": len(payload["buildings"]),
             "trees": len(payload["trees"]),
             "lines": len(payload["lines"]),
+            "edgeIds": len(payload["edgeIds"]),
         }
 
     manifest = {
-        "version": 2,
+        "version": 3,
         "scope": "city",
         "origin": meta["origin"],
         "scale": meta["scale"],
@@ -112,6 +124,12 @@ def main() -> int:
         "obstacles": {"grid": args.obstacle_grid, "paddingTiles": 1, "tiles": tile_manifest},
         "counts": {"buildings": len(obstacles["buildings"]), "trees": len(obstacles["trees"]), "lines": len(network["edges"]), "largeTreesScaled": large_trees},
         "elevationQuality": meta["elevationQuality"],
+        "profileFeatures": [
+            "steps", "escalator", "signedSlope", "surface", "wayClass", "width",
+            "wheelchair", "tactile", "handrail", "ramp", "benchDistance",
+            "shelterDistance", "crossingSupport",
+        ],
+        "sourceLayers": meta.get("sourceLayers", {}),
     }
     dump_json(output / "manifest.json", manifest)
     total_bytes = sum(path.stat().st_size for path in output.rglob("*") if path.is_file())

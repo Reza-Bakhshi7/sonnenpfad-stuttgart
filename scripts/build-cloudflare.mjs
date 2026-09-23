@@ -31,6 +31,7 @@ fs.writeFileSync(
 for (const required of [
   'dist/index.html',
   'dist/style.css',
+  'dist/city-config.json',
   'dist/data/manifest.json',
   'dist/dem/metadata.json',
   'dist/vendor/maplibre-v3.css',
