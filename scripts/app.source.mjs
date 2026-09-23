@@ -15,7 +15,9 @@ const feature=(type,coordinates,properties={})=>({type:'Feature',geometry:{type,
 let statusKey='loading';
 function status(k){statusKey=k;$('status').textContent=t(k);}
 async function loadChunkedData(){
- const cityResponse=await fetch('./city/manifest.json').catch(()=>null);if(cityResponse?.ok){cityManifest=await cityResponse.json();cityManifest.edges=cityManifest.network.edgeCount;return [cityManifest,{nodes:[],edges:[]},{buildings:[],trees:[]}];}
+ const cityResponse=await fetch('./city/manifest.json').catch(()=>null);
+ const cityCandidate=cityResponse?.ok?parseCityManifest(await cityResponse.text().catch(()=>'')):null;
+ if(cityCandidate){cityManifest=cityCandidate;cityManifest.edges=cityManifest.network.edgeCount;return [cityManifest,{nodes:[],edges:[]},{buildings:[],trees:[]}];}
  const response=await fetch('./data/manifest.json');if(!response.ok)throw Error('manifest');const manifest=await response.json();
  const load=async files=>(await Promise.all(files.map(async file=>{const r=await fetch('./data/'+file);if(!r.ok)throw Error(file);return r.json();}))).flat();
  const [metaResponse,nodes,edges,buildings,trees]=await Promise.all([fetch('./data/'+manifest.meta),load(manifest.nodes),load(manifest.edges),load(manifest.buildings),load(manifest.trees)]);
