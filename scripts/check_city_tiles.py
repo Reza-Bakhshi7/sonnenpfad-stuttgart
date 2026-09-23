@@ -15,12 +15,13 @@ def main() -> int:
     args = parser.parse_args()
     root = args.directory.resolve()
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == 2
+    assert manifest["version"] == 3
     assert manifest["scope"] == "city"
     assert manifest["network"]["nodeStride"] == 8
-    assert manifest["network"]["edgeStride"] == 32
+    assert manifest["network"]["edgeStride"] == 48
     assert (root / manifest["network"]["nodes"]).stat().st_size == manifest["network"]["nodeCount"] * 8
-    assert (root / manifest["network"]["edges"]).stat().st_size == manifest["network"]["edgeCount"] * 32
+    assert (root / manifest["network"]["edges"]).stat().st_size == manifest["network"]["edgeCount"] * 48
+    assert "crossingSupport" in manifest["profileFeatures"]
     snap = json.loads((root / manifest["network"]["snapIndex"]).read_text(encoding="utf-8"))
     assert snap and all(isinstance(indices, list) and indices for indices in snap.values())
     buildings = trees = lines = scaled = 0
@@ -29,6 +30,8 @@ def main() -> int:
         assert len(payload["buildings"]) == tile["buildings"]
         assert len(payload["trees"]) == tile["trees"]
         assert len(payload["lines"]) == tile["lines"]
+        assert len(payload["edgeIds"]) == tile["edgeIds"] == tile["lines"]
+        assert all(isinstance(edge_id, int) for edge_id in payload["edgeIds"])
         buildings += tile["buildings"]
         trees += tile["trees"]
         lines += tile["lines"]

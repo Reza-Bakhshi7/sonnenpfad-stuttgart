@@ -12,6 +12,31 @@ from pathlib import Path
 from typing import Any
 
 
+LAYER_ALIASES = {
+    "Pedestrian_Network": ("Pedestrian_Network", "Strassen"),
+    "Buildings": ("Buildings", "Gebaeude"),
+    "Trees": ("Trees", "Baeume"),
+    "Stuttgart_Municipality": ("Stuttgart_Municipality", "Gemeinde_Stuttgart"),
+    "Surface": ("Surface", "Strassen_Bodenbelag"),
+    "Noise": ("Noise", "Strassen_Laerm"),
+    "Shade_Summer": ("Shade_Summer", "Strassen_Schatten"),
+    "Shade_Winter": ("Shade_Winter", "Strassen_Schatten_Winter"),
+    "UTCI_Summer": ("UTCI_Summer", "Strassen_UTCI"),
+    "UTCI_Winter": ("UTCI_Winter", "Strassen_UTCI_Winter"),
+    "Wind": ("Wind", "Strassen_Wind"),
+    "Signalized_Crossings": ("Signalized_Crossings", "Ampeluebergaenge"),
+    "Elevators": ("Elevators", "Aufzuege"),
+    "Escalators": ("Escalators", "Rolltreppen"),
+    "Ramps": ("Ramps", "Rampen"),
+    "Stairs": ("Stairs", "Treppen"),
+    "Barriers_and_Gates": ("Barriers_and_Gates", "Barrieren_Tore"),
+    "Lowered_Curbs": ("Lowered_Curbs", "Bordstein_abgesenkt"),
+    "Raised_Curbs": ("Raised_Curbs", "Bordstein_erhoeht"),
+    "Shelters": ("Shelters", "Unterstande"),
+    "Benches": ("Benches", "Sitzbaenke"),
+}
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -84,22 +109,26 @@ def validate(source: Path, catalog_path: Path, strict_baseline: bool) -> dict[st
         layer_reports: list[dict[str, Any]] = []
         for layer in catalog["layers"]:
             name = layer["name"]
-            exists = name in geometry_rows
-            layer_report: dict[str, Any] = {"name": name, "exists": exists}
+            candidates = (name,) if strict_baseline else LAYER_ALIASES.get(name, (name,))
+            physical_name = next((candidate for candidate in candidates if candidate in geometry_rows), None)
+            exists = physical_name is not None
+            layer_report: dict[str, Any] = {
+                "name": name, "physical_name": physical_name, "exists": exists
+            }
             layer_reports.append(layer_report)
             if not exists:
                 add_check(report, f"layer:{name}", False, "missing")
                 continue
 
-            geometry = geometry_rows[name]
-            columns = table_columns(connection, name)
+            geometry = geometry_rows[physical_name]
+            columns = table_columns(connection, physical_name)
             missing_fields = sorted(set(layer["required_fields"]) - columns)
-            count = connection.execute(f"SELECT COUNT(*) FROM {quoted(name)}").fetchone()[0]
+            count = connection.execute(f"SELECT COUNT(*) FROM {quoted(physical_name)}").fetchone()[0]
             null_ids = connection.execute(
-                f"SELECT COUNT(*) FROM {quoted(name)} WHERE atlas_id IS NULL OR TRIM(atlas_id) = ''"
+                f"SELECT COUNT(*) FROM {quoted(physical_name)} WHERE atlas_id IS NULL OR TRIM(atlas_id) = ''"
             ).fetchone()[0]
             duplicate_ids = connection.execute(
-                f"SELECT COUNT(*) FROM (SELECT atlas_id FROM {quoted(name)} "
+                f"SELECT COUNT(*) FROM (SELECT atlas_id FROM {quoted(physical_name)} "
                 "WHERE atlas_id IS NOT NULL AND TRIM(atlas_id) <> '' "
                 "GROUP BY atlas_id HAVING COUNT(*) > 1)"
             ).fetchone()[0]
@@ -131,7 +160,7 @@ def validate(source: Path, catalog_path: Path, strict_baseline: bool) -> dict[st
                 network_ids = {
                     row[0]
                     for row in connection.execute(
-                        f"SELECT atlas_id FROM {quoted(name)} WHERE atlas_id IS NOT NULL"
+                        f"SELECT atlas_id FROM {quoted(physical_name)} WHERE atlas_id IS NOT NULL"
                     )
                 }
             elif layer.get("must_match_network_atlas_ids"):
@@ -141,7 +170,7 @@ def validate(source: Path, catalog_path: Path, strict_baseline: bool) -> dict[st
                     theme_ids = {
                         row[0]
                         for row in connection.execute(
-                            f"SELECT atlas_id FROM {quoted(name)} WHERE atlas_id IS NOT NULL"
+                            f"SELECT atlas_id FROM {quoted(physical_name)} WHERE atlas_id IS NOT NULL"
                         )
                     }
                     add_check(
