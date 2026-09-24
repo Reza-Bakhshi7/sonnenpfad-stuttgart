@@ -43,5 +43,5 @@ self.onmessage=async({data:d})=>{try{
  const blob=await canvas.convertToBlob({type:'image/png'});
  self.postMessage({type:'shade',id:d.id,sun,blob,bounds});return;
  }
- if(d.type==='route'){const base=resolvedOptions(d.options),key=`${Boolean(base.avoidSteps)}:${Boolean(base.avoidEscalators)}`;if(!componentCache.has(key))componentCache.set(key,buildComponents(network,base));const options={...base,components:componentCache.get(key)},result=route(network,adj,shades,d.start,d.end,options),shortest=route(network,adj,shades,d.start,d.end,{...options,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
+ if(d.type==='route'){const base=resolvedOptions(d.options),key=`${Boolean(base.avoidSteps)}:${Boolean(base.avoidEscalators)}`;if(!componentCache.has(key))componentCache.set(key,buildComponents(network,base));const options={...base,components:componentCache.get(key)},result=route(network,adj,shades,d.start,d.end,options),shortest=options.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...options,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
  }catch(e){self.postMessage({type:'error',message:e.message,id:d.id});}};
