@@ -32,11 +32,10 @@
 <span data-i="planRoute">Route planen</span>
 </button>
 <div id="journey-panel">
-<div class="eyebrow" data-i="pilot">FUSSWEGE · PILOT MITTE</div>
-<h2 data-i="headline">Dein Weg. Dein Wetter.</h2>
-<p class="intro" data-i="intro">Entdecke den Weg mit mehr Schatten, mehr Sonne oder weniger Steigung.</p>
-<section class="journey">
-<label for="origin" data-i="from">Start</label>
+<h2 data-i="headline">Dein Weg. Dein Wetter.</h2><section class="journey tool-group is-open">
+<button type="button" class="tool-summary" data-tool-toggle aria-expanded="true">
+<span data-i="routeTools">Start &amp; Ziel</span><span aria-hidden="true">⌃</span>
+</button><label for="origin" data-i="from">Start</label>
 <div class="place-row search-row">
 <span class="point start">A</span>
 <div class="search-box">
@@ -62,8 +61,10 @@
 <button id="pick-destination" class="pick" title="Auf Karte wählen" aria-label="Ziel auf Karte wählen">⌖</button>
 </div>
 <p id="pick-hint" class="micro" data-i="pickHint">Suche einen Ort oder wähle mit ⌖ direkt auf der Karte.</p>
-</section>
-<section class="preferences">
+</section><section class="preferences tool-group">
+<button type="button" class="tool-summary" data-tool-toggle aria-expanded="false">
+<span data-i="routeOptions">Route &amp; Mobilität</span><span aria-hidden="true">⌃</span>
+</button>
 <h3 data-i="preference">Wie möchtest du gehen?</h3>
 <div class="segmented" id="preferences">
 <button data-pref="balanced" class="selected" aria-pressed="true">
@@ -82,7 +83,7 @@
 <div class="profile-choice">
 <span data-i="profileLabel">Für wen planst du?</span>
 <div class="icon-choices profile-icons" id="profile-icons" role="group" aria-label="Mobilitätsprofil">
-<button type="button" data-profile="standard" aria-pressed="true" title="Standard">
+<button type="button" data-profile="standard" aria-pressed="false" title="Standard">
 <span class="choice-glyph icon-walk" aria-hidden="true"></span>
 <span class="sr-only" data-i="profileStandard">Standard</span>
 </button>
@@ -111,7 +112,7 @@
 <span class="sr-only" data-i="profileCustom">Eigene Einstellungen</span>
 </button>
 </div>
-<select id="mobility-profile" class="visually-hidden-select" aria-label="Mobilitätsprofil">
+<select id="mobility-profile" class="visually-hidden-select" aria-label="Mobilitätsprofil"><option value="none" selected>Keine Auswahl</option>
 <option value="standard">Standard</option>
 <option value="wheelchair">Rollstuhl</option>
 <option value="powerWheelchair">Elektrorollstuhl</option>
@@ -122,42 +123,41 @@
 </select>
 </div>
 <p id="profile-description" class="profile-description" hidden>
-</p>
-<details id="advanced-routing">
+</p><details id="advanced-routing" hidden>
 <summary data-i="advanced">Eigene Einstellungen</summary>
 <div class="slope-choice">
 <span data-i="slopeLabel">Steigungen vermeiden</span>
 <div class="icon-choices slope-icons" role="group" aria-label="Steigung vermeiden">
-<button type="button" data-slope="none" aria-pressed="true" title="Nicht berücksichtigen">
+<button type="button" data-slope="none" aria-pressed="true" title="Keine Steigungsvermeidung">
 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 <path d="M3 12h18"/>
 </svg>
-<span class="sr-only" data-i="slopeNone">Nicht berücksichtigen</span>
+<span class="sr-only" data-i="slopeNone">Keine Steigungsvermeidung</span>
 </button>
-<button type="button" data-slope="uphill" aria-pressed="false" title="Nur bergauf">
+<button type="button" data-slope="uphill" aria-pressed="false" title="Bergauf vermeiden">
 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 <path d="M3 18l8-8 4 4 6-8M15 6h6v6"/>
 </svg>
-<span class="sr-only" data-i="slopeUp">Nur bergauf</span>
+<span class="sr-only" data-i="slopeUp">Bergauf vermeiden</span>
 </button>
-<button type="button" data-slope="downhill" aria-pressed="false" title="Nur bergab">
+<button type="button" data-slope="downhill" aria-pressed="false" title="Bergab vermeiden">
 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 <path d="M3 6l8 8 4-4 6 8M15 18h6v-6"/>
 </svg>
-<span class="sr-only" data-i="slopeDown">Nur bergab</span>
+<span class="sr-only" data-i="slopeDown">Bergab vermeiden</span>
 </button>
-<button type="button" data-slope="both" aria-pressed="false" title="Bergauf und bergab">
+<button type="button" data-slope="both" aria-pressed="false" title="Bergauf und bergab vermeiden">
 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 <path d="M3 17l7-10 4 5 7-7M3 7l7 10 4-5 7 7"/>
 </svg>
-<span class="sr-only" data-i="slopeBoth">Bergauf und bergab</span>
+<span class="sr-only" data-i="slopeBoth">Bergauf und bergab vermeiden</span>
 </button>
 </div>
 <select id="slope-mode" class="visually-hidden-select" aria-label="Steigung vermeiden">
-<option value="none">Nicht berücksichtigen</option>
-<option value="uphill">Nur bergauf</option>
-<option value="downhill">Nur bergab</option>
-<option value="both">Bergauf und bergab</option>
+<option value="none">Keine Steigungsvermeidung</option>
+<option value="uphill">Bergauf vermeiden</option>
+<option value="downhill">Bergab vermeiden</option>
+<option value="both">Bergauf und bergab vermeiden</option>
 </select>
 </div>
 <label class="avoid-choice">
