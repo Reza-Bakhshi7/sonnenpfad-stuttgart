@@ -8,6 +8,7 @@ not for surveying or terrain-aware shadow calculations.
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 from collections import defaultdict
@@ -25,7 +26,6 @@ META_PATH = ROOT / "build_data/meta.json"
 OUTPUT = ROOT / "dist/dem"
 ZOOMS = (12, 13, 14)
 TILE_SIZE = 256
-VIEW_BOUNDS = (9.151, 48.755, 9.209, 48.800)
 
 
 def lonlat_to_world_pixel(lon: np.ndarray, lat: np.ndarray, zoom: int):
@@ -104,17 +104,23 @@ def terrain_rgb(surface: np.ndarray):
 
 
 def main():
-    meta = json.loads(META_PATH.read_text())
-    network = json.loads(NETWORK_PATH.read_text())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input-dir", type=Path, default=ROOT / "build_data")
+    parser.add_argument("--output-dir", type=Path, default=OUTPUT)
+    args = parser.parse_args()
+    meta = json.loads((args.input_dir / "meta.json").read_text())
+    network = json.loads((args.input_dir / "network.json").read_text())
+    view_bounds = tuple(meta["bounds"])
+    output = args.output_dir
     lon, lat, elevation = elevation_points(meta, network)
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    output.mkdir(parents=True, exist_ok=True)
 
     summary = {
         "encoding": "mapbox",
         "tileSize": TILE_SIZE,
         "minzoom": min(ZOOMS),
         "maxzoom": max(ZOOMS),
-        "bounds": list(VIEW_BOUNDS),
+        "bounds": list(view_bounds),
         "samples": int(elevation.size),
         "minElevation": round(float(elevation.min()), 1),
         "maxElevation": round(float(elevation.max()), 1),
@@ -124,7 +130,7 @@ def main():
 
     for zoom in ZOOMS:
         surface, (min_x, max_x, min_y, max_y) = interpolate_surface(
-            lon, lat, elevation, zoom, VIEW_BOUNDS
+            lon, lat, elevation, zoom, view_bounds
         )
         rgb = terrain_rgb(surface)
         count = 0
@@ -132,7 +138,7 @@ def main():
             for tile_x in range(min_x, max_x + 1):
                 x0 = (tile_x - min_x) * TILE_SIZE
                 y0 = (tile_y - min_y) * TILE_SIZE
-                path = OUTPUT / str(zoom) / str(tile_x) / f"{tile_y}.png"
+                path = output / str(zoom) / str(tile_x) / f"{tile_y}.png"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 Image.fromarray(rgb[y0 : y0 + TILE_SIZE, x0 : x0 + TILE_SIZE], "RGB").save(
                     path, optimize=True
@@ -144,7 +150,7 @@ def main():
         }
         print(f"z{zoom}: {count} tiles ({rgb.shape[1]} x {rgb.shape[0]} pixels)")
 
-    (OUTPUT / "metadata.json").write_text(json.dumps(summary, indent=2) + "\n")
+    (output / "metadata.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"{elevation.size} elevation samples, {elevation.min():.1f}–{elevation.max():.1f} m")
 
 

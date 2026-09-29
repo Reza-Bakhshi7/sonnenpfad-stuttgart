@@ -9,13 +9,14 @@ const core = read('scripts/core.mjs')
   .replaceAll('export function ', 'function ')
   .replaceAll('export class ', 'class ');
 const worker = read('scripts/worker.mjs').split('\n').slice(1).join('\n');
+const appData = read('scripts/app-data.mjs').replaceAll('export function ', 'function ');
 const application = read('scripts/app.source.mjs');
 const workerSource = `${core}\n${worker}`;
 
 fs.mkdirSync(path.join(root, 'dist/vendor'), { recursive: true });
 fs.writeFileSync(
   path.join(root, 'dist/app-v7.mjs'),
-  `const BUNDLED_WORKER=${JSON.stringify(workerSource)};\n${application}`,
+  `${appData}\nconst BUNDLED_WORKER=${JSON.stringify(workerSource)};\n${application}`,
 );
 
 const vendorParts = fs.readdirSync(path.join(root, 'assets/vendor'))
@@ -30,6 +31,7 @@ fs.writeFileSync(
 for (const required of [
   'dist/index.html',
   'dist/style.css',
+  'dist/city-config.json',
   'dist/data/manifest.json',
   'dist/dem/metadata.json',
   'dist/vendor/maplibre-v3.css',

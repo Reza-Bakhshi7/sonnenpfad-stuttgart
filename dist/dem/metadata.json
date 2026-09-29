@@ -4,41 +4,41 @@
   "minzoom": 12,
   "maxzoom": 14,
   "bounds": [
-    9.151,
-    48.755,
-    9.209,
-    48.8
+    9.038567797048666,
+    48.69221214216576,
+    9.316378372618532,
+    48.86616944479957
   ],
-  "samples": 17335,
-  "minElevation": 233.9,
-  "maxElevation": 403.6,
+  "samples": 224121,
+  "minElevation": 207.0,
+  "maxElevation": 532.6,
   "method": "8-neighbour inverse-distance interpolation of network endpoint elevations",
   "tiles": {
     "12": {
-      "count": 9,
+      "count": 36,
       "range": [
-        2151,
-        2153,
-        1409,
-        1411
+        2149,
+        2154,
+        1407,
+        1412
       ]
     },
     "13": {
-      "count": 16,
+      "count": 81,
       "range": [
-        4303,
-        4306,
-        2819,
-        2822
+        4300,
+        4308,
+        2816,
+        2824
       ]
     },
     "14": {
-      "count": 36,
+      "count": 225,
       "range": [
-        8607,
-        8612,
-        5639,
-        5644
+        8602,
+        8616,
+        5634,
+        5648
       ]
     }
   }

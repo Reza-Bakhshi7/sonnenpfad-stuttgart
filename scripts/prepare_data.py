@@ -10,6 +10,7 @@ import json
 import math
 import pathlib
 import sqlite3
+import statistics
 
 from pyproj import Transformer
 from shapely import wkb
@@ -17,7 +18,87 @@ from shapely import wkb
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ORIGIN = [9.18, 48.777]
-BOUNDS = [9.162, 48.765, 9.198, 48.790]
+PILOT_BOUNDS = [9.162, 48.765, 9.198, 48.790]
+CITY_BOUNDS = [9.038567797048666, 48.69221214216576, 9.316378372618532, 48.86616944479957]
+LAYER_ALIASES = {
+    "Pedestrian_Network": ("Pedestrian_Network", "Strassen"),
+    "Buildings": ("Buildings", "Gebaeude"),
+    "Trees": ("Trees", "Baeume"),
+    "Signalized_Crossings": ("Signalized_Crossings", "Ampeluebergaenge"),
+    "Benches": ("Benches", "Sitzbaenke"),
+    "Shelters": ("Shelters", "Unterstande"),
+}
+
+
+def quoted(identifier: str) -> str:
+    return '"' + identifier.replace('"', '""') + '"'
+
+
+def layer_table(connection: sqlite3.Connection, logical_name: str) -> str:
+    existing = {row[0] for row in connection.execute("SELECT table_name FROM gpkg_contents")}
+    for candidate in LAYER_ALIASES.get(logical_name, (logical_name,)):
+        if candidate in existing:
+            return candidate
+    raise RuntimeError(f"Required layer missing: {logical_name}")
+
+
+def parse_tags(value) -> dict[str, str]:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, dict):
+            return {str(key): str(item) for key, item in parsed.items()}
+    except (TypeError, json.JSONDecodeError):
+        pass
+    tags = {}
+    for item in str(value).split(";"):
+        if "=" in item:
+            key, content = item.split("=", 1)
+            tags[key.strip()] = content.strip()
+    return tags
+
+
+def truth(value) -> bool:
+    return str(value or "").strip().lower() in {"yes", "true", "1", "both", "left", "right"}
+
+
+def surface_quality(value) -> int:
+    return {"good": 1, "medium": 2, "poor": 3}.get(str(value or "").lower(), 0)
+
+
+def wheelchair_quality(value) -> int:
+    return {"yes": 1, "limited": 2, "no": 3}.get(str(value or "").lower(), 0)
+
+
+def way_class(value) -> int:
+    value = str(value or "").lower()
+    if value in {"footway", "pedestrian", "living_street"}:
+        return 1
+    if value in {"path", "cycleway", "track", "service", "residential", "unclassified"} or value.startswith("track_"):
+        return 2
+    if value in {"primary", "secondary", "tertiary", "trunk", "primary_link", "secondary_link", "tertiary_link", "trunk_link"}:
+        return 3
+    return 0
+
+
+def valid_elevation(value) -> bool:
+    """Return whether an atlas elevation can be used as a real Stuttgart height."""
+    try:
+        converted = float(value)
+    except (TypeError, ValueError):
+        return False
+    return math.isfinite(converted) and converted >= 100
+
+
+def signed_slope(magnitude: float, z0: float, z1: float, quality: int) -> float | None:
+    """Attach direction to the curated magnitude without inventing missing height data."""
+    magnitude = abs(magnitude)
+    if magnitude == 0:
+        return 0.0
+    if quality >= 2 or math.isclose(z0, z1, abs_tol=0.01):
+        return None
+    return round(math.copysign(magnitude, z1 - z0), 3)
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -33,6 +114,7 @@ def main() -> int:
     parser.add_argument("source", type=pathlib.Path)
     parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "build_data")
     parser.add_argument("--source-date", required=True, help="ISO date recorded in output metadata")
+    parser.add_argument("--scope", choices=("pilot", "city"), default="pilot")
     args = parser.parse_args()
     source = args.source.resolve()
     if not source.is_file():
@@ -43,7 +125,14 @@ def main() -> int:
     db = sqlite3.connect(f"file:{source.as_posix()}?mode=ro&immutable=1", uri=True)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA query_only=ON")
+    network_table = layer_table(db, "Pedestrian_Network")
+    buildings_table = layer_table(db, "Buildings")
+    trees_table = layer_table(db, "Trees")
+    crossings_table = layer_table(db, "Signalized_Crossings")
+    benches_table = layer_table(db, "Benches")
+    shelters_table = layer_table(db, "Shelters")
     transform = Transformer.from_crs(25832, 4326, always_xy=True)
+    bounds = CITY_BOUNDS if args.scope == "city" else PILOT_BOUNDS
     sx = 111320 * math.cos(math.radians(ORIGIN[1]))
     sy = 111320
 
@@ -60,8 +149,8 @@ def main() -> int:
 
     def inside(point, pad=0):
         return (
-            (BOUNDS[0] - ORIGIN[0]) * sx - pad <= point[0] <= (BOUNDS[2] - ORIGIN[0]) * sx + pad
-            and (BOUNDS[1] - ORIGIN[1]) * sy - pad <= point[1] <= (BOUNDS[3] - ORIGIN[1]) * sy + pad
+            (bounds[0] - ORIGIN[0]) * sx - pad <= point[0] <= (bounds[2] - ORIGIN[0]) * sx + pad
+            and (bounds[1] - ORIGIN[1]) * sy - pad <= point[1] <= (bounds[3] - ORIGIN[1]) * sy + pad
         )
 
     def number(value, default=0):
@@ -73,6 +162,7 @@ def main() -> int:
 
     nodes, edges = [], []
     node_index = {}
+    node_heights = collections.defaultdict(list)
     rejected = collections.Counter()
 
     def node(point):
@@ -82,15 +172,12 @@ def main() -> int:
             nodes.append(point)
         return node_index[key]
 
-    for row in db.execute("SELECT * FROM Pedestrian_Network ORDER BY atlas_id"):
+    for row in db.execute(f"SELECT * FROM {quoted(network_table)} ORDER BY atlas_id"):
         shape = geometry(row["geom"])
         coords = ring(shape.coords)
         if not all(inside(point) for point in coords):
             continue
-        try:
-            tags = json.loads(row["osm_tags_current"] or "{}")
-        except (TypeError, json.JSONDecodeError):
-            tags = {}
+        tags = parse_tags(row["osm_tags_current"])
         access = str(row["access_current"] or "").lower()
         foot = str(row["foot_current"] or "").lower()
         highway = row["highway_current"] or row["fclass"]
@@ -105,28 +192,66 @@ def main() -> int:
         length = sum(math.dist(a, b) for a, b in zip(coords, coords[1:]))
         if length < 0.05:
             continue
-        slope = number(row["slope_pct"])
+        slope = abs(number(row["slope_pct"]))
         z0, z1 = number(row["elev_start"], math.nan), number(row["elev_end"], math.nan)
-        valid0, valid1 = math.isfinite(z0) and z0 >= 100, math.isfinite(z1) and z1 >= 100
-        if not valid0 and valid1:
-            z0 = z1 - slope * length / 100
-        elif valid0 and not valid1:
-            z1 = z0 + slope * length / 100
-        elif not valid0 and not valid1:
-            z0, z1 = 250, 250 + slope * length / 100
-        direction = str(tags.get("oneway:foot", "no")).lower() if isinstance(tags, dict) else "no"
+        valid0, valid1 = valid_elevation(z0), valid_elevation(z1)
+        if valid0:
+            node_heights[tuple(coords[0])].append(z0)
+        if valid1:
+            node_heights[tuple(coords[-1])].append(z1)
+        direction = str(tags.get("oneway:foot", "no")).lower()
+        escalator = str(tags.get("conveying", "")).lower() in {"yes", "forward", "backward", "reversible"}
+        width = max(0, number(row["width"]))
         edges.append({
             "a": node(coords[0]), "b": node(coords[-1]), "c": coords, "l": round(length, 2),
-            "s": slope, "dz": round(z1 - z0, 2), "z0": round(z0, 2), "z1": round(z1, 2),
-            "steps": highway == "steps" or row["fclass"] == "steps",
+            "s": round(slope, 3), "_z0": z0, "_z1": z1,
+            "_valid0": valid0, "_valid1": valid1,
+            "steps": (highway == "steps" or row["fclass"] == "steps") and not escalator,
+            "escalator": escalator,
             "covered": str(row["covered_current"] or "").lower() == "yes"
             or str(row["tunnel"] or "").lower() in ("t", "yes", "true", "1"),
+            "surface": surface_quality(row["surface_class"]),
+            "way": way_class(highway),
+            "width": round(width, 2),
+            "wheelchair": wheelchair_quality(row["wheelchair"]),
+            "tactile": truth(row["tactile_paving"]),
+            "handrail": truth(row["handrail"]),
+            "ramp": truth(row["ramp"]) or truth(row["ramp_wheelchair"]),
             "dir": 1 if direction == "yes" else -1 if direction == "-1" else 0,
             "name": row["display_name"] or row["name"] or "", "id": row["atlas_id"],
         })
 
+    all_source_heights = [height for heights in node_heights.values() for height in heights]
+    elevation_fallback = statistics.median(all_source_heights) if all_source_heights else 300.0
+    elevation_quality = collections.Counter()
+    for edge in edges:
+        z0, z1 = edge.pop("_z0"), edge.pop("_z1")
+        valid0, valid1 = edge.pop("_valid0"), edge.pop("_valid1")
+        inferred = False
+        if not valid0 and node_heights.get(tuple(edge["c"][0])):
+            z0 = statistics.median(node_heights[tuple(edge["c"][0])])
+            valid0, inferred = True, True
+        if not valid1 and node_heights.get(tuple(edge["c"][-1])):
+            z1 = statistics.median(node_heights[tuple(edge["c"][-1])])
+            valid1, inferred = True, True
+        if valid0 and valid1:
+            quality = 1 if inferred else 0
+        else:
+            quality = 2
+            if valid0:
+                z1 = z0
+            elif valid1:
+                z0 = z1
+            else:
+                z0 = z1 = elevation_fallback
+        edge["z0"], edge["z1"] = round(z0, 2), round(z1, 2)
+        edge["dz"] = round(z1 - z0, 2)
+        edge["sf"] = signed_slope(edge["s"], z0, z1, quality)
+        edge["sq"] = quality
+        elevation_quality[("source", "connected", "unknown")[quality]] += 1
+
     buildings, estimated = [], 0
-    for row in db.execute("SELECT geom, hoehe_m FROM Buildings ORDER BY atlas_id"):
+    for row in db.execute(f"SELECT geom, hoehe_m FROM {quoted(buildings_table)} ORDER BY atlas_id"):
         shape = geometry(row["geom"])
         if not inside(local(shape.centroid.x, shape.centroid.y), 350):
             continue
@@ -143,7 +268,7 @@ def main() -> int:
             })
 
     trees, tree_default = [], 0
-    for row in db.execute("SELECT * FROM Trees ORDER BY atlas_id"):
+    for row in db.execute(f"SELECT * FROM {quoted(trees_table)} ORDER BY atlas_id"):
         shape = geometry(row["geom"])
         point = local(shape.x, shape.y)
         if not inside(point, 150):
@@ -175,6 +300,57 @@ def main() -> int:
             })
             travelled += length
 
+    def point_features(table: str, value=None):
+        features = []
+        for row in db.execute(f"SELECT * FROM {quoted(table)} ORDER BY atlas_id"):
+            shape = geometry(row["geom"])
+            point = local(shape.x, shape.y)
+            if inside(point, 250):
+                features.append((point, value(row) if value else 1))
+        return features
+
+    benches = point_features(benches_table)
+    shelters = point_features(shelters_table)
+
+    def crossing_support(row):
+        positives = sum(truth(row[name]) for name in (
+            "traffic_signals_sound", "traffic_signals_vibration", "tactile_paving"
+        ))
+        explicit = sum(row[name] is not None for name in (
+            "traffic_signals_sound", "traffic_signals_vibration", "tactile_paving"
+        ))
+        return 3 if positives >= 2 else 2 if positives == 1 else 1 if explicit == 3 else 0
+
+    crossings = point_features(crossings_table, crossing_support)
+
+    def spatial_index(features, cell=200):
+        index = collections.defaultdict(list)
+        for point, value in features:
+            index[(math.floor(point[0] / cell), math.floor(point[1] / cell))].append((point, value))
+        return index
+
+    bench_index, shelter_index, crossing_index = map(spatial_index, (benches, shelters, crossings))
+
+    def nearest(index, point, radius, cell=200):
+        best_distance, best_value = radius + 1, 0
+        reach = math.ceil(radius / cell)
+        cx, cy = math.floor(point[0] / cell), math.floor(point[1] / cell)
+        for x in range(cx - reach, cx + reach + 1):
+            for y in range(cy - reach, cy + reach + 1):
+                for candidate, value in index.get((x, y), ()):
+                    distance = math.dist(point, candidate)
+                    if distance < best_distance:
+                        best_distance, best_value = distance, value
+        return (round(best_distance) if best_distance <= radius else 65535), best_value
+
+    for edge in edges:
+        midpoint = [(edge["c"][0][0] + edge["c"][1][0]) / 2, (edge["c"][0][1] + edge["c"][1][1]) / 2]
+        edge["bench"], _ = nearest(bench_index, midpoint, 1000)
+        edge["shelter"], _ = nearest(shelter_index, midpoint, 1000)
+        crossing_distance, edge["crossing"] = nearest(crossing_index, midpoint, 30)
+        if crossing_distance > 30:
+            edge["crossing"] = 0
+
     adjacency = [[] for _ in nodes]
     for edge in edges:
         adjacency[edge["a"]].append(edge["b"])
@@ -194,10 +370,16 @@ def main() -> int:
         component_sizes.append(size)
 
     meta = {
-        "origin": ORIGIN, "scale": [sx, sy], "bounds": BOUNDS, "sourceDate": args.source_date,
+        "origin": ORIGIN, "scale": [sx, sy], "bounds": bounds, "scope": args.scope,
+        "sourceDate": args.source_date,
         "nodes": len(nodes), "edges": len(edges), "buildings": len(buildings), "trees": len(trees),
         "components": sorted(component_sizes, reverse=True), "treeHeightFallbacks": tree_default,
-        "buildingHeightFallbacks": estimated, "excluded": dict(rejected), "sourceSha256": sha256(source),
+        "buildingHeightFallbacks": estimated, "excluded": dict(rejected),
+        "elevationQuality": dict(elevation_quality), "sourceSha256": sha256(source),
+        "sourceLayers": {
+            "network": network_table, "buildings": buildings_table, "trees": trees_table,
+            "crossings": crossings_table, "benches": benches_table, "shelters": shelters_table,
+        },
     }
     payloads = {
         "network": {"nodes": nodes, "edges": edges},
