@@ -21,6 +21,9 @@ Prepared application data is split into size-bounded static chunks so the browse
 - Changing date/time updates solar geometry, shadow display and route weighting.
 - A worker rasterizes shadow polygons for responsive rendering. Route sampling uses those same polygons (up to 4 m intervals); rendered mask resolution is approximately 1.7 m.
 - An unrestricted 2D basemap and a locally generated 3D terrain surface with bounded visible-tile loading, hillshade, building extrusion and rounded height-aware tree crowns.
+- Mutually exclusive atlas line themes for slope, surface, summer/winter shade, summer/winter UTCI, noise and relative wind exposure, each with a bilingual legend.
+- Ten switchable citywide accessibility and comfort POI categories: signal crossings, elevators, ramps, escalators, stairs, barriers/gates, lowered and raised kerbs, benches and shelters.
+- Balanced 3D level of detail: nearby buildings and trees receive progressively richer budgets as the user zooms in.
 - Elevation profile with absolute route heights, ascent and descent.
 - DE/EN interface and explicit out-of-area feedback.
 
@@ -52,7 +55,7 @@ This is not a validated heat-risk, accessibility or navigation service.
 - Points search nearby network components within 200 m and use the closest component reachable from both endpoints. Dashed access lines make the snap explicit and are excluded from route length.
 - Walking time assumes 75 m/min plus 1 minute per 10 m of ascent. Elevation/slope inherit the atlas's uncertainties.
 - Shade/sun preference uses `length * (1 + 1.6 * undesired_exposure)`; gentler routes add `min(4, abs(slope_pct)/6)` to the multiplier. All costs are nonnegative. Additional distance is shown against the direct route with the same other settings. There is no hard detour cap in 0.7.
-- No live weather, UTCI, SOLWEIG or turn-by-turn guidance in 0.7.
+- No live weather, SOLWEIG or turn-by-turn guidance. The displayed UTCI values are derived atlas snapshot indicators, not live measurements or individual heat-risk advice.
 
 ## Verification
 

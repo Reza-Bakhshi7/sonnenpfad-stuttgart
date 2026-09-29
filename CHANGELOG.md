@@ -4,7 +4,11 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
-- Full-Stuttgart data pipeline and coverage.
+- Step 4 preview: mutually exclusive line themes for slope, surface, summer/winter shade, summer/winter UTCI, noise and relative wind exposure.
+- Ten independently switchable accessibility and comfort POI categories with 13,179 citywide features.
+- Dynamic bilingual legends and shareable theme/POI state.
+- Balanced 3D level of detail with zoom-dependent building and tree budgets.
+- Full-Stuttgart data pipeline and coverage with visual-data contract version 4.
 - Live weather and public-transport adapters.
 - Extended accessibility and restriction profiles.
 
@@ -30,4 +34,3 @@ All notable product changes are documented here. The project follows semantic ve
 - Coverage is limited to the Stuttgart-Mitte pilot.
 - Weather, cloud attenuation, UTCI and public-transport positions are not live in 0.7.0.
 - The display terrain is interpolated from network elevation samples.
-
