@@ -7,16 +7,16 @@ Sonnenpfad Stuttgart is currently a static, browser-computed prototype.
 - Cloudflare Workers Static Assets serves the application and terrain tiles.
 - MapLibre GL JS renders the 2D/3D map, terrain, buildings, trees and routes.
 - Routing, solar geometry and shadow calculation run locally in a Web Worker.
-- Prepared atlas data is split into immutable binary network arrays and 1 km JSON tiles for independent caching.
+- Prepared atlas data is split into immutable binary network arrays and 1 km JSON tiles for independent caching. Each visual tile reuses one line geometry array with a parallel eight-value theme array and contains compact POI records.
 - A 500 m spatial index restricts endpoint snapping to nearby network edges.
-- The 2D basemap is unconstrained; atlas layers appear only where data exists. In 3D, a bounded level-of-detail window prioritises tiles around and ahead of the camera while retaining a smaller rear context.
+- The 2D basemap is unconstrained; atlas layers appear only where data exists. In 3D, a bounded level-of-detail window prioritises tiles around and ahead of the camera while retaining a smaller rear context. Zoom-dependent budgets cap extruded buildings and tree crowns while increasing tree detail close up.
 - No route, selected location or device position is persisted by the application.
 
 ## Build and deployment
 
 GitHub is the source of truth. Pull requests and pushes to `main` run the same engine verification used locally. Cloudflare Builds executes `npm run build` and deploys the generated `dist/` directory through Wrangler.
 
-The source GeoPackage is never committed. The Python pipeline reads it locally and exports only the fields and geometries needed by the application. Contract version 3 stores routing-relevant accessibility attributes in a fixed 48-byte edge record and validates every generated tile before release.
+The source GeoPackage is never committed. The Python pipeline reads it locally and exports only the fields and geometries needed by the application. Contract version 4 retains the version-3 fixed 48-byte routing edge record and adds validated visual themes plus ten POI types without duplicating line geometry.
 
 ## Service boundary
 
