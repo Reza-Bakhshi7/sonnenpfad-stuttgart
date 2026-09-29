@@ -6,12 +6,22 @@ const root = path.resolve(import.meta.dirname, '..');
 const cityRoot = path.join(root, 'dist', 'city');
 const manifest = JSON.parse(fs.readFileSync(path.join(cityRoot, 'manifest.json'), 'utf8'));
 const appSource = fs.readFileSync(path.join(root, 'scripts', 'app.source.mjs'), 'utf8');
+const appStyles = fs.readFileSync(path.join(root, 'dist', 'style.css'), 'utf8');
 const expectedThemes = ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'];
 
 assert(!appSource.includes("getAttribute('aria-label')=t('layersTitle')"), 'Layer language setup must not assign to getAttribute().');
 assert(appSource.includes("map.setMinZoom(is3D?15.25"), '3D zoom-out must be limited for performance.');
 assert(appSource.includes('prepareRouteShade'), 'Long routes must load a complete shade corridor before routing.');
 assert(appSource.includes('outsideLocation'), 'Out-of-city geolocation must use a dismissible message.');
+assert(appSource.includes('function addPoiMapImage'), 'POIs must be normalized into fixed-size map markers.');
+assert(appSource.includes("14.5,.62,17,.8,19,.92"), 'POI map markers must stay compact across zoom levels.');
+for (const color of ['#1a9641', '#5f5f5f', '#d7191c', '#e15989', '#c43c39']) assert(appSource.includes(color), `Missing GeoPackage POI color: ${color}`);
+assert(appStyles.includes('.poi-symbol:after'), 'POI list entries must use the same circular symbol treatment as the map.');
+assert(appStyles.includes('border-radius:50%'), 'POI list symbols must be circular.');
+for (const icon of ['shade-material.svg', 'walking-aid-material.svg']) {
+  const iconText = fs.readFileSync(path.join(root, 'dist', 'icons', icon), 'utf8');
+  assert(iconText.includes('Google Material Symbols Rounded'), `Missing upstream attribution in ${icon}`);
+}
 assert(fs.existsSync(path.join(cityRoot, 'stuttgart-boundary.json')), 'Exact Stuttgart municipal boundary is required.');
 const poiIcons = JSON.parse(fs.readFileSync(path.join(root, 'dist', 'poi-icons.json'), 'utf8'));
 for (const icon of ['Signalized_Crossings.svg','Elevators.svg','Ramps.svg','Escalators.svg','Stairs.svg','Barriers_and_Gates.svg','Lowered_Curbs.svg','Raised_Curbs.svg','Benches.svg','Shelters.svg']) assert.match(poiIcons[icon], /^data:image\/svg\+xml;base64,/, `Missing embedded atlas POI icon: ${icon}`);
