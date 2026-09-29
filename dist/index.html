@@ -258,9 +258,34 @@
 <option value="topo">Topografisch</option>
 </select>
 <button id="view" aria-pressed="false">3D</button>
+<button id="layers-toggle" aria-expanded="false" aria-controls="layers-panel" aria-label="Kartenebenen" title="Kartenebenen">◫</button>
 <button id="locate" aria-label="Mein Standort" title="Mein Standort">⌖</button>
 <button id="fit" aria-label="Gesamte Route anzeigen" title="Gesamte Route anzeigen">⤢</button>
 </div>
+<section class="layers-panel" id="layers-panel" hidden aria-labelledby="layers-title">
+<div class="layers-head">
+<strong id="layers-title" data-i="layersTitle">Kartenebenen</strong>
+<button id="layers-close" type="button" aria-label="Schließen">×</button>
+</div>
+<label for="theme" data-i="themeLabel">Linienthema</label>
+<select id="theme">
+<option value="none">Kein Thema</option>
+<option value="slope">Steigung</option>
+<option value="surface">Oberfläche</option>
+<option value="shadeSummer">Schatten · Sommer</option>
+<option value="shadeWinter">Schatten · Winter</option>
+<option value="utciSummer">UTCI · Sommer</option>
+<option value="utciWinter">UTCI · Winter</option>
+<option value="noise">Lärm</option>
+<option value="wind">Wind</option>
+</select>
+<fieldset>
+<legend data-i="poiLabel">Barrierefreiheit &amp; Komfort</legend>
+<div id="poi-options" class="poi-options"></div>
+</fieldset>
+<p class="layers-note" data-i="layersZoom">Themen und POIs erscheinen ab Zoomstufe 14,5.</p>
+</section>
+<aside class="theme-legend" id="theme-legend" hidden aria-live="polite"></aside>
 <section class="time-panel">
 <div class="time-top">
 <div>
