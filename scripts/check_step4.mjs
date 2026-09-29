@@ -5,8 +5,10 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '..');
 const cityRoot = path.join(root, 'dist', 'city');
 const manifest = JSON.parse(fs.readFileSync(path.join(cityRoot, 'manifest.json'), 'utf8'));
+const appSource = fs.readFileSync(path.join(root, 'scripts', 'app.source.mjs'), 'utf8');
 const expectedThemes = ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'];
 
+assert(!appSource.includes("getAttribute('aria-label')=t('layersTitle')"), 'Layer language setup must not assign to getAttribute().');
 assert.equal(manifest.version, 4);
 assert.deepEqual(manifest.themes, expectedThemes);
 assert.equal(Object.keys(manifest.poiTypes).length, 10);
