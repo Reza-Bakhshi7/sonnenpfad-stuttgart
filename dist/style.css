@@ -33,7 +33,8 @@ html,body{width:100%;height:100%;overflow:hidden}.app{height:100dvh;min-height:0
 /* Step 4 review fixes: city frame, top legend, unified mobile toolbar and toast. */
 .theme-legend{top:25px;bottom:auto;left:28px;max-width:min(520px,calc(100% - 130px));padding:11px 14px;border-left:4px solid var(--yellow)}
 .legend-zoom,.layers-note{display:none!important}
-.poi-symbol{width:22px;height:22px;flex:0 0 auto;background:var(--poi-color) center/contain no-repeat;background-image:var(--poi-icon)}
+.poi-symbol{position:relative;width:24px;height:24px;flex:0 0 auto;border:1px solid #111;border-radius:50%;background:var(--poi-color);box-shadow:0 1px 2px #14395924}.poi-symbol:after{content:'';position:absolute;inset:4px;background:var(--poi-foreground);-webkit-mask:var(--poi-icon) center/contain no-repeat;mask:var(--poi-icon) center/contain no-repeat}
+.icon-shade{--icon:url("./icons/shade-material.svg")}.icon-walking-aid{--icon:url("./icons/walking-aid-material.svg")}
 .map-toast{position:absolute;z-index:8;top:25px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:min(520px,calc(100% - 150px));padding:10px 12px 10px 15px;border:1px solid #e2c057;border-radius:10px;background:#fff8d9;color:#5f4b13;box-shadow:0 5px 22px #17384f2e;font-size:12px;font-weight:650}
 .map-toast button{width:25px;height:25px;flex:0 0 auto;border:0;border-radius:6px;background:#f3e7ae;font-size:20px;line-height:20px}
 @media(max-width:800px){
