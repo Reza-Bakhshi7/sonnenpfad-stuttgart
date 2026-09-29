@@ -102,12 +102,15 @@ def main() -> int:
     node_files = split_binary(network_dir / "nodes.bin", args.binary_chunk_bytes)
     edge_files = split_binary(network_dir / "edges.bin", args.binary_chunk_bytes)
 
-    tiles: dict[str, dict[str, list]] = collections.defaultdict(lambda: {"buildings": [], "trees": [], "lines": [], "edgeIds": []})
+    tiles: dict[str, dict[str, list]] = collections.defaultdict(
+        lambda: {"buildings": [], "trees": [], "lines": [], "edgeIds": [], "themes": [], "pois": []}
+    )
     for edge_id, edge in enumerate(network["edges"]):
         a, b = edge["c"]
         tile = tiles[tile_key([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], args.obstacle_grid)]
         tile["lines"].append(edge["c"])
         tile["edgeIds"].append(edge_id)
+        tile["themes"].append(edge["theme"])
     for building in obstacles["buildings"]:
         exterior = building["r"][0]
         center = [sum(p[0] for p in exterior) / len(exterior), sum(p[1] for p in exterior) / len(exterior)]
@@ -120,8 +123,11 @@ def main() -> int:
             display["dr"] = round(tree["r"] * 0.8, 1)
             large_trees += 1
         tiles[tile_key(tree["p"], args.obstacle_grid)]["trees"].append(display)
+    for poi in obstacles.get("pois", []):
+        tiles[tile_key(poi["p"], args.obstacle_grid)]["pois"].append(poi)
 
     tile_manifest = {}
+    poi_counts = collections.Counter()
     for key in sorted(tiles):
         payload = tiles[key]
         relative = f"obstacles/{key}.json"
@@ -132,10 +138,13 @@ def main() -> int:
             "trees": len(payload["trees"]),
             "lines": len(payload["lines"]),
             "edgeIds": len(payload["edgeIds"]),
+            "themes": len(payload["themes"]),
+            "pois": len(payload["pois"]),
         }
+        poi_counts.update(item["k"] for item in payload["pois"])
 
     manifest = {
-        "version": 3,
+        "version": 4,
         "scope": "city",
         "origin": meta["origin"],
         "scale": meta["scale"],
@@ -148,7 +157,13 @@ def main() -> int:
             "snapIndex": snap_files, "snapGrid": args.snap_grid,
         },
         "obstacles": {"grid": args.obstacle_grid, "paddingTiles": 1, "tiles": tile_manifest},
-        "counts": {"buildings": len(obstacles["buildings"]), "trees": len(obstacles["trees"]), "lines": len(network["edges"]), "largeTreesScaled": large_trees},
+        "counts": {
+            "buildings": len(obstacles["buildings"]), "trees": len(obstacles["trees"]),
+            "lines": len(network["edges"]), "largeTreesScaled": large_trees,
+            "pois": sum(poi_counts.values()), "poiTypes": dict(sorted(poi_counts.items())),
+        },
+        "themes": ["slope", "surface", "shadeSummer", "shadeWinter", "utciSummer", "utciWinter", "noise", "wind"],
+        "poiTypes": {"1": "crossing", "2": "elevator", "3": "ramp", "4": "escalator", "5": "stairs", "6": "barrier", "7": "loweredKerb", "8": "raisedKerb", "9": "bench", "10": "shelter"},
         "elevationQuality": meta["elevationQuality"],
         "profileFeatures": [
             "steps", "escalator", "signedSlope", "surface", "wayClass", "width",

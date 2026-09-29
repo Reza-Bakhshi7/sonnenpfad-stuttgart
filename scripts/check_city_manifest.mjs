@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { parseCityManifest } from './app-data.mjs';
 
 const valid = {
-  version: 3,
+  version: 4,
   scope: 'city',
   origin: [9.03, 48.69],
   scale: [73000, 111000],
@@ -16,6 +16,8 @@ const valid = {
     snapIndex: 'network/snap-index.json',
   },
   obstacles: { grid: 1000, tiles: {} },
+  themes: ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'],
+  poiTypes: {1:'crossing',2:'elevator',3:'ramp',4:'escalator',5:'stairs',6:'barrier',7:'loweredKerb',8:'raisedKerb',9:'bench',10:'shelter'},
 };
 
 assert.deepEqual(parseCityManifest(JSON.stringify(valid)), valid);
@@ -25,5 +27,7 @@ assert.equal(parseCityManifest('<!doctype html><title>Sonnenpfad</title>'), null
 assert.equal(parseCityManifest('{"scope":"city"'), null);
 assert.equal(parseCityManifest(JSON.stringify({ ...valid, network: { edgeCount: 1 } })), null);
 assert.equal(parseCityManifest(JSON.stringify({ ...valid, scope: 'pilot' })), null);
+assert.equal(parseCityManifest(JSON.stringify({ ...valid, version: 3 })), null);
+assert.equal(parseCityManifest(JSON.stringify({ ...valid, themes: [] })), null);
 
 console.log('City manifest fallback verification passed');

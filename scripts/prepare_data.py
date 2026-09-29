@@ -27,6 +27,13 @@ LAYER_ALIASES = {
     "Signalized_Crossings": ("Signalized_Crossings", "Ampeluebergaenge"),
     "Benches": ("Benches", "Sitzbaenke"),
     "Shelters": ("Shelters", "Unterstande"),
+    "Elevators": ("Elevators", "Aufzuege"),
+    "Ramps": ("Ramps", "Rampen"),
+    "Escalators": ("Escalators", "Rolltreppen"),
+    "Stairs": ("Stairs", "Treppen"),
+    "Barriers_and_Gates": ("Barriers_and_Gates", "Barrieren_Tore"),
+    "Lowered_Curbs": ("Lowered_Curbs", "Bordstein_abgesenkt"),
+    "Raised_Curbs": ("Raised_Curbs", "Bordstein_erhoeht"),
 }
 
 
@@ -131,6 +138,18 @@ def main() -> int:
     crossings_table = layer_table(db, "Signalized_Crossings")
     benches_table = layer_table(db, "Benches")
     shelters_table = layer_table(db, "Shelters")
+    poi_tables = {
+        1: crossings_table,
+        2: layer_table(db, "Elevators"),
+        3: layer_table(db, "Ramps"),
+        4: layer_table(db, "Escalators"),
+        5: layer_table(db, "Stairs"),
+        6: layer_table(db, "Barriers_and_Gates"),
+        7: layer_table(db, "Lowered_Curbs"),
+        8: layer_table(db, "Raised_Curbs"),
+        9: benches_table,
+        10: shelters_table,
+    }
     transform = Transformer.from_crs(25832, 4326, always_xy=True)
     bounds = CITY_BOUNDS if args.scope == "city" else PILOT_BOUNDS
     sx = 111320 * math.cos(math.radians(ORIGIN[1]))
@@ -159,6 +178,13 @@ def main() -> int:
             return converted if math.isfinite(converted) else default
         except (TypeError, ValueError):
             return default
+
+    def optional_number(value, digits=1):
+        try:
+            converted = float(value)
+            return round(converted, digits) if math.isfinite(converted) else None
+        except (TypeError, ValueError):
+            return None
 
     nodes, edges = [], []
     node_index = {}
@@ -219,6 +245,13 @@ def main() -> int:
             "ramp": truth(row["ramp"]) or truth(row["ramp_wheelchair"]),
             "dir": 1 if direction == "yes" else -1 if direction == "-1" else 0,
             "name": row["display_name"] or row["name"] or "", "id": row["atlas_id"],
+            # Compact, parallel visual-theme contract. Null stays distinct from a measured zero.
+            "theme": [
+                optional_number(row["slope_pct"]), surface_quality(row["surface_class"]),
+                optional_number(row["shadow_pct"]), optional_number(row["shadow_pct_winter"]),
+                optional_number(row["utci_avg"]), optional_number(row["utci_avg_winter"]),
+                optional_number(row["noise_db"]), optional_number(row["wind_exposure_index"], 2),
+            ],
         })
 
     all_source_heights = [height for heights in node_heights.values() for height in heights]
@@ -323,6 +356,21 @@ def main() -> int:
 
     crossings = point_features(crossings_table, crossing_support)
 
+    pois = []
+    for kind, table in poi_tables.items():
+        for row in db.execute(f"SELECT * FROM {quoted(table)} ORDER BY atlas_id"):
+            shape = geometry(row["geom"])
+            point = local(shape.x, shape.y)
+            if not inside(point, 250):
+                continue
+            keys = set(row.keys())
+            name = ""
+            for candidate in ("name", "stop_name", "hst_name", "connection", "barrier", "shelter_type"):
+                if candidate in keys and row[candidate]:
+                    name = str(row[candidate]).strip()
+                    break
+            pois.append({"p": point, "k": kind, "n": name[:80]})
+
     def spatial_index(features, cell=200):
         index = collections.defaultdict(list)
         for point, value in features:
@@ -379,11 +427,13 @@ def main() -> int:
         "sourceLayers": {
             "network": network_table, "buildings": buildings_table, "trees": trees_table,
             "crossings": crossings_table, "benches": benches_table, "shelters": shelters_table,
+            "pois": {str(kind): table for kind, table in poi_tables.items()},
         },
+        "pois": collections.Counter(point["k"] for point in pois),
     }
     payloads = {
         "network": {"nodes": nodes, "edges": edges},
-        "obstacles": {"buildings": buildings, "trees": trees}, "meta": meta,
+        "obstacles": {"buildings": buildings, "trees": trees, "pois": pois}, "meta": meta,
     }
     for name, data in payloads.items():
         (output / f"{name}.json").write_text(
