@@ -1,4 +1,4 @@
-# Sonnenpfad Stuttgart — Prototype 0.7
+# Sonnenpfad Stuttgart — Prototype 0.9
 
 A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the Stuttgart Pedestrian Atlas. German and English, desktop and mobile. No application server, paid API key or database service required.
 
@@ -14,20 +14,20 @@ Prepared application data is split into size-bounded static chunks so the browse
 
 ## Included
 
-- Selected central-Stuttgart real network, building footprints/heights and trees.
-- Direct, shade-preferring and sun-preferring Dijkstra routes with stair avoidance and a slope penalty.
+- Full-municipality Stuttgart network, building footprints/heights and trees when the versioned city assets are published; robust pilot fallback otherwise.
+- Direct, shade-preferring and sun-preferring Dijkstra routes with separate uphill/downhill treatment.
+- Mobility presets for manual wheelchair, power wheelchair, cane/walker, blind or low-vision pedestrians and pushchairs, plus transparent custom controls.
+- Photon-backed Stuttgart place/address search with map picking and draggable endpoints.
 - Changing date/time updates solar geometry, shadow display and route weighting.
 - A worker rasterizes shadow polygons for responsive rendering. Route sampling uses those same polygons (up to 4 m intervals); rendered mask resolution is approximately 1.7 m.
-- A locally generated 3D terrain surface beneath the OSM basemap, plus hillshade, building extrusion and height-aware tree crowns; map-point and named-place selection, draggable endpoints, swap, optional device location and share links.
+- An unrestricted 2D basemap and a locally generated 3D terrain surface with bounded visible-tile loading, hillshade, building extrusion and rounded height-aware tree crowns.
 - Elevation profile with absolute route heights, ascent and descent.
 - DE/EN interface and explicit out-of-area feedback.
 
 ## Data pipeline
 
 ```bash
-python scripts/prepare_data.py /path/to/Fussgaengeratlas_Stuttgart.gpkg
-python scripts/generate_terrain.py
-python scripts/chunk_data.py
+.venv-etl/bin/python scripts/run_etl.py /path/to/Fussgaengeratlas_Stuttgart.gpkg --scope city
 npm run build
 ```
 

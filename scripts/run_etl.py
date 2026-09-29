@@ -29,13 +29,16 @@ def main() -> int:
     )
     parser.add_argument("--skip-terrain", action="store_true", help="Skip Terrain-RGB generation")
     parser.add_argument("--skip-app-tests", action="store_true", help="Skip npm test")
+    parser.add_argument("--scope", choices=("pilot", "city"), default="pilot")
     args = parser.parse_args()
 
     source = args.source.resolve()
     if not source.is_file():
         parser.error(f"source does not exist: {source}")
 
-    report = ROOT / "build_data" / "source-validation.json"
+    build_dir = ROOT / ("build_city" if args.scope == "city" else "build_data")
+    build_dir.mkdir(parents=True, exist_ok=True)
+    report = build_dir / "source-validation.json"
     validation = [
         sys.executable,
         str(SCRIPTS / "validate_source.py"),
@@ -57,11 +60,20 @@ def main() -> int:
             str(source),
             "--source-date",
             source_date,
+            "--scope",
+            args.scope,
+            "--output-dir",
+            str(build_dir),
         ]
     )
     if not args.skip_terrain:
-        run([sys.executable, str(SCRIPTS / "generate_terrain.py")])
-    run([sys.executable, str(SCRIPTS / "chunk_data.py")])
+        run([sys.executable, str(SCRIPTS / "generate_terrain.py"), "--input-dir", str(build_dir)])
+    if args.scope == "city":
+        city_dir = ROOT / "dist" / "city"
+        run([sys.executable, str(SCRIPTS / "tile_city_data.py"), str(build_dir), "--output-dir", str(city_dir)])
+        run([sys.executable, str(SCRIPTS / "check_city_tiles.py"), str(city_dir)])
+    else:
+        run([sys.executable, str(SCRIPTS / "chunk_data.py")])
     if not args.skip_app_tests:
         run(["npm", "test"])
 
