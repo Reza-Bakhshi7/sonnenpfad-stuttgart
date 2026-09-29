@@ -246,11 +246,6 @@
 <main class="map-area">
 <div id="map" aria-label="Karte von Stuttgart">
 </div>
-<div class="map-heading">
-<span class="location-tag">
-<span>◎</span> Stuttgart</span>
-<span class="prototype" data-i="prototype">PROTOTYP 0.9</span>
-</div>
 <div class="map-tools">
 <select id="basemap" aria-label="Hintergrundkarte">
 <option value="openfree">OpenFreeMap</option>
@@ -283,9 +278,12 @@
 <legend data-i="poiLabel">Barrierefreiheit &amp; Komfort</legend>
 <div id="poi-options" class="poi-options"></div>
 </fieldset>
-<p class="layers-note" data-i="layersZoom">Themen und POIs erscheinen ab Zoomstufe 14,5.</p>
 </section>
 <aside class="theme-legend" id="theme-legend" hidden aria-live="polite"></aside>
+<div class="map-toast" id="map-toast" hidden role="status" aria-live="polite">
+<span id="map-toast-text"></span>
+<button id="map-toast-close" type="button" aria-label="Schließen">×</button>
+</div>
 <section class="time-panel">
 <div class="time-top">
 <div>
