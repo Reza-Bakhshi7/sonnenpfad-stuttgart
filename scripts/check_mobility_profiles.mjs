@@ -11,6 +11,11 @@ const adj=buildAdj(network),shades=network.edges.map(()=>0),indices=result=>resu
 
 assert(indices(route(network,adj,shades,[1,0],[29,0],{mobilityProfile:'standard'})).includes(1));
 assert(!indices(route(network,adj,shades,[1,0],[29,0],{mobilityProfile:'wheelchair'})).includes(1));
+for (const preference of ['shade','sun']) {
+  const extremeShades=network.edges.map((_,index)=>index===1?(preference==='shade'?1:0):(preference==='shade'?0:1));
+  const wheelchairRoute=route(network,adj,extremeShades,[1,0],[29,0],{mobilityProfile:'wheelchair',preference});
+  assert(!indices(wheelchairRoute).includes(1),`${preference} must never override wheelchair stair exclusion`);
+}
 
 network.edges[1].steps=false;
 network.edges[1].escalator=true;

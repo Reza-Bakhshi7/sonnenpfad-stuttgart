@@ -9,6 +9,12 @@ const appSource = fs.readFileSync(path.join(root, 'scripts', 'app.source.mjs'), 
 const expectedThemes = ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'];
 
 assert(!appSource.includes("getAttribute('aria-label')=t('layersTitle')"), 'Layer language setup must not assign to getAttribute().');
+assert(appSource.includes("map.setMinZoom(is3D?15.25"), '3D zoom-out must be limited for performance.');
+assert(appSource.includes('prepareRouteShade'), 'Long routes must load a complete shade corridor before routing.');
+assert(appSource.includes('outsideLocation'), 'Out-of-city geolocation must use a dismissible message.');
+assert(fs.existsSync(path.join(cityRoot, 'stuttgart-boundary.json')), 'Exact Stuttgart municipal boundary is required.');
+const poiIcons = JSON.parse(fs.readFileSync(path.join(root, 'dist', 'poi-icons.json'), 'utf8'));
+for (const icon of ['Signalized_Crossings.svg','Elevators.svg','Ramps.svg','Escalators.svg','Stairs.svg','Barriers_and_Gates.svg','Lowered_Curbs.svg','Raised_Curbs.svg','Benches.svg','Shelters.svg']) assert.match(poiIcons[icon], /^data:image\/svg\+xml;base64,/, `Missing embedded atlas POI icon: ${icon}`);
 assert.equal(manifest.version, 4);
 assert.deepEqual(manifest.themes, expectedThemes);
 assert.equal(Object.keys(manifest.poiTypes).length, 10);
