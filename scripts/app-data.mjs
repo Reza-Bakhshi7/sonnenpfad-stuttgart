@@ -12,6 +12,7 @@ export function parseCityManifest(text) {
   const obstacles = manifest?.obstacles;
   const assetList = value => typeof value === 'string' || (Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'));
   if (
+    manifest?.version !== 4 ||
     manifest?.scope !== 'city' ||
     !numberArray(manifest.origin, 2) ||
     !numberArray(manifest.scale, 2) ||
@@ -22,7 +23,9 @@ export function parseCityManifest(text) {
     !Number.isInteger(network?.edgeCount) || network.edgeCount <= 0 ||
     !assetList(network?.snapIndex) ||
     !Number.isFinite(obstacles?.grid) || obstacles.grid <= 0 ||
-    !obstacles?.tiles || typeof obstacles.tiles !== 'object' || Array.isArray(obstacles.tiles)
+    !obstacles?.tiles || typeof obstacles.tiles !== 'object' || Array.isArray(obstacles.tiles) ||
+    !Array.isArray(manifest.themes) || manifest.themes.length !== 8 ||
+    !manifest.poiTypes || Object.keys(manifest.poiTypes).length !== 10
   ) return null;
 
   return manifest;
