@@ -8,10 +8,10 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-v3.css">
-<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./style.css?v=20260930-step4-review4">
 <script defer src="./vendor/maplibre-v3.js">
 </script>
-<script type="module" src="./app-v7.mjs">
+<script type="module" src="./app-v7.mjs?v=20260930-step4-review4">
 </script>
 </head>
 <body>
@@ -246,11 +246,6 @@
 <main class="map-area">
 <div id="map" aria-label="Karte von Stuttgart">
 </div>
-<div class="map-heading">
-<span class="location-tag">
-<span>◎</span> Stuttgart</span>
-<span class="prototype" data-i="prototype">PROTOTYP 0.9</span>
-</div>
 <div class="map-tools">
 <select id="basemap" aria-label="Hintergrundkarte">
 <option value="openfree">OpenFreeMap</option>
@@ -258,8 +253,30 @@
 <option value="topo">Topografisch</option>
 </select>
 <button id="view" aria-pressed="false">3D</button>
+<button id="layers-toggle" aria-expanded="false" aria-controls="layers-panel" aria-label="Kartenebenen" title="Kartenebenen">◫</button>
 <button id="locate" aria-label="Mein Standort" title="Mein Standort">⌖</button>
 <button id="fit" aria-label="Gesamte Route anzeigen" title="Gesamte Route anzeigen">⤢</button>
+</div>
+<section class="layers-panel" id="layers-panel" hidden aria-labelledby="layers-title">
+<div class="layers-head">
+<strong id="layers-title" data-i="layersTitle">Kartenebenen</strong>
+<button id="layers-close" type="button" aria-label="Schließen">×</button>
+</div>
+<label for="theme" data-i="themeLabel">Linienthema</label>
+<select id="theme" class="visually-hidden-select" aria-label="Linienthema">
+<option value="slope">Steigung</option><option value="surface">Oberfläche</option><option value="shadeSummer">Schatten · Sommer</option><option value="shadeWinter">Schatten · Winter</option><option value="utciSummer">UTCI · Sommer</option><option value="utciWinter">UTCI · Winter</option><option value="noise">Lärm</option><option value="wind">Wind</option>
+</select>
+<div id="theme-options" class="theme-options" role="radiogroup" aria-label="Linienthema"></div>
+<p id="theme-description" class="theme-description"></p>
+<fieldset>
+<legend data-i="poiLabel">Barrierefreiheit &amp; Komfort</legend>
+<div id="poi-options" class="poi-options"></div>
+</fieldset>
+</section>
+<aside class="theme-legend" id="theme-legend" hidden aria-live="polite"></aside>
+<div class="map-toast" id="map-toast" hidden role="status" aria-live="polite">
+<span id="map-toast-text"></span>
+<button id="map-toast-close" type="button" aria-label="Schließen">×</button>
 </div>
 <section class="time-panel">
 <div class="time-top">
@@ -284,18 +301,23 @@
 </div>
 </div>
 <label class="sr-only" for="time" data-i="time">Uhrzeit</label>
-<input id="time" type="range" min="0" max="1430" step="10" value="840">
+<input id="time" type="range" min="0" max="1439" step="1" value="840">
 <div class="time-ticks">
 <span>00:00</span>
 <span>06:00</span>
 <span>12:00</span>
 <span>18:00</span>
-<span>23:50</span>
+<span>23:59</span>
 </div>
 <div class="time-bottom">
 <div class="season">
 <button id="summer" data-i="summer">Sommer</button>
 <button id="winter" data-i="winter">Winter</button>
+</div>
+<div class="time-playback">
+<button id="time-play" type="button" aria-pressed="false" data-i-title="timePlay" title="Zeitanimation starten">▶</button>
+<label class="sr-only" for="time-speed" data-i="timeSpeed">Geschwindigkeit</label>
+<select id="time-speed" aria-label="Geschwindigkeit"><option value="1">1×</option><option value="4">4×</option><option value="12">12×</option></select>
 </div>
 <span class="micro" data-i="timezone">Ortszeit Stuttgart</span>
 </div>
