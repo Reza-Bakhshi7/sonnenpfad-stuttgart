@@ -4,6 +4,12 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
+- Step 5 profile engine with hard exclusions for known stairs, escalators, poor surfaces, explicit wheelchair prohibitions, narrow ways and profile-specific gradient limits.
+- Dedicated blocked-profile feedback instead of misclassifying restricted routes as outside the network.
+- Profile-aware travel-time assumptions and route diagnostics for maximum gradient, attribute coverage, known minimum width, surface quality, stairs and escalators.
+- Advisory 12 m route-corridor reporting for barriers and raised/lowered kerbs; unlinked point POIs are not misused as hard graph restrictions.
+- Custom hard restrictions for poor surfaces, `wheelchair=no`, minimum width and maximum known gradient, including share-link persistence.
+- Step 5 synthetic regression suite and real 248,725-edge city audit.
 - Step 4 preview: mutually exclusive line themes for slope, surface, summer/winter shade, summer/winter UTCI, noise and relative wind exposure.
 - Ten independently switchable accessibility and comfort POI categories with 13,179 citywide features.
 - Dynamic bilingual legends and shareable theme/POI state.

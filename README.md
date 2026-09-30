@@ -16,7 +16,7 @@ Prepared application data is split into size-bounded static chunks so the browse
 
 - Full-municipality Stuttgart network, building footprints/heights and trees when the versioned city assets are published; robust pilot fallback otherwise.
 - Direct, shade-preferring and sun-preferring Dijkstra routes with separate uphill/downhill treatment.
-- Mobility presets for manual wheelchair, power wheelchair, cane/walker, blind or low-vision pedestrians and pushchairs, plus transparent custom controls.
+- Mobility presets for manual wheelchair, power wheelchair, cane/walker, blind or low-vision pedestrians and pushchairs. Known barriers are hard exclusions, unknown attributes remain routable but visible, and custom controls expose width, gradient, surface, stair, escalator and wheelchair restrictions. The exact assumptions are documented in [Step 5 routing profiles](docs/step5-routing-profiles.md).
 - Photon-backed Stuttgart place/address search with map picking and draggable endpoints.
 - Changing date/time updates solar geometry, shadow display and route weighting. The compact player animates continuously at 1×, 4× or 12×, and the solar compass responds immediately while dragging.
 - A worker rasterizes shadow polygons for responsive rendering. Interaction uses a 512 px preview without route-edge resampling; pausing produces the exact route-aware result and a raster capped at 1,024 px. Background refreshes do not take over the route controls.
