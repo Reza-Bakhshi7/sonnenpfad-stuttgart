@@ -75,7 +75,7 @@ def main() -> int:
             stream.write(NODE_STRUCT.pack(x, y))
 
     snap_index: dict[str, list[int]] = collections.defaultdict(list)
-    with (network_dir / "edges.bin").open("wb") as stream:
+    with (network_dir / "edges.bin").open("wb") as stream, (output / "slope-directions.bin").open("wb") as slope_stream:
         for index, edge in enumerate(network["edges"]):
             flags = (1 if edge["steps"] else 0) | (2 if edge["covered"] else 0)
             mobility = (
@@ -85,6 +85,7 @@ def main() -> int:
                 | (8 if edge["escalator"] else 0)
             )
             signed = edge["sf"] if edge["sf"] is not None else math.nan
+            slope_stream.write(struct.pack("<b", 1 if signed > 0 else -1 if signed < 0 else 0))
             stream.write(EDGE_STRUCT.pack(
                 edge["a"], edge["b"], edge["l"], edge["s"], signed,
                 edge["z0"], edge["z1"], edge["dir"], flags, edge["sq"], 0,
@@ -157,6 +158,7 @@ def main() -> int:
             "snapIndex": snap_files, "snapGrid": args.snap_grid,
         },
         "obstacles": {"grid": args.obstacle_grid, "paddingTiles": 1, "tiles": tile_manifest},
+        "visual": {"slopeDirections": "slope-directions.bin", "count": len(network["edges"])},
         "counts": {
             "buildings": len(obstacles["buildings"]), "trees": len(obstacles["trees"]),
             "lines": len(network["edges"]), "largeTreesScaled": large_trees,
