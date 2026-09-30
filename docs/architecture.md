@@ -7,9 +7,9 @@ Sonnenpfad Stuttgart is currently a static, browser-computed prototype.
 - Cloudflare Workers Static Assets serves the application and terrain tiles.
 - MapLibre GL JS renders the 2D/3D map, terrain, buildings, trees and routes.
 - Routing, solar geometry and shadow calculation run locally in a Web Worker.
-- Prepared atlas data is split into immutable binary network arrays and 1 km JSON tiles for independent caching. Each visual tile reuses one line geometry array with a parallel eight-value theme array and contains compact POI records.
+- Prepared atlas data is split into immutable binary network arrays and 1 km JSON tiles for independent caching. Each visual tile reuses one line geometry array with a parallel eight-value theme array and contains compact POI records. A one-byte-per-edge direction asset drives uphill arrows without duplicating geometry.
 - A 500 m spatial index restricts endpoint snapping to nearby network edges.
-- The 2D basemap is unconstrained; atlas layers appear only where data exists. In 3D, a bounded level-of-detail window prioritises tiles around and ahead of the camera while retaining a smaller rear context. Zoom-dependent budgets cap extruded buildings and tree crowns while increasing tree detail close up.
+- Both map modes stay within Stuttgart; outside areas are masked. In 3D, a bounded level-of-detail window prioritises ten tiles around and ahead of the camera. Zoom-dependent budgets cap extruded buildings and rounded tree crowns, and a view signature prevents rebuilding unchanged tile sets.
 - No route, selected location or device position is persisted by the application.
 
 ## Build and deployment
