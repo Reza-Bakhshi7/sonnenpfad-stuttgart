@@ -7,7 +7,10 @@ All notable product changes are documented here. The project follows semantic ve
 - Step 4 preview: mutually exclusive line themes for slope, surface, summer/winter shade, summer/winter UTCI, noise and relative wind exposure.
 - Ten independently switchable accessibility and comfort POI categories with 13,179 citywide features.
 - Dynamic bilingual legends and shareable theme/POI state.
-- Balanced 3D level of detail with zoom-dependent building and tree budgets.
+- Mandatory slope-by-default thematic display with thicker lines, signed uphill arrows and hover explanations.
+- Compact time animation with 1×, 4× and 12× playback.
+- Balanced 3D level of detail with reduced tile, building and rounded-tree budgets plus duplicate-view suppression.
+- Bounded 1,024 px shadow rasters for faster interactive updates.
 - Full-Stuttgart data pipeline and coverage with visual-data contract version 4.
 - Live weather and public-transport adapters.
 - Extended accessibility and restriction profiles.
