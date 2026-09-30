@@ -8,10 +8,10 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-v3.css">
-<link rel="stylesheet" href="./style.css?v=20260929-icon-fix2">
+<link rel="stylesheet" href="./style.css?v=20260930-step4-review3">
 <script defer src="./vendor/maplibre-v3.js">
 </script>
-<script type="module" src="./app-v7.mjs?v=20260929-icon-fix2">
+<script type="module" src="./app-v7.mjs?v=20260930-step4-review3">
 </script>
 </head>
 <body>
@@ -263,17 +263,11 @@
 <button id="layers-close" type="button" aria-label="Schließen">×</button>
 </div>
 <label for="theme" data-i="themeLabel">Linienthema</label>
-<select id="theme">
-<option value="none">Kein Thema</option>
-<option value="slope">Steigung</option>
-<option value="surface">Oberfläche</option>
-<option value="shadeSummer">Schatten · Sommer</option>
-<option value="shadeWinter">Schatten · Winter</option>
-<option value="utciSummer">UTCI · Sommer</option>
-<option value="utciWinter">UTCI · Winter</option>
-<option value="noise">Lärm</option>
-<option value="wind">Wind</option>
+<select id="theme" class="visually-hidden-select" aria-label="Linienthema">
+<option value="slope">Steigung</option><option value="surface">Oberfläche</option><option value="shadeSummer">Schatten · Sommer</option><option value="shadeWinter">Schatten · Winter</option><option value="utciSummer">UTCI · Sommer</option><option value="utciWinter">UTCI · Winter</option><option value="noise">Lärm</option><option value="wind">Wind</option>
 </select>
+<div id="theme-options" class="theme-options" role="radiogroup" aria-label="Linienthema"></div>
+<p id="theme-description" class="theme-description"></p>
 <fieldset>
 <legend data-i="poiLabel">Barrierefreiheit &amp; Komfort</legend>
 <div id="poi-options" class="poi-options"></div>
@@ -319,6 +313,11 @@
 <div class="season">
 <button id="summer" data-i="summer">Sommer</button>
 <button id="winter" data-i="winter">Winter</button>
+</div>
+<div class="time-playback">
+<button id="time-play" type="button" aria-pressed="false" data-i-title="timePlay" title="Zeitanimation starten">▶</button>
+<label class="sr-only" for="time-speed" data-i="timeSpeed">Geschwindigkeit</label>
+<select id="time-speed" aria-label="Geschwindigkeit"><option value="1">1×</option><option value="4">4×</option><option value="12">12×</option></select>
 </div>
 <span class="micro" data-i="timezone">Ortszeit Stuttgart</span>
 </div>
