@@ -46,19 +46,34 @@ export function edgeShades(edges,polys,night=false){
 class Heap{constructor(){this.a=[];}push(v){const a=this.a;let i=a.length;a.push(v);while(i){const p=(i-1)>>1;if(a[p][0]<=v[0])break;a[i]=a[p];i=p;}a[i]=v;}pop(){const a=this.a,v=a[0],last=a.pop();if(a.length){let i=0;while(i*2+1<a.length){let c=i*2+1;if(c+1<a.length&&a[c+1][0]<a[c][0])c++;if(a[c][0]>=last[0])break;a[i]=a[c];i=c;}a[i]=last;}return v;}get length(){return this.a.length;}}
 export function buildAdj(network){const adj=network.nodes.map(()=>[]);network.edges.forEach((e,i)=>{if(e.dir!==-1)adj[e.a].push([e.b,i,1]);if(e.dir!==1)adj[e.b].push([e.a,i,-1]);});return adj;}
 export const MOBILITY_PROFILES={
- standard:{slopeMode:'none'},
- wheelchair:{avoidSteps:true,avoidEscalators:true,slopeMode:'both',slopeFactor:.85,surfaceFactor:1.3,wayFactor:1.1,widthMin:1.2,wheelchairFactor:1.4},
- powerWheelchair:{avoidSteps:true,avoidEscalators:true,slopeMode:'both',slopeFactor:.5,surfaceFactor:1,wayFactor:1,widthMin:1.1,wheelchairFactor:1.1},
- walkingAid:{avoidSteps:true,avoidEscalators:true,slopeMode:'both',slopeFactor:.6,surfaceFactor:.8,wayFactor:.7,benchFactor:1.2,shelterFactor:.35},
- vision:{avoidEscalators:true,slopeMode:'none',wayFactor:.9,crossingFactor:1.5,stairGuidanceFactor:1.2},
- stroller:{avoidSteps:true,avoidEscalators:true,slopeMode:'uphill',slopeFactor:.65,downhillFactor:.25,surfaceFactor:1,wayFactor:1.2,widthMin:1.1,benchFactor:.35},
+ standard:{slopeMode:'none',speedMpm:75,ascentMinutesPer10m:1},
+ // Hard filters apply only to explicitly known barriers. Missing attributes stay
+ // routable, receive an uncertainty penalty and are reported to the user.
+ wheelchair:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,avoidWheelchairNo:true,minWidth:0.9,maxSlope:6,slopeMode:'both',slopeFactor:.9,surfaceFactor:1.3,wayFactor:1.1,widthMin:1.2,wheelchairFactor:1.4,unknownFactor:.65,speedMpm:60,ascentMinutesPer10m:1.4},
+ powerWheelchair:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,avoidWheelchairNo:true,minWidth:0.9,maxSlope:10,slopeMode:'both',slopeFactor:.55,surfaceFactor:1,wayFactor:1,widthMin:1.1,wheelchairFactor:1.1,unknownFactor:.5,speedMpm:75,ascentMinutesPer10m:.5},
+ walkingAid:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,minWidth:0.8,maxSlope:10,slopeMode:'both',slopeFactor:.65,surfaceFactor:.9,wayFactor:.7,benchFactor:1.2,shelterFactor:.35,unknownFactor:.45,speedMpm:50,ascentMinutesPer10m:1.6},
+ vision:{slopeMode:'none',wayFactor:.9,crossingFactor:1.5,stairGuidanceFactor:1.2,unknownFactor:.25,speedMpm:65,ascentMinutesPer10m:1.1},
+ stroller:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,minWidth:0.9,maxSlope:12,slopeMode:'both',slopeFactor:.7,downhillFactor:.25,surfaceFactor:1,wayFactor:1.2,widthMin:1.1,benchFactor:.35,unknownFactor:.4,speedMpm:65,ascentMinutesPer10m:1.2},
 };
 export function resolvedOptions(options={}){
  const profile=options.mobilityProfile||'standard';
  return profile==='custom'?{...options}:{...MOBILITY_PROFILES[profile]||MOBILITY_PROFILES.standard,...options};
 }
-export function edgeAllowed(e,options={}){
- return !(options.avoidSteps&&e.steps)&&!(options.avoidEscalators&&e.escalator);
+function signedEdgeSlope(e,forward=true){
+ const raw=Number.isFinite(e.sf)?e.sf:(Number.isFinite(e.dz)&&Math.abs(e.dz)>.01?Math.sign(e.dz)*Math.abs(e.s):null);
+ return raw===null?null:(forward?raw:-raw);
+}
+export function edgeAllowed(e,options={},forward=null){
+ if(options.avoidSteps&&e.steps)return false;
+ if(options.avoidEscalators&&e.escalator)return false;
+ if(options.avoidPoorSurface&&e.surface===3)return false;
+ if(options.avoidWheelchairNo&&e.wheelchair===3)return false;
+ if(options.minWidth&&e.width>0&&e.width<options.minWidth)return false;
+ if(options.maxSlope){
+  if(forward===null)return edgeAllowed(e,{...options,maxSlope:0},true)&&(Math.abs(signedEdgeSlope(e,true)??0)<=options.maxSlope||Math.abs(signedEdgeSlope(e,false)??0)<=options.maxSlope);
+  const slope=signedEdgeSlope(e,forward);if(slope!==null&&Math.abs(slope)>options.maxSlope)return false;
+ }
+ return true;
 }
 export function buildComponents(network,options={}){
  if(typeof options==='boolean')options={avoidSteps:options};
@@ -90,33 +105,37 @@ function snapCandidates(network,p,maxSnap){
 function nearestByComponent(network,p,components,options,maxSnap){
  const candidates=snapCandidates(network,p,maxSnap)||network.edges.keys(),best=new Map();for(const i of candidates){const e=network.edges[i];if(!edgeAllowed(e,options))continue;const component=components[e.a];if(component<0)continue;const projection=edgeProjection(e,p),old=best.get(component);if(!old||projection.distance<old.distance)best.set(component,{i,component,...projection});}return best;
 }
+function sharedSnapExists(network,start,end,maxSnap){const components=buildComponents(network,{}),starts=nearestByComponent(network,start,components,{},maxSnap),ends=nearestByComponent(network,end,components,{},maxSnap);for(const [component,a] of starts){const b=ends.get(component);if(b&&a.distance<=maxSnap&&b.distance<=maxSnap)return true;}return false;}
 export function route(network,adj,shades,start,end,options={}){
  options=resolvedOptions(options);const {preference='balanced',gentle=false}=options,slopeMode=options.slopeMode||(gentle?'both':'none'),components=options.components||buildComponents(network,options),maxSnap=options.maxSnap||200;
  const starts=nearestByComponent(network,start,components,options,maxSnap),ends=nearestByComponent(network,end,components,options,maxSnap);let a=null,b=null,bestSnap=Infinity;
  for(const [component,sa] of starts){const sb=ends.get(component);if(!sb||sa.distance>maxSnap||sb.distance>maxSnap)continue;const score=sa.distance+sb.distance;if(score<bestSnap){bestSnap=score;a=sa;b=sb;}}
- if(!a||!b)return {error:'outside'};
- const penalty=(i,forward=true)=>{const e=network.edges[i],shade=Number.isFinite(shades[i])?shades[i]:0,exposure=preference==='shade'?1-shade:preference==='sun'?shade:0,raw=Number.isFinite(e.sf)?e.sf:(Number.isFinite(e.dz)&&Math.abs(e.dz)>.01?Math.sign(e.dz)*Math.abs(e.s):null),directed=raw===null?null:(forward?raw:-raw);let cost=1+exposure*1.6,slope=0;if(slopeMode!=='none'){if(directed===null)slope=24;else if(slopeMode==='uphill')slope=Math.max(0,directed);else if(slopeMode==='downhill')slope=Math.max(0,-directed);else slope=Math.abs(directed);cost+=Math.min(5,slope/6)*(options.slopeFactor||1);}if(options.downhillFactor&&directed!==null)cost+=Math.min(3,Math.max(0,-directed)/8)*options.downhillFactor;if(options.surfaceFactor)cost+=(e.surface===3?2.5:e.surface===2?.7:0)*options.surfaceFactor;if(options.wayFactor)cost+=(e.way===3?1.7:e.way===2?.35:0)*options.wayFactor;if(options.widthMin&&e.width>0&&e.width<options.widthMin)cost+=2.2;if(options.wheelchairFactor)cost+=(e.wheelchair===3?4:e.wheelchair===2?1.3:0)*options.wheelchairFactor;if(options.crossingFactor&&e.crossing)cost+=(e.crossing===1?2.4:e.crossing===2?.55:0)*options.crossingFactor;if(options.stairGuidanceFactor&&e.steps)cost+=(!e.handrail?1.2:0)+(!e.tactile?1.2:0);if(options.benchFactor)cost+=Math.min(2,Math.max(0,(Math.min(e.bench||1000,1000)-100)/450))*options.benchFactor;if(options.shelterFactor)cost+=Math.min(1.2,Math.max(0,(Math.min(e.shelter||1000,1000)-200)/650))*options.shelterFactor;return cost;};
+ if(!a||!b)return {error:hasRestrictions(options)&&sharedSnapExists(network,start,end,maxSnap)?'profileBlocked':'outside'};
+ const penalty=(i,forward=true)=>{const e=network.edges[i],shade=Number.isFinite(shades[i])?shades[i]:0,exposure=preference==='shade'?1-shade:preference==='sun'?shade:0,directed=signedEdgeSlope(e,forward);let cost=1+exposure*1.6,slope=0;if(slopeMode!=='none'){if(directed===null)slope=24;else if(slopeMode==='uphill')slope=Math.max(0,directed);else if(slopeMode==='downhill')slope=Math.max(0,-directed);else slope=Math.abs(directed);cost+=Math.min(5,slope/6)*(options.slopeFactor??1);}if(options.downhillFactor&&directed!==null)cost+=Math.min(3,Math.max(0,-directed)/8)*options.downhillFactor;if(options.surfaceFactor)cost+=(e.surface===3?2.5:e.surface===2?.7:0)*options.surfaceFactor;if(options.wayFactor)cost+=(e.way===3?1.7:e.way===2?.35:0)*options.wayFactor;if(options.widthMin&&e.width>0&&e.width<options.widthMin)cost+=2.2;if(options.wheelchairFactor)cost+=(e.wheelchair===3?4:e.wheelchair===2?1.3:0)*options.wheelchairFactor;if(options.crossingFactor&&e.crossing)cost+=(e.crossing===1?2.4:e.crossing===2?.55:0)*options.crossingFactor;if(options.stairGuidanceFactor&&e.steps)cost+=(!e.handrail?1.2:0)+(!e.tactile?1.2:0);if(options.benchFactor)cost+=Math.min(2,Math.max(0,(Math.min(e.bench||1000,1000)-100)/450))*options.benchFactor;if(options.shelterFactor)cost+=Math.min(1.2,Math.max(0,(Math.min(e.shelter||1000,1000)-200)/650))*options.shelterFactor;if(options.unknownFactor){let unknown=0;if(e.surface===0)unknown++;if(!Number.isFinite(e.sf))unknown++;if((options.minWidth||options.widthMin)&&!e.width)unknown++;if(options.avoidWheelchairNo&&e.wheelchair===0)unknown++;cost+=unknown*options.unknownFactor;}return cost;};
  const ae=network.edges[a.i],be=network.edges[b.i];
  if(a.i===b.i){
-  const forward=b.t>=a.t,allowed=forward?ae.dir!==-1:ae.dir!==1,frac=Math.abs(b.t-a.t);
+  const forward=b.t>=a.t,allowed=(forward?ae.dir!==-1:ae.dir!==1)&&edgeAllowed(ae,options,forward),frac=Math.abs(b.t-a.t);
   if(allowed){if(frac*ae.l<.01)return {error:'same'};return finish([{i:a.i,forward,frac,t0:a.t,t1:b.t,coords:[a.p,b.p]}],a,b);}
  }
  const d=new Float64Array(network.nodes.length).fill(Infinity),prev=new Int32Array(d.length).fill(-1),pe=new Int32Array(d.length).fill(-1),heap=new Heap(),seedPart=new Map(),finalPart=new Map();
  const seed=(node,part)=>{const cost=network.edges[part.i].l*part.frac*penalty(part.i,part.forward);if(cost<d[node]){d[node]=cost;seedPart.set(node,part);heap.push([cost,node]);}};
- if(ae.dir!==1)seed(ae.a,{i:a.i,forward:false,frac:a.t,t0:a.t,t1:0,coords:[a.p,network.nodes[ae.a]]});
- if(ae.dir!==-1)seed(ae.b,{i:a.i,forward:true,frac:1-a.t,t0:a.t,t1:1,coords:[a.p,network.nodes[ae.b]]});
+ if(ae.dir!==1&&edgeAllowed(ae,options,false))seed(ae.a,{i:a.i,forward:false,frac:a.t,t0:a.t,t1:0,coords:[a.p,network.nodes[ae.a]]});
+ if(ae.dir!==-1&&edgeAllowed(ae,options,true))seed(ae.b,{i:a.i,forward:true,frac:1-a.t,t0:a.t,t1:1,coords:[a.p,network.nodes[ae.b]]});
  const addFinal=(node,part)=>{const cost=network.edges[part.i].l*part.frac*penalty(part.i,part.forward),old=finalPart.get(node);if(!old||cost<old.cost)finalPart.set(node,{cost,part});};
- if(be.dir!==-1)addFinal(be.a,{i:b.i,forward:true,frac:b.t,t0:0,t1:b.t,coords:[network.nodes[be.a],b.p]});
- if(be.dir!==1)addFinal(be.b,{i:b.i,forward:false,frac:1-b.t,t0:1,t1:b.t,coords:[network.nodes[be.b],b.p]});
+ if(be.dir!==-1&&edgeAllowed(be,options,true))addFinal(be.a,{i:b.i,forward:true,frac:b.t,t0:0,t1:b.t,coords:[network.nodes[be.a],b.p]});
+ if(be.dir!==1&&edgeAllowed(be,options,false))addFinal(be.b,{i:b.i,forward:false,frac:1-b.t,t0:1,t1:b.t,coords:[network.nodes[be.b],b.p]});
  let best=Infinity,target=-1,targetPart=null;
- while(heap.length){const [cost,u]=heap.pop();if(cost!==d[u])continue;if(cost>=best)break;const fin=finalPart.get(u);if(fin&&cost+fin.cost<best){best=cost+fin.cost;target=u;targetPart=fin.part;}for(const [v,i,direction] of adj[u]){const e=network.edges[i];if(!edgeAllowed(e,options))continue;const nd=cost+e.l*penalty(i,direction===1);if(nd<d[v]){d[v]=nd;prev[v]=u;pe[v]=i;heap.push([nd,v]);}}}
- if(target<0)return {error:'outside'};
+ while(heap.length){const [cost,u]=heap.pop();if(cost!==d[u])continue;if(cost>=best)break;const fin=finalPart.get(u);if(fin&&cost+fin.cost<best){best=cost+fin.cost;target=u;targetPart=fin.part;}for(const [v,i,direction] of adj[u]){const e=network.edges[i],forward=direction===1;if(!edgeAllowed(e,options,forward))continue;const nd=cost+e.l*penalty(i,forward);if(nd<d[v]){d[v]=nd;prev[v]=u;pe[v]=i;heap.push([nd,v]);}}}
+ if(target<0)return {error:hasRestrictions(options)?'profileBlocked':'disconnected'};
  const full=[];let u=target;while(prev[u]>=0){const i=pe[u],forward=network.edges[i].b===u;full.push({i,forward,frac:1,t0:forward?0:1,t1:forward?1:0,coords:null});u=prev[u];}full.reverse();
  const parts=[seedPart.get(u),...full,targetPart].filter(Boolean);
  return finish(parts,a,b);
  function finish(parts,a,b){
-  let length=0,shaded=0,ascent=0,descent=0,steps=0,currentZ=null;const coords=[],profile=[];
-  for(const part of parts){const e=network.edges[part.i],len=e.l*part.frac,t0=part.t0??(part.forward?0:1),t1=part.t1??(part.forward?1:0),raw0=Number.isFinite(e.z0)?e.z0:0,raw1=Number.isFinite(e.z1)?e.z1:raw0+e.dz,dz=(raw1-raw0)*(t1-t0),segment=part.coords||(part.forward?e.c:e.c.slice().reverse());if(currentZ===null){currentZ=raw0+(raw1-raw0)*t0;profile.push([0,currentZ]);}length+=len;currentZ+=dz;profile.push([length,currentZ]);shaded+=len*shades[part.i];ascent+=Math.max(0,dz);descent+=Math.max(0,-dz);if(e.steps&&len>.01)steps++;for(const p of segment)if(!coords.length||Math.hypot(coords.at(-1)[0]-p[0],coords.at(-1)[1]-p[1])>.001)coords.push(p);}
-  return {path:parts,coords,profile,length,shade:length?shaded/length:0,ascent,descent,steps,minutes:Math.ceil(length/75+ascent/10),snaps:[a.p,b.p],snapDistances:[a.distance,b.distance]};
+  let length=0,shaded=0,ascent=0,descent=0,steps=0,escalators=0,currentZ=null;const coords=[],profile=[],quality={surfaceKnown:0,slopeKnown:0,widthKnown:0,wheelchairKnown:0,poorSurface:0,limitedWheelchair:0,maxUphill:0,maxDownhill:0,minWidth:null};
+  for(const part of parts){const e=network.edges[part.i],len=e.l*part.frac,t0=part.t0??(part.forward?0:1),t1=part.t1??(part.forward?1:0),raw0=Number.isFinite(e.z0)?e.z0:0,raw1=Number.isFinite(e.z1)?e.z1:raw0+e.dz,dz=(raw1-raw0)*(t1-t0),segment=part.coords||(part.forward?e.c:e.c.slice().reverse()),directed=signedEdgeSlope(e,part.forward);if(currentZ===null){currentZ=raw0+(raw1-raw0)*t0;profile.push([0,currentZ]);}length+=len;currentZ+=dz;profile.push([length,currentZ]);shaded+=len*shades[part.i];ascent+=Math.max(0,dz);descent+=Math.max(0,-dz);if(e.steps&&len>.01)steps++;if(e.escalator&&len>.01)escalators++;if(e.surface){quality.surfaceKnown+=len;if(e.surface===3)quality.poorSurface+=len;}if(directed!==null){quality.slopeKnown+=len;quality.maxUphill=Math.max(quality.maxUphill,directed);quality.maxDownhill=Math.max(quality.maxDownhill,-directed);}if(e.width>0){quality.widthKnown+=len;quality.minWidth=quality.minWidth===null?e.width:Math.min(quality.minWidth,e.width);}if(e.wheelchair){quality.wheelchairKnown+=len;if(e.wheelchair>=2)quality.limitedWheelchair+=len;}for(const p of segment)if(!coords.length||Math.hypot(coords.at(-1)[0]-p[0],coords.at(-1)[1]-p[1])>.001)coords.push(p);}
+  const speed=Math.max(1,options.speedMpm||75),ascentMinutes=options.ascentMinutesPer10m??1;
+  for(const key of ['surfaceKnown','slopeKnown','widthKnown','wheelchairKnown','poorSurface','limitedWheelchair'])quality[key]=length?quality[key]/length:0;
+  return {path:parts,coords,profile,length,shade:length?shaded/length:0,ascent,descent,steps,escalators,quality,criteria:{minWidth:options.minWidth||0,maxSlope:options.maxSlope||0,avoidPoorSurface:Boolean(options.avoidPoorSurface),avoidWheelchairNo:Boolean(options.avoidWheelchairNo)},minutes:Math.ceil(length/speed+ascent/10*ascentMinutes),snaps:[a.p,b.p],snapDistances:[a.distance,b.distance]};
  }
 }
+function hasRestrictions(options){return Boolean(options.avoidSteps||options.avoidEscalators||options.avoidPoorSurface||options.avoidWheelchairNo||options.minWidth||options.maxSlope);}
