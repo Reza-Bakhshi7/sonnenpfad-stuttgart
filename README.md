@@ -18,9 +18,12 @@ Prepared application data is split into size-bounded static chunks so the browse
 - Direct, shade-preferring and sun-preferring Dijkstra routes with separate uphill/downhill treatment.
 - Mobility presets for manual wheelchair, power wheelchair, cane/walker, blind or low-vision pedestrians and pushchairs, plus transparent custom controls.
 - Photon-backed Stuttgart place/address search with map picking and draggable endpoints.
-- Changing date/time updates solar geometry, shadow display and route weighting.
-- A worker rasterizes shadow polygons for responsive rendering. Route sampling uses those same polygons (up to 4 m intervals); rendered mask resolution is approximately 1.7 m.
+- Changing date/time updates solar geometry, shadow display and route weighting. The compact player animates continuously at 1×, 4× or 12×, and the solar compass responds immediately while dragging.
+- A worker rasterizes shadow polygons for responsive rendering. Interaction uses a 512 px preview without route-edge resampling; pausing produces the exact route-aware result and a raster capped at 1,024 px. Background refreshes do not take over the route controls.
 - An unrestricted 2D basemap and a locally generated 3D terrain surface with bounded visible-tile loading, hillshade, building extrusion and rounded height-aware tree crowns.
+- Exactly one active atlas line theme for slope, surface, summer/winter shade, summer/winter UTCI, noise or relative wind exposure, each with a bilingual legend and explanation. Slope is the default and embedded grey arrow icons point uphill without relying on basemap fonts.
+- Ten switchable citywide accessibility and comfort POI categories: signal crossings, elevators, ramps, escalators, stairs, barriers/gates, lowered and raised kerbs, benches and shelters.
+- Balanced 3D level of detail: nearby buildings and rounded tree crowns receive progressively richer budgets as the user zooms in; identical views are not rebuilt and the 2D/3D switch no longer schedules a second delayed tile reload.
 - Elevation profile with absolute route heights, ascent and descent.
 - DE/EN interface and explicit out-of-area feedback.
 
@@ -52,7 +55,7 @@ This is not a validated heat-risk, accessibility or navigation service.
 - Points search nearby network components within 200 m and use the closest component reachable from both endpoints. Dashed access lines make the snap explicit and are excluded from route length.
 - Walking time assumes 75 m/min plus 1 minute per 10 m of ascent. Elevation/slope inherit the atlas's uncertainties.
 - Shade/sun preference uses `length * (1 + 1.6 * undesired_exposure)`; gentler routes add `min(4, abs(slope_pct)/6)` to the multiplier. All costs are nonnegative. Additional distance is shown against the direct route with the same other settings. There is no hard detour cap in 0.7.
-- No live weather, UTCI, SOLWEIG or turn-by-turn guidance in 0.7.
+- No live weather, SOLWEIG or turn-by-turn guidance. The displayed UTCI values are derived atlas snapshot indicators, not live measurements or individual heat-risk advice.
 
 ## Verification
 

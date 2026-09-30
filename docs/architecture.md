@@ -6,17 +6,18 @@ Sonnenpfad Stuttgart is currently a static, browser-computed prototype.
 
 - Cloudflare Workers Static Assets serves the application and terrain tiles.
 - MapLibre GL JS renders the 2D/3D map, terrain, buildings, trees and routes.
-- Routing, solar geometry and shadow calculation run locally in a Web Worker.
-- Prepared atlas data is split into immutable binary network arrays and 1 km JSON tiles for independent caching.
+- Routing and exact shadow calculation run locally in a Web Worker. A matching lightweight solar-position function runs in the UI thread so the clock and compass respond immediately during interaction.
+- Prepared atlas data is split into immutable binary network arrays and 1 km JSON tiles for independent caching. Each visual tile reuses one line geometry array with a parallel eight-value theme array and contains compact POI records. A one-byte-per-edge direction asset drives uphill arrows without duplicating geometry.
 - A 500 m spatial index restricts endpoint snapping to nearby network edges.
-- The 2D basemap is unconstrained; atlas layers appear only where data exists. In 3D, a bounded level-of-detail window prioritises tiles around and ahead of the camera while retaining a smaller rear context.
+- Both map modes stay within Stuttgart; outside areas are masked. In 3D, a bounded level-of-detail window prioritises nine tiles around and ahead of the camera. Zoom-dependent budgets cap extruded buildings and rounded tree crowns, invariant sources are retained where possible, and a view signature prevents rebuilding unchanged tile sets.
+- Panning and zooming request a silent 512 px shadow preview only when the visible tile set changes. These background updates never disable the route action or replace its status. Manual time changes and playback update the solar UI continuously; a 1,024 px route-aware calculation is committed after interaction stops.
 - No route, selected location or device position is persisted by the application.
 
 ## Build and deployment
 
 GitHub is the source of truth. Pull requests and pushes to `main` run the same engine verification used locally. Cloudflare Builds executes `npm run build` and deploys the generated `dist/` directory through Wrangler.
 
-The source GeoPackage is never committed. The Python pipeline reads it locally and exports only the fields and geometries needed by the application. Contract version 3 stores routing-relevant accessibility attributes in a fixed 48-byte edge record and validates every generated tile before release.
+The source GeoPackage is never committed. The Python pipeline reads it locally and exports only the fields and geometries needed by the application. Contract version 4 retains the version-3 fixed 48-byte routing edge record and adds validated visual themes plus ten POI types without duplicating line geometry.
 
 ## Service boundary
 
