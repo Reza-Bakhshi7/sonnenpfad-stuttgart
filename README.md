@@ -18,12 +18,12 @@ Prepared application data is split into size-bounded static chunks so the browse
 - Direct, shade-preferring and sun-preferring Dijkstra routes with separate uphill/downhill treatment.
 - Mobility presets for manual wheelchair, power wheelchair, cane/walker, blind or low-vision pedestrians and pushchairs, plus transparent custom controls.
 - Photon-backed Stuttgart place/address search with map picking and draggable endpoints.
-- Changing date/time updates solar geometry, shadow display and route weighting.
-- A worker rasterizes shadow polygons for responsive rendering. Route sampling uses those same polygons (up to 4 m intervals); rendered mask resolution is approximately 1.7 m.
+- Changing date/time updates solar geometry, shadow display and route weighting; the compact player animates the day at 1×, 4× or 12×.
+- A worker rasterizes shadow polygons for responsive rendering. Route sampling uses those same polygons (up to 4 m intervals); the displayed raster is capped at 1,024 px on its longest axis while routing keeps the vector calculation.
 - An unrestricted 2D basemap and a locally generated 3D terrain surface with bounded visible-tile loading, hillshade, building extrusion and rounded height-aware tree crowns.
-- Mutually exclusive atlas line themes for slope, surface, summer/winter shade, summer/winter UTCI, noise and relative wind exposure, each with a bilingual legend.
+- Exactly one active atlas line theme for slope, surface, summer/winter shade, summer/winter UTCI, noise or relative wind exposure, each with a bilingual legend and explanation. Slope is the default and grey arrows point uphill.
 - Ten switchable citywide accessibility and comfort POI categories: signal crossings, elevators, ramps, escalators, stairs, barriers/gates, lowered and raised kerbs, benches and shelters.
-- Balanced 3D level of detail: nearby buildings and trees receive progressively richer budgets as the user zooms in.
+- Balanced 3D level of detail: nearby buildings and rounded tree crowns receive progressively richer budgets as the user zooms in; identical views are not rebuilt.
 - Elevation profile with absolute route heights, ascent and descent.
 - DE/EN interface and explicit out-of-area feedback.
 
