@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { parseCityManifest } from './app-data.mjs';
 
 const valid = {
-  version: 4,
+  version: 5,
   scope: 'city',
   origin: [9.03, 48.69],
   scale: [73000, 111000],
@@ -27,7 +27,7 @@ assert.equal(parseCityManifest('<!doctype html><title>Sonnenpfad</title>'), null
 assert.equal(parseCityManifest('{"scope":"city"'), null);
 assert.equal(parseCityManifest(JSON.stringify({ ...valid, network: { edgeCount: 1 } })), null);
 assert.equal(parseCityManifest(JSON.stringify({ ...valid, scope: 'pilot' })), null);
-assert.equal(parseCityManifest(JSON.stringify({ ...valid, version: 3 })), null);
+assert.equal(parseCityManifest(JSON.stringify({ ...valid, version: 4 })), null);
 assert.equal(parseCityManifest(JSON.stringify({ ...valid, themes: [] })), null);
 
 console.log('City manifest fallback verification passed');

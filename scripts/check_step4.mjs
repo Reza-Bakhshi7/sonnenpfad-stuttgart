@@ -41,9 +41,15 @@ for (const icon of ['shade-material.svg', 'walking-aid-material.svg']) {
 assert(fs.existsSync(path.join(cityRoot, 'stuttgart-boundary.json')), 'Exact Stuttgart municipal boundary is required.');
 const poiIcons = JSON.parse(fs.readFileSync(path.join(root, 'dist', 'poi-icons.json'), 'utf8'));
 for (const icon of ['Signalized_Crossings.svg','Elevators.svg','Ramps.svg','Escalators.svg','Stairs.svg','Barriers_and_Gates.svg','Lowered_Curbs.svg','Raised_Curbs.svg','Benches.svg','Shelters.svg']) assert.match(poiIcons[icon], /^data:image\/svg\+xml;base64,/, `Missing embedded atlas POI icon: ${icon}`);
-assert.equal(manifest.version, 4);
+assert.equal(manifest.version, 5);
 assert.deepEqual(manifest.themes, expectedThemes);
 assert.equal(Object.keys(manifest.poiTypes).length, 10);
+assert.deepEqual(manifest.crossingAccessibility?.classes, {
+  0: { key: 'unknown', color: '#9E9E9E', count: 2092 },
+  1: { key: 'none', color: '#C62828', count: 251 },
+  2: { key: 'partial', color: '#F9A825', count: 1216 },
+  3: { key: 'good', color: '#2E7D32', count: 702 },
+});
 assert.equal(manifest.visual?.count, manifest.network.edgeCount);
 assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.slopeDirections)).size, manifest.network.edgeCount);
 
