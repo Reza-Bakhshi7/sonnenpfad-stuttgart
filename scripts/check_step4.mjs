@@ -23,10 +23,17 @@ assert(appStyles.includes('border-radius:50%'), 'POI list symbols must be circul
 assert(appSource.includes("activeTheme='slope'"), 'Slope must be the mandatory default theme.');
 assert(!appHtml.includes('<option value="none">Kein Thema</option>'), 'Thematic display must not have a no-theme option.');
 assert(appSource.includes("id:'slope-arrows'"), 'Slope direction arrows must be rendered.');
+assert(appSource.includes("'icon-image':'slope-uphill-arrow'"), 'Slope arrows must use a bundled icon instead of a font glyph.');
+assert(!appSource.includes("'text-field':'➤'"), 'Slope arrows must not depend on an unavailable map font glyph.');
 assert(appSource.includes("14.5,3.4,17,5.8,19,7"), 'Thematic lines must use the thicker review widths.');
 assert(appSource.includes('function toggleTimePlayer'), 'Time animation must be available.');
+assert(appSource.includes('requestAnimationFrame(tick)'), 'Time animation must run continuously with requestAnimationFrame.');
+assert(appSource.includes('function updateImmediateSun'), 'Sun direction must update immediately while time changes.');
+assert(appSource.includes("requestShade(false,{silent:true,preview:true})"), 'Map movement must use silent preview shading.');
+assert(!appSource.includes('setTimeout(loadVisibleCityTiles,700)'), '2D/3D switching must not schedule a duplicate tile reload.');
 assert(appStyles.includes('.theme-option.selected'), 'Mandatory theme radio controls must be styled.');
-assert(workerSource.includes('maxRaster=1024'), 'Shade raster must be capped for interactive performance.');
+assert(workerSource.includes('maxRaster=d.preview?512:1024'), 'Shade previews must use a smaller raster than final calculations.');
+assert(workerSource.includes('if(!d.preview)'), 'Preview shading must skip route-edge evaluation.');
 for (const icon of ['shade-material.svg', 'walking-aid-material.svg']) {
   const iconText = fs.readFileSync(path.join(root, 'dist', 'icons', icon), 'utf8');
   assert(iconText.includes('Google Material Symbols Rounded'), `Missing upstream attribution in ${icon}`);
