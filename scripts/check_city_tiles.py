@@ -25,6 +25,8 @@ def main() -> int:
     assert manifest["scope"] == "city"
     assert manifest["network"]["nodeStride"] == 8
     assert manifest["network"]["edgeStride"] == 48
+    slope_directions = root / manifest["visual"]["slopeDirections"]
+    assert slope_directions.stat().st_size == manifest["network"]["edgeCount"] == manifest["visual"]["count"]
     assert asset_size(root, manifest["network"]["nodes"]) == manifest["network"]["nodeCount"] * 8
     assert asset_size(root, manifest["network"]["edges"]) == manifest["network"]["edgeCount"] * 48
     assert "crossingSupport" in manifest["profileFeatures"]
