@@ -22,7 +22,7 @@ Prepared application data is split into size-bounded static chunks so the browse
 - A worker rasterizes shadow polygons for responsive rendering. Interaction uses a 512 px preview without route-edge resampling; pausing produces the exact route-aware result and a raster capped at 1,024 px. Background refreshes do not take over the route controls.
 - An unrestricted 2D basemap and a locally generated 3D terrain surface with bounded visible-tile loading, hillshade, building extrusion and rounded height-aware tree crowns.
 - Exactly one active atlas line theme for slope, surface, summer/winter shade, summer/winter UTCI, noise or relative wind exposure, each with a bilingual legend and explanation. Slope is the default and embedded grey arrow icons point uphill without relying on basemap fonts.
-- Ten switchable citywide accessibility and comfort POI categories: signal crossings, elevators, ramps, escalators, stairs, barriers/gates, lowered and raised kerbs, benches and shelters.
+- Ten switchable citywide accessibility and comfort POI categories: signal crossings, elevators, ramps, escalators, stairs, barriers/gates, lowered and raised kerbs, benches and shelters. Signal crossings keep one layer toggle but use the atlas's four accessibility colours and expose sound, vibration, tactile, wheelchair and kerb attributes in their detail popup.
 - Balanced 3D level of detail: nearby buildings and rounded tree crowns receive progressively richer budgets as the user zooms in; identical views are not rebuilt and the 2D/3D switch no longer schedules a second delayed tile reload.
 - Elevation profile with absolute route heights, ascent and descent.
 - DE/EN interface and explicit out-of-area feedback.

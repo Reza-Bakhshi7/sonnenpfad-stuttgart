@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-cloudflare.mjs",
-    "test": "npm run build && node scripts/check_city_manifest.mjs && node scripts/check_step4.mjs && node scripts/check_slope_modes.mjs && node scripts/check_mobility_profiles.mjs && node scripts/check_step5.mjs && node scripts/check_engine.mjs && node scripts/check_governance.mjs",
+    "test": "npm run build && node scripts/check_city_manifest.mjs && node scripts/check_step4.mjs && node scripts/check_crossing_accessibility.mjs && node scripts/check_slope_modes.mjs && node scripts/check_mobility_profiles.mjs && node scripts/check_step5.mjs && node scripts/check_engine.mjs && node scripts/check_governance.mjs",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {

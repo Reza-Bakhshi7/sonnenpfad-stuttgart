@@ -4,6 +4,9 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
+- Atlas-faithful four-class signal-crossing display: good, partial, no documented support and unknown/incomplete, using the original green/yellow/red/grey colours.
+- Signal-crossing detail popups for audible and vibration signals, tactile paving, wheelchair suitability, kerb form and button operation; the layer selector remains a single crossing toggle.
+- City data contract version 5 with compact crossing-accessibility attributes and verified class totals (702 / 1,216 / 251 / 2,092).
 - Step 5 profile engine with hard exclusions for known stairs, escalators, poor surfaces, explicit wheelchair prohibitions, narrow ways and profile-specific gradient limits.
 - Dedicated blocked-profile feedback instead of misclassifying restricted routes as outside the network.
 - Profile-aware travel-time assumptions and route diagnostics for maximum gradient, attribute coverage, known minimum width, surface quality, stairs and escalators.
@@ -21,7 +24,7 @@ All notable product changes are documented here. The project follows semantic ve
 - Font-independent, embedded grey uphill-arrow icons for reliable slope-direction rendering.
 - Balanced 3D level of detail with reduced tile, building and rounded-tree budgets, duplicate-view suppression and no duplicate delayed reload after mode switching.
 - Bounded 1,024 px final shadow rasters for faster interactive updates.
-- Full-Stuttgart data pipeline and coverage with visual-data contract version 4.
+- Full-Stuttgart data pipeline and coverage with visual-data contract version 5.
 - Live weather and public-transport adapters.
 - Extended accessibility and restriction profiles.
 
