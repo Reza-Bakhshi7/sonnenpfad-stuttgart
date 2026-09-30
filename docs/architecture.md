@@ -18,7 +18,9 @@ Sonnenpfad Stuttgart is currently a static, browser-computed prototype.
 
 GitHub is the source of truth. Pull requests and pushes to `main` run the same engine verification used locally. Cloudflare Builds executes `npm run build` and deploys the generated `dist/` directory through Wrangler.
 
-The source GeoPackage is never committed. The Python pipeline reads it locally and exports only the fields and geometries needed by the application. Contract version 4 retains the version-3 fixed 48-byte routing edge record and adds validated visual themes plus ten POI types without duplicating line geometry.
+The source GeoPackage is never committed. The Python pipeline reads it locally and exports only the fields and geometries needed by the application. Contract version 5 retains the fixed 48-byte routing edge record and the eight visual themes plus ten POI types. It adds compact signal-crossing accessibility fields without duplicating geometry.
+
+Signal crossings use the historical four-class atlas rule based only on `traffic_signals_sound`, `traffic_signals_vibration` and `tactile_paving`: at least two `yes` values are good support, exactly one is partial support, three explicit `no` values are no documented support, and every other combination is unknown/incomplete. Wheelchair suitability and kerb form remain separate attributes and do not silently alter the historical colour class.
 
 ## Service boundary
 

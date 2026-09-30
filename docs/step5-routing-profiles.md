@@ -27,6 +27,19 @@ The 0.90 m and 6% values are traceable accessibility indicators, not a claim tha
 
 Primary reference: [Bundesfachstelle Barrierefreiheit – Systematik zur Erfassung und zum Abbau baulicher Barrieren](https://www.bundesfachstelle-barrierefreiheit.de/SharedDocs/Downloads/DE/Veroeffentlichungen/checkliste-paragraf-8-bgg.pdf?__blob=publicationFile&v=5).
 
+### Signal-crossing accessibility classes
+
+The map keeps one `Signal crossings` layer control and renders its 4,261 points with the historical Pedestrian Atlas classification:
+
+| Class | Exact atlas rule | Colour | City count |
+|---|---|---:|---:|
+| Good support | at least two of `traffic_signals_sound`, `traffic_signals_vibration`, `tactile_paving` equal `yes` | `#2E7D32` | 702 |
+| Partial support | exactly one of the three fields equals `yes` | `#F9A825` | 1,216 |
+| No documented support | all three fields explicitly equal `no` | `#C62828` | 251 |
+| Unknown / incomplete | every remaining combination | `#9E9E9E` | 2,092 |
+
+The popup reports those three class inputs plus wheelchair suitability, kerb form and button operation. The separate wheelchair fields are intentionally not used to change the historical colour class.
+
 ## Custom profile
 
 Custom settings support independent hard filters for stairs, escalators, poor surfaces and explicit `wheelchair=no`, plus known-width limits of 0.80/0.90/1.20 m and known-gradient limits of 6/10/12/15%. Uphill/downhill/both remains a soft preference and is intentionally separate from the absolute hard gradient limit.
