@@ -12,7 +12,7 @@ export function parseCityManifest(text) {
   const obstacles = manifest?.obstacles;
   const assetList = value => typeof value === 'string' || (Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'));
   if (
-    manifest?.version !== 4 ||
+    manifest?.version !== 5 ||
     manifest?.scope !== 'city' ||
     !numberArray(manifest.origin, 2) ||
     !numberArray(manifest.scale, 2) ||

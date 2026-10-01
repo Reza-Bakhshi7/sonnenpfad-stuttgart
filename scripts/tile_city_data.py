@@ -129,6 +129,7 @@ def main() -> int:
 
     tile_manifest = {}
     poi_counts = collections.Counter()
+    crossing_class_counts = collections.Counter()
     for key in sorted(tiles):
         payload = tiles[key]
         relative = f"obstacles/{key}.json"
@@ -143,9 +144,10 @@ def main() -> int:
             "pois": len(payload["pois"]),
         }
         poi_counts.update(item["k"] for item in payload["pois"])
+        crossing_class_counts.update(item.get("q", 0) for item in payload["pois"] if item["k"] == 1)
 
     manifest = {
-        "version": 4,
+        "version": 5,
         "scope": "city",
         "origin": meta["origin"],
         "scale": meta["scale"],
@@ -166,6 +168,15 @@ def main() -> int:
         },
         "themes": ["slope", "surface", "shadeSummer", "shadeWinter", "utciSummer", "utciWinter", "noise", "wind"],
         "poiTypes": {"1": "crossing", "2": "elevator", "3": "ramp", "4": "escalator", "5": "stairs", "6": "barrier", "7": "loweredKerb", "8": "raisedKerb", "9": "bench", "10": "shelter"},
+        "crossingAccessibility": {
+            "fields": ["traffic_signals_sound", "traffic_signals_vibration", "tactile_paving"],
+            "classes": {
+                "3": {"key": "good", "color": "#2E7D32", "count": crossing_class_counts[3]},
+                "2": {"key": "partial", "color": "#F9A825", "count": crossing_class_counts[2]},
+                "1": {"key": "none", "color": "#C62828", "count": crossing_class_counts[1]},
+                "0": {"key": "unknown", "color": "#9E9E9E", "count": crossing_class_counts[0]},
+            },
+        },
         "elevationQuality": meta["elevationQuality"],
         "profileFeatures": [
             "steps", "escalator", "signedSlope", "surface", "wayClass", "width",

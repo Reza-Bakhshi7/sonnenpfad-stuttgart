@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import {buildAdj,edgeAllowed,resolvedOptions,route} from './core.mjs';
+
+const root='dist/city/';
+const manifest=JSON.parse(fs.readFileSync(root+'manifest.json','utf8'));
+const combined=files=>Buffer.concat((Array.isArray(files)?files:[files]).map(file=>fs.readFileSync(root+file)));
+const nodeBytes=combined(manifest.network.nodes),edgeBytes=combined(manifest.network.edges),stride=manifest.network.edgeStride;
+const nodes=Array.from({length:manifest.network.nodeCount},(_,i)=>[nodeBytes.readFloatLE(i*8),nodeBytes.readFloatLE(i*8+4)]);
+const edges=Array.from({length:manifest.network.edgeCount},(_,i)=>{const o=i*stride,a=edgeBytes.readUInt32LE(o),b=edgeBytes.readUInt32LE(o+4),flags=edgeBytes.readUInt8(o+29),mobility=edgeBytes.readUInt16LE(o+32);return {a,b,c:[nodes[a],nodes[b]],l:edgeBytes.readFloatLE(o+8),s:edgeBytes.readFloatLE(o+12),sf:edgeBytes.readFloatLE(o+16),z0:edgeBytes.readFloatLE(o+20),z1:edgeBytes.readFloatLE(o+24),dz:edgeBytes.readFloatLE(o+24)-edgeBytes.readFloatLE(o+20),dir:edgeBytes.readInt8(o+28),steps:Boolean(flags&1),covered:Boolean(flags&2),sq:edgeBytes.readUInt8(o+30),tactile:Boolean(mobility&1),handrail:Boolean(mobility&2),ramp:Boolean(mobility&4),escalator:Boolean(mobility&8),surface:edgeBytes.readUInt8(o+34),way:edgeBytes.readUInt8(o+35),width:edgeBytes.readUInt16LE(o+36)/10,bench:edgeBytes.readUInt16LE(o+38),shelter:edgeBytes.readUInt16LE(o+40),crossing:edgeBytes.readUInt8(o+42),wheelchair:edgeBytes.readUInt8(o+43)};});
+const network={nodes,edges},adj=buildAdj(network),shades=new Float32Array(edges.length),local=p=>[(p[0]-manifest.origin[0])*manifest.scale[0],(p[1]-manifest.origin[1])*manifest.scale[1]],start=local([9.17935,48.77845]),end=local([9.1661,48.7705]);
+const counts={steps:0,escalators:0,poorSurface:0,wheelchairNo:0,narrowUnder09:0,slopeOver6:0,unknownSlope:0,unknownSurface:0,unknownWidth:0};
+for(const edge of edges){if(edge.steps)counts.steps++;if(edge.escalator)counts.escalators++;if(edge.surface===3)counts.poorSurface++;if(edge.surface===0)counts.unknownSurface++;if(edge.wheelchair===3)counts.wheelchairNo++;if(edge.width>0&&edge.width<.9)counts.narrowUnder09++;if(!edge.width)counts.unknownWidth++;if(Number.isFinite(edge.sf)){if(Math.abs(edge.sf)>6)counts.slopeOver6++;}else counts.unknownSlope++;}
+const routes={};
+for(const mobilityProfile of ['standard','wheelchair','powerWheelchair','walkingAid','vision','stroller']){const options=resolvedOptions({mobilityProfile}),result=route(network,adj,shades,start,end,options);if(!result.error&&result.path.some(part=>!edgeAllowed(edges[part.i],options,part.forward)))throw Error(`${mobilityProfile} used a forbidden edge`);routes[mobilityProfile]=result.error?{error:result.error}:{metres:Math.round(result.length),minutes:result.minutes,steps:result.steps,coverage:{surface:Math.round(result.quality.surfaceKnown*100),slope:Math.round(result.quality.slopeKnown*100),width:Math.round(result.quality.widthKnown*100)}};}
+console.log(JSON.stringify({edges:edges.length,counts,routes},null,2));

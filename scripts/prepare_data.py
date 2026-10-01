@@ -78,6 +78,57 @@ def wheelchair_quality(value) -> int:
     return {"yes": 1, "limited": 2, "no": 3}.get(str(value or "").lower(), 0)
 
 
+def documented_state(value) -> int:
+    """Compact yes/no/unknown state for public point-feature attributes."""
+    normalized = str(value or "").strip().lower()
+    if normalized == "yes":
+        return 1
+    if normalized == "no":
+        return 2
+    return 0
+
+
+def tactile_state(value) -> int:
+    normalized = str(value or "").strip().lower()
+    if normalized == "yes":
+        return 1
+    if normalized == "no":
+        return 2
+    if normalized:
+        return 3
+    return 0
+
+
+def kerb_state(value) -> int:
+    return {
+        "lowered": 1,
+        "flush": 2,
+        "raised": 3,
+        "no": 4,
+    }.get(str(value or "").strip().lower(), 0)
+
+
+def crossing_support(row) -> int:
+    """Historic four-class signal-crossing quality used by the atlas.
+
+    3 = good (at least two documented yes values), 2 = partial (exactly
+    one yes), 1 = no documented support (all three explicitly no), and
+    0 = unknown/incomplete. Wheelchair suitability is intentionally not a
+    colour-class input; it is exported separately for the detail popup.
+    """
+    values = [str(row[name] or "").strip().lower() for name in (
+        "traffic_signals_sound", "traffic_signals_vibration", "tactile_paving"
+    )]
+    positives = sum(value == "yes" for value in values)
+    if positives >= 2:
+        return 3
+    if positives == 1:
+        return 2
+    if all(value == "no" for value in values):
+        return 1
+    return 0
+
+
 def way_class(value) -> int:
     value = str(value or "").lower()
     if value in {"footway", "pedestrian", "living_street"}:
@@ -345,15 +396,6 @@ def main() -> int:
     benches = point_features(benches_table)
     shelters = point_features(shelters_table)
 
-    def crossing_support(row):
-        positives = sum(truth(row[name]) for name in (
-            "traffic_signals_sound", "traffic_signals_vibration", "tactile_paving"
-        ))
-        explicit = sum(row[name] is not None for name in (
-            "traffic_signals_sound", "traffic_signals_vibration", "tactile_paving"
-        ))
-        return 3 if positives >= 2 else 2 if positives == 1 else 1 if explicit == 3 else 0
-
     crossings = point_features(crossings_table, crossing_support)
 
     pois = []
@@ -369,7 +411,18 @@ def main() -> int:
                 if candidate in keys and row[candidate]:
                     name = str(row[candidate]).strip()
                     break
-            pois.append({"p": point, "k": kind, "n": name[:80]})
+            poi = {"p": point, "k": kind, "n": name[:80]}
+            if kind == 1:
+                poi.update({
+                    "q": crossing_support(row),
+                    "a": documented_state(row["traffic_signals_sound"]),
+                    "v": documented_state(row["traffic_signals_vibration"]),
+                    "t": tactile_state(row["tactile_paving"]),
+                    "w": wheelchair_quality(row["wheelchair"]),
+                    "c": kerb_state(row["kerb"]),
+                    "b": documented_state(row["button_operated"]),
+                })
+            pois.append(poi)
 
     def spatial_index(features, cell=200):
         index = collections.defaultdict(list)

@@ -21,7 +21,7 @@ def main() -> int:
     args = parser.parse_args()
     root = args.directory.resolve()
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == 4
+    assert manifest["version"] == 5
     assert manifest["scope"] == "city"
     assert manifest["network"]["nodeStride"] == 8
     assert manifest["network"]["edgeStride"] == 48
@@ -38,6 +38,7 @@ def main() -> int:
     assert manifest["themes"] == ["slope", "surface", "shadeSummer", "shadeWinter", "utciSummer", "utciWinter", "noise", "wind"]
     assert len(manifest["poiTypes"]) == 10
     buildings = trees = lines = pois = scaled = 0
+    crossing_classes = {0: 0, 1: 0, 2: 0, 3: 0}
     for tile in manifest["obstacles"]["tiles"].values():
         payload = json.loads((root / tile["file"]).read_text(encoding="utf-8"))
         assert len(payload["buildings"]) == tile["buildings"]
@@ -49,6 +50,10 @@ def main() -> int:
         assert all(isinstance(edge_id, int) for edge_id in payload["edgeIds"])
         assert all(isinstance(theme, list) and len(theme) == 8 for theme in payload["themes"])
         assert all(isinstance(poi.get("k"), int) and len(poi.get("p", [])) == 2 for poi in payload["pois"])
+        for poi in payload["pois"]:
+            if poi["k"] == 1:
+                assert all(isinstance(poi.get(field), int) for field in ("q", "a", "v", "t", "w", "c", "b"))
+                crossing_classes[poi["q"]] += 1
         buildings += tile["buildings"]
         trees += tile["trees"]
         lines += tile["lines"]
@@ -65,6 +70,7 @@ def main() -> int:
     assert lines == manifest["counts"]["lines"]
     assert pois == manifest["counts"]["pois"]
     assert scaled == manifest["counts"]["largeTreesScaled"]
+    assert crossing_classes == {0: 2092, 1: 251, 2: 1216, 3: 702}
     print(json.dumps({"passed": True, "tiles": len(manifest["obstacles"]["tiles"]), "lines": lines, "buildings": buildings, "trees": trees, "pois": pois, "largeTreesScaled": scaled}))
     return 0
 

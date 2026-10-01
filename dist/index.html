@@ -8,10 +8,10 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-v3.css">
-<link rel="stylesheet" href="./style.css?v=20260930-step4-review4">
+<link rel="stylesheet" href="./style.css?v=20261001-step5-performance1">
 <script defer src="./vendor/maplibre-v3.js">
 </script>
-<script type="module" src="./app-v7.mjs?v=20260930-step4-review4">
+<script type="module" src="./app-v7.mjs?v=20261001-step5-performance1">
 </script>
 </head>
 <body>
@@ -83,7 +83,7 @@
 <div class="profile-choice">
 <span data-i="profileLabel">Für wen planst du?</span>
 <div class="icon-choices profile-icons" id="profile-icons" role="group" aria-label="Mobilitätsprofil">
-<button type="button" data-profile="standard" aria-pressed="false" title="Standard">
+<button type="button" data-profile="standard" class="selected" aria-pressed="true" title="Standard">
 <span class="choice-glyph icon-walk" aria-hidden="true"></span>
 <span class="sr-only" data-i="profileStandard">Standard</span>
 </button>
@@ -112,8 +112,7 @@
 <span class="sr-only" data-i="profileCustom">Eigene Einstellungen</span>
 </button>
 </div>
-<select id="mobility-profile" class="visually-hidden-select" aria-label="Mobilitätsprofil"><option value="none" selected>Keine Auswahl</option>
-<option value="standard">Standard</option>
+<select id="mobility-profile" class="visually-hidden-select" aria-label="Mobilitätsprofil"><option value="standard" selected>Standard</option>
 <option value="wheelchair">Rollstuhl</option>
 <option value="powerWheelchair">Elektrorollstuhl</option>
 <option value="walkingAid">Stock oder Rollator</option>
@@ -160,6 +159,10 @@
 <option value="both">Bergauf und bergab vermeiden</option>
 </select>
 </div>
+<div class="restriction-grid">
+<label><span data-i="maxSlope">Maximale bekannte Steigung</span><select id="max-slope"><option value="0" data-i="unlimited">Nicht begrenzen</option><option value="6">6 %</option><option value="10">10 %</option><option value="12">12 %</option><option value="15">15 %</option></select></label>
+<label><span data-i="minWidth">Mindestbreite, wenn bekannt</span><select id="min-width"><option value="0" data-i="unlimited">Nicht begrenzen</option><option value="0.8">0,80 m</option><option value="0.9">0,90 m</option><option value="1.2">1,20 m</option></select></label>
+</div>
 <label class="avoid-choice">
 <input type="checkbox" id="steps">
 <span class="choice-glyph icon-stairs" aria-hidden="true"></span>
@@ -169,6 +172,16 @@
 <input type="checkbox" id="escalators">
 <span class="choice-glyph icon-escalator" aria-hidden="true"></span>
 <span data-i="escalatorsShort">Rolltreppen</span>
+</label>
+<label class="avoid-choice">
+<input type="checkbox" id="poor-surface">
+<span class="choice-glyph icon-surface" aria-hidden="true"></span>
+<span data-i="poorSurfaceShort">Schlechte Oberfläche</span>
+</label>
+<label class="avoid-choice">
+<input type="checkbox" id="wheelchair-no">
+<span class="choice-glyph icon-wheelchair" aria-hidden="true"></span>
+<span data-i="wheelchairNoShort">Rollstuhl: nein</span>
 </label>
 </details>
 </section>
@@ -207,6 +220,7 @@
 <span id="detour">
 </span>
 </div>
+<div id="route-assessment" class="route-assessment" aria-live="polite"></div>
 <div id="elevation-profile" class="elevation-profile" hidden>
 <div class="elevation-profile-head">
 <span data-i="elevationProfile">Höhenprofil</span>
@@ -271,6 +285,7 @@
 <fieldset>
 <legend data-i="poiLabel">Barrierefreiheit &amp; Komfort</legend>
 <div id="poi-options" class="poi-options"></div>
+<div id="crossing-legend" class="crossing-legend" hidden aria-live="polite"></div>
 </fieldset>
 </section>
 <aside class="theme-legend" id="theme-legend" hidden aria-live="polite"></aside>
