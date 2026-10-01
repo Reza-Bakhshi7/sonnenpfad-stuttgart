@@ -132,10 +132,17 @@ def main() -> int:
     crossing_class_counts = collections.Counter()
     for key in sorted(tiles):
         payload = tiles[key]
-        relative = f"obstacles/{key}.json"
-        dump_json(output / relative, payload)
+        display_relative = f"display/{key}.json"
+        shade_relative = f"shade/{key}.json"
+        dump_json(output / display_relative, {
+            name: payload[name] for name in ("lines", "edgeIds", "themes", "pois")
+        })
+        dump_json(output / shade_relative, {
+            name: payload[name] for name in ("buildings", "trees")
+        })
         tile_manifest[key] = {
-            "file": relative,
+            "displayFile": display_relative,
+            "shadeFile": shade_relative,
             "buildings": len(payload["buildings"]),
             "trees": len(payload["trees"]),
             "lines": len(payload["lines"]),
