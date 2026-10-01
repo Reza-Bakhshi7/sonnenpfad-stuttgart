@@ -315,6 +315,16 @@
 <button id="now" data-i="now">Jetzt</button>
 </div>
 </div>
+<div class="weather-strip" id="weather-strip" aria-live="polite">
+<div class="weather-main"><span id="weather-icon" aria-hidden="true">◌</span><strong id="weather-temperature">–</strong><span id="weather-condition" data-i="weatherLoading">Wetter wird geladen …</span></div>
+<div class="weather-facts">
+<span title="Bewölkung"><b aria-hidden="true">☁</b> <span id="weather-cloud">–</span></span>
+<span title="Direkte Strahlung"><b aria-hidden="true">☀</b> <span id="weather-radiation">–</span></span>
+<span title="Wind"><b id="weather-wind-arrow" aria-hidden="true">↑</b> <span id="weather-wind">–</span></span>
+</div>
+<button id="weather-info" type="button" aria-expanded="false" aria-controls="weather-details">i</button>
+<div id="weather-details" hidden></div>
+</div>
 <label class="sr-only" for="time" data-i="time">Uhrzeit</label>
 <input id="time" type="range" min="0" max="1439" step="1" value="840">
 <div class="time-ticks">
@@ -347,7 +357,7 @@
 </div>
 <dialog id="about-dialog">
 <button id="close-about" class="dialog-close" aria-label="Schließen">×</button>
-<span class="eyebrow">SONNENPFAD · 0.9</span>
+<span class="eyebrow">SONNENPFAD · 0.10</span>
 <h2 data-i="aboutTitle">Ein erster Schritt.</h2>
 <div id="about-content">
 </div>
