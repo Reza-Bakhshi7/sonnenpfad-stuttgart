@@ -1,0 +1,24 @@
+/index.html
+  Cache-Control: no-cache
+
+/app-v7.mjs
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/style.css
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/city-config.json
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/city/*
+  Cache-Control: public, max-age=86400, must-revalidate
+
+/dem/*
+  Cache-Control: public, max-age=604800, must-revalidate
+
+/vendor/*
+  Cache-Control: public, max-age=604800, must-revalidate
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
