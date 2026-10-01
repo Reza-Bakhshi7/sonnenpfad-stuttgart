@@ -15,12 +15,13 @@ const valid = {
     edgeStride: 48,
     snapIndex: 'network/snap-index.json',
   },
-  obstacles: { grid: 1000, tiles: {} },
+  obstacles: { grid: 1000, tiles: {'0_0': {displayFile:'display/0_0.json',shadeFile:'shade/0_0.json'}} },
   themes: ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'],
   poiTypes: {1:'crossing',2:'elevator',3:'ramp',4:'escalator',5:'stairs',6:'barrier',7:'loweredKerb',8:'raisedKerb',9:'bench',10:'shelter'},
 };
 
 assert.deepEqual(parseCityManifest(JSON.stringify(valid)), valid);
+assert.equal(parseCityManifest(JSON.stringify({ ...valid, obstacles: {grid:1000,tiles:{'0_0':{displayFile:'display/0_0.json'}}} })), null);
 const chunked = { ...valid, network: { ...valid.network, nodes: ['network/nodes-000.bin', 'network/nodes-001.bin'], edges: ['network/edges-000.bin'], snapIndex: ['network/snap-index-000.json'] } };
 assert.deepEqual(parseCityManifest(JSON.stringify(chunked)), chunked);
 assert.equal(parseCityManifest('<!doctype html><title>Sonnenpfad</title>'), null);
