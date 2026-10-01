@@ -14,11 +14,13 @@ export function sunPosition(date,lat=48.777,lon=9.18){
 }
 export function insideRing(p,r){let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const a=r[i],b=r[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])c=!c;}return c;}
 export function insidePolygon(p,rings){return insideRing(p,rings[0])&&!rings.slice(1).some(r=>insideRing(p,r));}
-export function makeShadows(obstacles,sun,leafOn=true){
+function previewBuildingShadow(rings,dx,dy){let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;for(const ring of rings)for(const p of ring){x0=Math.min(x0,p[0],p[0]+dx);y0=Math.min(y0,p[1],p[1]+dy);x1=Math.max(x1,p[0],p[0]+dx);y1=Math.max(y1,p[1],p[1]+dy);}return Number.isFinite(x0)?[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]]:null;}
+export function makeShadows(obstacles,sun,leafOn=true,quality={}){
  if(sun.altitude<=2)return [];
- const a=sun.azimuth*RAD,t=1/Math.tan(sun.altitude*RAD),polys=[];
+ const a=sun.azimuth*RAD,t=1/Math.tan(sun.altitude*RAD),polys=[],preview=Boolean(quality.preview),treeSteps=Math.max(8,quality.treeSteps||16);
  for(const b of obstacles.buildings){
   const dx=-Math.sin(a)*b.h*t,dy=-Math.cos(a)*b.h*t;
+  if(preview){const ring=previewBuildingShadow(b.r,dx,dy);if(ring)polys.push([ring]);continue;}
   polys.push(b.r.map(r=>r.map(p=>[p[0]+dx,p[1]+dy])));
   // Swept vertical walls plus roof projection preserve concave footprints.
   for(const r of b.r)for(let i=1;i<r.length;i++){
@@ -29,7 +31,7 @@ export function makeShadows(obstacles,sun,leafOn=true){
   if(!leafOn&&!b.evergreen)continue;
   const r=b.r,cy=Math.max(r,b.h-r),dx=-Math.sin(a)*cy*t,dy=-Math.cos(a)*cy*t;
   const major=r/Math.sin(sun.altitude*RAD),ring=[];
-  for(let j=0;j<=16;j++){const u=2*Math.PI*j/16,along=major*Math.cos(u),cross=r*Math.sin(u);ring.push([b.p[0]+dx+along*Math.sin(a)+cross*Math.cos(a),b.p[1]+dy+along*Math.cos(a)-cross*Math.sin(a)]);}
+  for(let j=0;j<=treeSteps;j++){const u=2*Math.PI*j/treeSteps,along=major*Math.cos(u),cross=r*Math.sin(u);ring.push([b.p[0]+dx+along*Math.sin(a)+cross*Math.cos(a),b.p[1]+dy+along*Math.cos(a)-cross*Math.sin(a)]);}
   polys.push([ring]);
  }
  return polys;
