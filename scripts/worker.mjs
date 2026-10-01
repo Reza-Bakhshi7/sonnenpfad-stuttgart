@@ -34,14 +34,14 @@ self.onmessage=async({data:d})=>{try{
  if(d.type==='initCity'){await loadCity(d.manifest,d.base);return;}
  if(d.type==='obstacles'){obstacles=d.obstacles;activeEdgeIds=d.edgeIds||null;return;}
  if(d.type==='shade'){
- const center=d.center||[meta.origin[0],meta.origin[1]],sun=sunPosition(new Date(d.iso),center[1],center[0]),polys=makeShadows(obstacles,sun,d.leafOn);
+ const center=d.center||[meta.origin[0],meta.origin[1]],sun=sunPosition(new Date(d.iso),center[1],center[0]),polys=makeShadows(obstacles,sun,d.leafOn,d.preview?{preview:true,treeSteps:8}:undefined);
  if(!d.preview){if(activeEdgeIds){const visibleEdges=activeEdgeIds.map(i=>network.edges[i]),visibleShades=edgeShades(visibleEdges,polys,sun.altitude<=0),next=new Float32Array(network.edges.length);activeEdgeIds.forEach((edgeId,index)=>{next[edgeId]=visibleShades[index];});shades=next;}else shades=edgeShades(network.edges,polys,sun.altitude<=0);}
- const bounds=d.bounds||meta.bounds,maxRaster=d.preview?512:1024,aspect=(bounds[3]-bounds[1])*meta.scale[1]/((bounds[2]-bounds[0])*meta.scale[0]);let width=maxRaster,height=Math.max(1,Math.round(width*aspect));if(height>maxRaster){height=maxRaster;width=Math.max(1,Math.round(height/aspect));}
+ const bounds=d.bounds||meta.bounds,maxRaster=d.preview?384:1024,aspect=(bounds[3]-bounds[1])*meta.scale[1]/((bounds[2]-bounds[0])*meta.scale[0]);let width=maxRaster,height=Math.max(1,Math.round(width*aspect));if(height>maxRaster){height=maxRaster;width=Math.max(1,Math.round(height/aspect));}
  const canvas=new OffscreenCanvas(width,height),ctx=canvas.getContext('2d');ctx.fillStyle='#24364f';
  const x0=(bounds[0]-meta.origin[0])*meta.scale[0],y1=(bounds[3]-meta.origin[1])*meta.scale[1],xs=width/((bounds[2]-bounds[0])*meta.scale[0]),ys=height/((bounds[3]-bounds[1])*meta.scale[1]);
  for(const rings of polys){ctx.beginPath();for(const ring of rings){for(let i=0;i<ring.length;i++){const x=(ring[i][0]-x0)*xs,y=(y1-ring[i][1])*ys;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();}ctx.fill('evenodd');}
  const blob=await canvas.convertToBlob({type:'image/png'});
  self.postMessage({type:'shade',id:d.id,sun,blob,bounds});return;
  }
- if(d.type==='route'){const base=resolvedOptions(d.options),key=`${Boolean(base.avoidSteps)}:${Boolean(base.avoidEscalators)}`;if(!componentCache.has(key))componentCache.set(key,buildComponents(network,base));const options={...base,components:componentCache.get(key)},result=route(network,adj,shades,d.start,d.end,options),shortest=options.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...options,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
+ if(d.type==='route'){const base=resolvedOptions(d.options),key=[base.avoidSteps,base.avoidEscalators,base.avoidPoorSurface,base.avoidWheelchairNo,base.minWidth||0,base.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,base));const options={...base,components:componentCache.get(key)},result=route(network,adj,shades,d.start,d.end,options),shortest=options.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...options,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
  }catch(e){self.postMessage({type:'error',message:e.message,id:d.id});}};

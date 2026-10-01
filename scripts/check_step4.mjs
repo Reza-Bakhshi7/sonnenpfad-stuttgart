@@ -24,15 +24,22 @@ assert(appSource.includes("activeTheme='slope'"), 'Slope must be the mandatory d
 assert(!appHtml.includes('<option value="none">Kein Thema</option>'), 'Thematic display must not have a no-theme option.');
 assert(appSource.includes("id:'slope-arrows'"), 'Slope direction arrows must be rendered.');
 assert(appSource.includes("'icon-image':'slope-uphill-arrow'"), 'Slope arrows must use a bundled icon instead of a font glyph.');
+assert(appSource.includes("'symbol-placement':'line-center'"), 'Each eligible atlas segment must have at most one centred arrow.');
+assert(appSource.includes('length<24'), 'Very short atlas segments must not receive slope arrows.');
+assert(appSource.includes("'icon-allow-overlap':false"), 'Slope arrows must respect collision detection to avoid visual clutter.');
 assert(!appSource.includes("'text-field':'➤'"), 'Slope arrows must not depend on an unavailable map font glyph.');
 assert(appSource.includes("14.5,3.4,17,5.8,19,7"), 'Thematic lines must use the thicker review widths.');
 assert(appSource.includes('function toggleTimePlayer'), 'Time animation must be available.');
 assert(appSource.includes('requestAnimationFrame(tick)'), 'Time animation must run continuously with requestAnimationFrame.');
 assert(appSource.includes('function updateImmediateSun'), 'Sun direction must update immediately while time changes.');
 assert(appSource.includes("requestShade(false,{silent:true,preview:true})"), 'Map movement must use silent preview shading.');
+assert(appSource.includes("setTimeout(()=>requestShade(false,{silent:true}),360)"), 'A full-quality shade refresh must follow the lightweight map preview.');
 assert(!appSource.includes('setTimeout(loadVisibleCityTiles,700)'), '2D/3D switching must not schedule a duplicate tile reload.');
+assert(!appSource.includes("id:'trees-fill'"), 'Tree geometry must not be rendered in 2D mode.');
+assert(appSource.includes("'line-color':'#d7191c','line-width':9"), 'The selected route must be a strong, double-width red line.');
 assert(appStyles.includes('.theme-option.selected'), 'Mandatory theme radio controls must be styled.');
-assert(workerSource.includes('maxRaster=d.preview?512:1024'), 'Shade previews must use a smaller raster than final calculations.');
+assert(workerSource.includes('maxRaster=d.preview?384:1024'), 'Shade previews must use a substantially smaller raster than final calculations.');
+assert(workerSource.includes('{preview:true,treeSteps:8}'), 'Shade previews must use simplified obstacle geometry.');
 assert(workerSource.includes('if(!d.preview)'), 'Preview shading must skip route-edge evaluation.');
 for (const icon of ['shade-material.svg', 'walking-aid-material.svg']) {
   const iconText = fs.readFileSync(path.join(root, 'dist', 'icons', icon), 'utf8');
@@ -41,9 +48,15 @@ for (const icon of ['shade-material.svg', 'walking-aid-material.svg']) {
 assert(fs.existsSync(path.join(cityRoot, 'stuttgart-boundary.json')), 'Exact Stuttgart municipal boundary is required.');
 const poiIcons = JSON.parse(fs.readFileSync(path.join(root, 'dist', 'poi-icons.json'), 'utf8'));
 for (const icon of ['Signalized_Crossings.svg','Elevators.svg','Ramps.svg','Escalators.svg','Stairs.svg','Barriers_and_Gates.svg','Lowered_Curbs.svg','Raised_Curbs.svg','Benches.svg','Shelters.svg']) assert.match(poiIcons[icon], /^data:image\/svg\+xml;base64,/, `Missing embedded atlas POI icon: ${icon}`);
-assert.equal(manifest.version, 4);
+assert.equal(manifest.version, 5);
 assert.deepEqual(manifest.themes, expectedThemes);
 assert.equal(Object.keys(manifest.poiTypes).length, 10);
+assert.deepEqual(manifest.crossingAccessibility?.classes, {
+  0: { key: 'unknown', color: '#9E9E9E', count: 2092 },
+  1: { key: 'none', color: '#C62828', count: 251 },
+  2: { key: 'partial', color: '#F9A825', count: 1216 },
+  3: { key: 'good', color: '#2E7D32', count: 702 },
+});
 assert.equal(manifest.visual?.count, manifest.network.edgeCount);
 assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.slopeDirections)).size, manifest.network.edgeCount);
 
