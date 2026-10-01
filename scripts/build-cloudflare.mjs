@@ -10,13 +10,16 @@ const core = read('scripts/core.mjs')
   .replaceAll('export class ', 'class ');
 const worker = read('scripts/worker.mjs').split('\n').slice(1).join('\n');
 const appData = read('scripts/app-data.mjs').replaceAll('export function ', 'function ');
+const weather = read('scripts/weather.mjs')
+  .replaceAll('export const ', 'const ')
+  .replaceAll('export function ', 'function ');
 const application = read('scripts/app.source.mjs');
 const workerSource = `${core}\n${worker}`;
 
 fs.mkdirSync(path.join(root, 'dist/vendor'), { recursive: true });
 fs.writeFileSync(
   path.join(root, 'dist/app-v7.mjs'),
-  `${appData}\nconst BUNDLED_WORKER=${JSON.stringify(workerSource)};\n${application}`,
+  `${appData}\n${weather}\nconst BUNDLED_WORKER=${JSON.stringify(workerSource)};\n${application}`,
 );
 
 const vendorParts = fs.readdirSync(path.join(root, 'assets/vendor'))
