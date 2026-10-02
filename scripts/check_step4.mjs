@@ -12,8 +12,8 @@ const workerSource = fs.readFileSync(path.join(root, 'scripts', 'worker.mjs'), '
 const expectedThemes = ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'];
 
 assert(!appSource.includes("getAttribute('aria-label')=t('layersTitle')"), 'Layer language setup must not assign to getAttribute().');
-assert(appSource.includes('map.jumpTo(camera)')&&appSource.includes('zoom:camera.zoom'), '2D/3D switching must preserve the exact camera before animating pitch.');
-assert(!appSource.includes('Math.max(map.getZoom(),15.4)'), '3D switching must not force a different zoom level.');
+assert(appSource.includes('function easeCamera')&&appSource.includes('Math.min(camera.zoom,16.4)'), '2D/3D switching must preserve the centre and cap only excessively expensive 3D zoom levels.');
+assert(appSource.includes("await loadVisibleCityTiles();if(is3D){map.setTerrain"), '3D data must load before terrain and extrusion layers become visible.');
 assert(appSource.includes('prepareRouteShade'), 'Long routes must load a complete shade corridor before routing.');
 assert(appSource.includes('outsideLocation'), 'Out-of-city geolocation must use a dismissible message.');
 assert(appSource.includes('function addPoiMapImage'), 'POIs must be normalized into fixed-size map markers.');
@@ -40,6 +40,7 @@ assert(!appSource.includes("id:'trees-fill'"), 'Tree geometry must not be render
 assert(appSource.includes("14.5,10,17,12.5,19,14"), 'The selected route must remain wider than the thematic lines.');
 assert(appSource.includes("id:'stairs-treads'")&&appSource.includes("id:'stairs-halo'"), 'Known steps must be rendered as a white-on-black line pattern.');
 assert(appSource.includes("'icon-allow-overlap':true,'icon-ignore-placement':true"), 'Selected POIs must never be hidden by symbol collision.');
+assert(appSource.includes('structureFlags[edgeId]')&&appSource.includes("'#aeb8bd'"), 'Bridge and tunnel segments must be visually neutral and arrow-free.');
 assert(appStyles.includes('.theme-option.selected'), 'Mandatory theme radio controls must be styled.');
 assert(workerSource.includes('if(d.routeAware)'), 'Only route-specific shade jobs may update edge weights.');
 for (const icon of ['shade-material.svg', 'walking-aid-material.svg']) {
@@ -61,6 +62,10 @@ assert.deepEqual(manifest.crossingAccessibility?.classes, {
 assert.equal(manifest.visual?.count, manifest.network.edgeCount);
 assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.slopeDirections)).size, manifest.network.edgeCount);
 assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.stepFlags)).size, manifest.network.edgeCount);
+assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.structureFlags)).size, manifest.network.edgeCount);
+const structureFlags = fs.readFileSync(path.join(cityRoot, manifest.visual.structureFlags));
+assert.equal([...structureFlags].filter(value=>value&1).length, 1814, 'Unexpected bridge subedge count.');
+assert.equal([...structureFlags].filter(value=>value&2).length, 1917, 'Unexpected tunnel subedge count.');
 
 let lines = 0;
 let pois = 0;

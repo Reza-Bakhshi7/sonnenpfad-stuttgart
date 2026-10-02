@@ -279,14 +279,18 @@ def main() -> int:
         direction = str(tags.get("oneway:foot", "no")).lower()
         escalator = str(tags.get("conveying", "")).lower() in {"yes", "forward", "backward", "reversible"}
         width = max(0, number(row["width"]))
+        bridge = str(row["bridge"] or "").strip().lower() in {"t", "yes", "true", "1"}
+        tunnel = str(row["tunnel"] or "").strip().lower() in {"t", "yes", "true", "1"}
         edges.append({
             "a": node(coords[0]), "b": node(coords[-1]), "c": coords, "l": round(length, 2),
             "s": round(slope, 3), "_z0": z0, "_z1": z1,
             "_valid0": valid0, "_valid1": valid1,
             "steps": (highway == "steps" or row["fclass"] == "steps") and not escalator,
             "escalator": escalator,
+            "bridge": bridge,
+            "tunnel": tunnel,
             "covered": str(row["covered_current"] or "").lower() == "yes"
-            or str(row["tunnel"] or "").lower() in ("t", "yes", "true", "1"),
+            or tunnel,
             "surface": surface_quality(row["surface_class"]),
             "way": way_class(highway),
             "width": round(width, 2),
