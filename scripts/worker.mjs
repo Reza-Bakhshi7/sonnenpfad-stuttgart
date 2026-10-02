@@ -1,4 +1,4 @@
-import {sunPosition,makeShadows,edgeShades,buildAdj,buildComponents,resolvedOptions,route} from './core.mjs';
+import {sunPosition,makeShadows,edgeShades,buildAdj,buildComponents,bestAvailableRoute,route} from './core.mjs';
 let network,obstacles={buildings:[],trees:[]},activeEdgeIds=null,meta,adj,componentCache=new Map(),shades=[];
 
 function finishNetwork(){adj=buildAdj(network);componentCache=new Map();shades=new Float32Array(network.edges.length);self.postMessage({type:'ready'});}
@@ -35,7 +35,7 @@ self.onmessage=async({data:d})=>{try{
  if(d.type==='obstacles'){obstacles=d.obstacles;activeEdgeIds=d.edgeIds||null;return;}
  if(d.type==='shade'){
  const center=d.center||[meta.origin[0],meta.origin[1]],sun=sunPosition(new Date(d.iso),center[1],center[0]),polys=makeShadows(obstacles,sun,d.leafOn,d.preview?{preview:true,treeSteps:8}:undefined);
- if(!d.preview){if(activeEdgeIds){const visibleEdges=activeEdgeIds.map(i=>network.edges[i]),visibleShades=edgeShades(visibleEdges,polys,sun.altitude<=0),next=new Float32Array(network.edges.length);activeEdgeIds.forEach((edgeId,index)=>{next[edgeId]=visibleShades[index];});shades=next;}else shades=edgeShades(network.edges,polys,sun.altitude<=0);}
+ if(d.routeAware){if(activeEdgeIds){const visibleEdges=activeEdgeIds.map(i=>network.edges[i]),visibleShades=edgeShades(visibleEdges,polys,sun.altitude<=0),next=new Float32Array(network.edges.length);activeEdgeIds.forEach((edgeId,index)=>{next[edgeId]=visibleShades[index];});shades=next;}else shades=edgeShades(network.edges,polys,sun.altitude<=0);}
  const bounds=d.bounds||meta.bounds,maxRaster=d.preview?384:1024,aspect=(bounds[3]-bounds[1])*meta.scale[1]/((bounds[2]-bounds[0])*meta.scale[0]);let width=maxRaster,height=Math.max(1,Math.round(width*aspect));if(height>maxRaster){height=maxRaster;width=Math.max(1,Math.round(height/aspect));}
  const canvas=new OffscreenCanvas(width,height),ctx=canvas.getContext('2d');ctx.fillStyle='#24364f';
  const x0=(bounds[0]-meta.origin[0])*meta.scale[0],y1=(bounds[3]-meta.origin[1])*meta.scale[1],xs=width/((bounds[2]-bounds[0])*meta.scale[0]),ys=height/((bounds[3]-bounds[1])*meta.scale[1]);
@@ -43,5 +43,5 @@ self.onmessage=async({data:d})=>{try{
  const blob=await canvas.convertToBlob({type:'image/png'});
  self.postMessage({type:'shade',id:d.id,sun,blob,bounds});return;
  }
- if(d.type==='route'){const base=resolvedOptions(d.options),key=[base.avoidSteps,base.avoidEscalators,base.avoidPoorSurface,base.avoidWheelchairNo,base.minWidth||0,base.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,base));const options={...base,components:componentCache.get(key)},result=route(network,adj,shades,d.start,d.end,options),shortest=options.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...options,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
+ if(d.type==='route'){const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=best.result,shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
  }catch(e){self.postMessage({type:'error',message:e.message,id:d.id});}};

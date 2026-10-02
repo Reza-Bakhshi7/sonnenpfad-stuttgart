@@ -75,7 +75,7 @@ def main() -> int:
             stream.write(NODE_STRUCT.pack(x, y))
 
     snap_index: dict[str, list[int]] = collections.defaultdict(list)
-    with (network_dir / "edges.bin").open("wb") as stream, (output / "slope-directions.bin").open("wb") as slope_stream:
+    with (network_dir / "edges.bin").open("wb") as stream, (output / "slope-directions.bin").open("wb") as slope_stream, (output / "step-flags.bin").open("wb") as step_stream, (output / "structure-flags.bin").open("wb") as structure_stream:
         for index, edge in enumerate(network["edges"]):
             flags = (1 if edge["steps"] else 0) | (2 if edge["covered"] else 0)
             mobility = (
@@ -86,6 +86,8 @@ def main() -> int:
             )
             signed = edge["sf"] if edge["sf"] is not None else math.nan
             slope_stream.write(struct.pack("<b", 1 if signed > 0 else -1 if signed < 0 else 0))
+            step_stream.write(struct.pack("<B", 1 if edge["steps"] else 0))
+            structure_stream.write(struct.pack("<B", (1 if edge.get("bridge") else 0) | (2 if edge.get("tunnel") else 0)))
             stream.write(EDGE_STRUCT.pack(
                 edge["a"], edge["b"], edge["l"], edge["s"], signed,
                 edge["z0"], edge["z1"], edge["dir"], flags, edge["sq"], 0,
@@ -132,10 +134,17 @@ def main() -> int:
     crossing_class_counts = collections.Counter()
     for key in sorted(tiles):
         payload = tiles[key]
-        relative = f"obstacles/{key}.json"
-        dump_json(output / relative, payload)
+        display_relative = f"display/{key}.json"
+        shade_relative = f"shade/{key}.json"
+        dump_json(output / display_relative, {
+            name: payload[name] for name in ("lines", "edgeIds", "themes", "pois")
+        })
+        dump_json(output / shade_relative, {
+            name: payload[name] for name in ("buildings", "trees")
+        })
         tile_manifest[key] = {
-            "file": relative,
+            "displayFile": display_relative,
+            "shadeFile": shade_relative,
             "buildings": len(payload["buildings"]),
             "trees": len(payload["trees"]),
             "lines": len(payload["lines"]),
@@ -160,7 +169,7 @@ def main() -> int:
             "snapIndex": snap_files, "snapGrid": args.snap_grid,
         },
         "obstacles": {"grid": args.obstacle_grid, "paddingTiles": 1, "tiles": tile_manifest},
-        "visual": {"slopeDirections": "slope-directions.bin", "count": len(network["edges"])},
+        "visual": {"slopeDirections": "slope-directions.bin", "stepFlags": "step-flags.bin", "structureFlags": "structure-flags.bin", "count": len(network["edges"])},
         "counts": {
             "buildings": len(obstacles["buildings"]), "trees": len(obstacles["trees"]),
             "lines": len(network["edges"]), "largeTreesScaled": large_trees,

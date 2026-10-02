@@ -12,7 +12,7 @@ const expected = { 0: 2092, 1: 251, 2: 1216, 3: 702 };
 const counts = { 0: 0, 1: 0, 2: 0, 3: 0 };
 
 for (const tile of Object.values(manifest.obstacles.tiles)) {
-  const payload = JSON.parse(fs.readFileSync(path.join(cityRoot, tile.file), 'utf8'));
+  const payload = JSON.parse(fs.readFileSync(path.join(cityRoot, tile.displayFile || tile.file), 'utf8'));
   for (const poi of payload.pois) {
     if (poi.k !== 1) continue;
     assert.ok(Object.hasOwn(counts, poi.q), `Unknown crossing class: ${poi.q}`);

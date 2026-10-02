@@ -12,7 +12,8 @@ const workerSource = fs.readFileSync(path.join(root, 'scripts', 'worker.mjs'), '
 const expectedThemes = ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'];
 
 assert(!appSource.includes("getAttribute('aria-label')=t('layersTitle')"), 'Layer language setup must not assign to getAttribute().');
-assert(appSource.includes("map.setMinZoom(is3D?15.25"), '3D zoom-out must be limited for performance.');
+assert(appSource.includes('function easeCamera')&&appSource.includes('Math.min(camera.zoom,16.4)'), '2D/3D switching must preserve the centre and cap only excessively expensive 3D zoom levels.');
+assert(appSource.includes("await loadVisibleCityTiles();if(is3D){map.setTerrain"), '3D data must load before terrain and extrusion layers become visible.');
 assert(appSource.includes('prepareRouteShade'), 'Long routes must load a complete shade corridor before routing.');
 assert(appSource.includes('outsideLocation'), 'Out-of-city geolocation must use a dismissible message.');
 assert(appSource.includes('function addPoiMapImage'), 'POIs must be normalized into fixed-size map markers.');
@@ -28,19 +29,20 @@ assert(appSource.includes("'symbol-placement':'line-center'"), 'Each eligible at
 assert(appSource.includes('length<24'), 'Very short atlas segments must not receive slope arrows.');
 assert(appSource.includes("'icon-allow-overlap':false"), 'Slope arrows must respect collision detection to avoid visual clutter.');
 assert(!appSource.includes("'text-field':'➤'"), 'Slope arrows must not depend on an unavailable map font glyph.');
-assert(appSource.includes("14.5,3.4,17,5.8,19,7"), 'Thematic lines must use the thicker review widths.');
-assert(appSource.includes('function toggleTimePlayer'), 'Time animation must be available.');
-assert(appSource.includes('requestAnimationFrame(tick)'), 'Time animation must run continuously with requestAnimationFrame.');
+assert(appSource.includes("14.5,4.4,17,7.2,19,8.8"), 'Thematic lines must use the thicker review widths.');
+assert(!appSource.includes('function toggleTimePlayer'), 'Time animation must remain removed.');
+assert(!appHtml.includes('time-play'), 'Time animation controls must remain removed.');
 assert(appSource.includes('function updateImmediateSun'), 'Sun direction must update immediately while time changes.');
-assert(appSource.includes("requestShade(false,{silent:true,preview:true})"), 'Map movement must use silent preview shading.');
-assert(appSource.includes("setTimeout(()=>requestShade(false,{silent:true}),360)"), 'A full-quality shade refresh must follow the lightweight map preview.');
+assert(appSource.includes("setTimeout(()=>requestShade(false,{silent:true}),650)"), '3D must request one shade refresh only after the camera settles.');
+assert(appSource.includes("layout:{visibility:'none'},paint:{'raster-opacity':.34"), 'The shadow raster must be hidden in 2D.');
 assert(!appSource.includes('setTimeout(loadVisibleCityTiles,700)'), '2D/3D switching must not schedule a duplicate tile reload.');
 assert(!appSource.includes("id:'trees-fill'"), 'Tree geometry must not be rendered in 2D mode.');
-assert(appSource.includes("'line-color':'#d7191c','line-width':9"), 'The selected route must be a strong, double-width red line.');
+assert(appSource.includes("14.5,10,17,12.5,19,14"), 'The selected route must remain wider than the thematic lines.');
+assert(appSource.includes("id:'stairs-treads'")&&appSource.includes("id:'stairs-halo'"), 'Known steps must be rendered as a white-on-black line pattern.');
+assert(appSource.includes("'icon-allow-overlap':true,'icon-ignore-placement':true"), 'Selected POIs must never be hidden by symbol collision.');
+assert(appSource.includes('structureFlags[edgeId]')&&appSource.includes("'#aeb8bd'"), 'Bridge and tunnel segments must be visually neutral and arrow-free.');
 assert(appStyles.includes('.theme-option.selected'), 'Mandatory theme radio controls must be styled.');
-assert(workerSource.includes('maxRaster=d.preview?384:1024'), 'Shade previews must use a substantially smaller raster than final calculations.');
-assert(workerSource.includes('{preview:true,treeSteps:8}'), 'Shade previews must use simplified obstacle geometry.');
-assert(workerSource.includes('if(!d.preview)'), 'Preview shading must skip route-edge evaluation.');
+assert(workerSource.includes('if(d.routeAware)'), 'Only route-specific shade jobs may update edge weights.');
 for (const icon of ['shade-material.svg', 'walking-aid-material.svg']) {
   const iconText = fs.readFileSync(path.join(root, 'dist', 'icons', icon), 'utf8');
   assert(iconText.includes('Google Material Symbols Rounded'), `Missing upstream attribution in ${icon}`);
@@ -59,22 +61,30 @@ assert.deepEqual(manifest.crossingAccessibility?.classes, {
 });
 assert.equal(manifest.visual?.count, manifest.network.edgeCount);
 assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.slopeDirections)).size, manifest.network.edgeCount);
+assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.stepFlags)).size, manifest.network.edgeCount);
+assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.structureFlags)).size, manifest.network.edgeCount);
+const structureFlags = fs.readFileSync(path.join(cityRoot, manifest.visual.structureFlags));
+assert.equal([...structureFlags].filter(value=>value&1).length, 1814, 'Unexpected bridge subedge count.');
+assert.equal([...structureFlags].filter(value=>value&2).length, 1917, 'Unexpected tunnel subedge count.');
 
 let lines = 0;
 let pois = 0;
 const poiTypes = new Set();
 for (const tile of Object.values(manifest.obstacles.tiles)) {
-  const payload = JSON.parse(fs.readFileSync(path.join(cityRoot, tile.file), 'utf8'));
-  assert.equal(payload.lines.length, payload.edgeIds.length);
-  assert.equal(payload.lines.length, payload.themes.length);
-  assert.equal(payload.pois.length, tile.pois);
-  for (const theme of payload.themes) assert.equal(theme.length, expectedThemes.length);
-  for (const poi of payload.pois) {
+  const display = JSON.parse(fs.readFileSync(path.join(cityRoot, tile.displayFile), 'utf8'));
+  const shade = JSON.parse(fs.readFileSync(path.join(cityRoot, tile.shadeFile), 'utf8'));
+  assert.equal(display.lines.length, display.edgeIds.length);
+  assert.equal(display.lines.length, display.themes.length);
+  assert.equal(display.pois.length, tile.pois);
+  assert.equal(shade.buildings.length, tile.buildings);
+  assert.equal(shade.trees.length, tile.trees);
+  for (const theme of display.themes) assert.equal(theme.length, expectedThemes.length);
+  for (const poi of display.pois) {
     assert.equal(poi.p.length, 2);
     poiTypes.add(poi.k);
   }
-  lines += payload.lines.length;
-  pois += payload.pois.length;
+  lines += display.lines.length;
+  pois += display.pois.length;
 }
 
 assert.equal(lines, manifest.counts.lines);

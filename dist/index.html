@@ -8,10 +8,10 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-v3.css">
-<link rel="stylesheet" href="./style.css?v=20261001-step5-performance1">
+<link rel="stylesheet" href="./style.css?v=20261002-step6-review3">
 <script defer src="./vendor/maplibre-v3.js">
 </script>
-<script type="module" src="./app-v7.mjs?v=20261001-step5-performance1">
+<script type="module" src="./app-v7.mjs?v=20261002-step6-review3">
 </script>
 </head>
 <body>
@@ -33,9 +33,8 @@
 </button>
 <div id="journey-panel">
 <h2 data-i="headline">Dein Weg. Dein Wetter.</h2><section class="journey tool-group is-open">
-<button type="button" class="tool-summary" data-tool-toggle aria-expanded="true">
-<span data-i="routeTools">Start &amp; Ziel</span><span aria-hidden="true">⌃</span>
-</button><label for="origin" data-i="from">Start</label>
+<div class="tool-heading" data-i="routeTools">Start &amp; Ziel</div>
+<label for="origin" data-i="from">Start</label>
 <div class="place-row search-row">
 <span class="point start">A</span>
 <div class="search-box">
@@ -60,11 +59,9 @@
 </div>
 <button id="pick-destination" class="pick" title="Auf Karte wählen" aria-label="Ziel auf Karte wählen">⌖</button>
 </div>
-<p id="pick-hint" class="micro" data-i="pickHint">Suche einen Ort oder wähle mit ⌖ direkt auf der Karte.</p>
-</section><section class="preferences tool-group">
-<button type="button" class="tool-summary" data-tool-toggle aria-expanded="false">
-<span data-i="routeOptions">Route &amp; Mobilität</span><span aria-hidden="true">⌃</span>
-</button>
+<p id="pick-hint" class="micro" data-i="pickHint">Doppelklick: Start, danach Ziel. Mobil: lange drücken.</p>
+</section><section class="preferences tool-group is-open">
+<div class="tool-heading" data-i="routeOptions">Route &amp; Mobilität</div>
 <h3 data-i="preference">Wie möchtest du gehen?</h3>
 <div class="segmented" id="preferences">
 <button data-pref="balanced" class="selected" aria-pressed="true">
@@ -122,8 +119,8 @@
 </select>
 </div>
 <p id="profile-description" class="profile-description" hidden>
-</p><details id="advanced-routing" hidden>
-<summary data-i="advanced">Eigene Einstellungen</summary>
+</p><section id="advanced-routing" class="advanced-routing" hidden>
+<div class="advanced-title" data-i="advanced">Eigene Einstellungen</div>
 <div class="slope-choice">
 <span data-i="slopeLabel">Steigungen vermeiden</span>
 <div class="icon-choices slope-icons" role="group" aria-label="Steigung vermeiden">
@@ -159,10 +156,6 @@
 <option value="both">Bergauf und bergab vermeiden</option>
 </select>
 </div>
-<div class="restriction-grid">
-<label><span data-i="maxSlope">Maximale bekannte Steigung</span><select id="max-slope"><option value="0" data-i="unlimited">Nicht begrenzen</option><option value="6">6 %</option><option value="10">10 %</option><option value="12">12 %</option><option value="15">15 %</option></select></label>
-<label><span data-i="minWidth">Mindestbreite, wenn bekannt</span><select id="min-width"><option value="0" data-i="unlimited">Nicht begrenzen</option><option value="0.8">0,80 m</option><option value="0.9">0,90 m</option><option value="1.2">1,20 m</option></select></label>
-</div>
 <label class="avoid-choice">
 <input type="checkbox" id="steps">
 <span class="choice-glyph icon-stairs" aria-hidden="true"></span>
@@ -183,7 +176,7 @@
 <span class="choice-glyph icon-wheelchair" aria-hidden="true"></span>
 <span data-i="wheelchairNoShort">Rollstuhl: nein</span>
 </label>
-</details>
+</section>
 </section>
 <button class="primary" id="calculate" disabled>
 <span data-i="calculate">Route entdecken</span>
@@ -265,6 +258,7 @@
 <option value="openfree">OpenFreeMap</option>
 <option value="osm">OSM Standard</option>
 <option value="topo">Topografisch</option>
+<option value="aerial">Luftbild · LGL BW</option>
 </select>
 <button id="view" aria-pressed="false">3D</button>
 <button id="layers-toggle" aria-expanded="false" aria-controls="layers-panel" aria-label="Kartenebenen" title="Kartenebenen">◫</button>
@@ -315,6 +309,17 @@
 <button id="now" data-i="now">Jetzt</button>
 </div>
 </div>
+<div class="weather-strip" id="weather-strip" aria-live="polite">
+<div class="weather-main"><span id="weather-icon" aria-hidden="true">◌</span><strong id="weather-temperature">–</strong><span id="weather-condition" data-i="weatherLoading">Wetter wird geladen …</span></div>
+<div class="weather-facts">
+<span title="Bewölkung"><b aria-hidden="true">☁</b> <span id="weather-cloud">–</span></span>
+<span title="Direkte Strahlung"><b aria-hidden="true">☀</b> <span id="weather-radiation">–</span></span>
+<span title="Wind"><b id="weather-wind-arrow" aria-hidden="true">↑</b> <span id="weather-wind">–</span></span>
+</div>
+<button id="weather-toggle" type="button" aria-pressed="true">Wetter</button>
+<button id="weather-info" type="button" aria-expanded="false" aria-controls="weather-details">i</button>
+<div id="weather-details" hidden></div>
+</div>
 <label class="sr-only" for="time" data-i="time">Uhrzeit</label>
 <input id="time" type="range" min="0" max="1439" step="1" value="840">
 <div class="time-ticks">
@@ -324,18 +329,7 @@
 <span>18:00</span>
 <span>23:59</span>
 </div>
-<div class="time-bottom">
-<div class="season">
-<button id="summer" data-i="summer">Sommer</button>
-<button id="winter" data-i="winter">Winter</button>
-</div>
-<div class="time-playback">
-<button id="time-play" type="button" aria-pressed="false" data-i-title="timePlay" title="Zeitanimation starten">▶</button>
-<label class="sr-only" for="time-speed" data-i="timeSpeed">Geschwindigkeit</label>
-<select id="time-speed" aria-label="Geschwindigkeit"><option value="1">1×</option><option value="4">4×</option><option value="12">12×</option></select>
-</div>
-<span class="micro" data-i="timezone">Ortszeit Stuttgart</span>
-</div>
+<div class="time-bottom"><span class="micro" data-i="timezone">Ortszeit Stuttgart</span></div>
 </section>
 <div class="loading-cover" id="loading-cover">
 <div class="spinner">
@@ -347,7 +341,7 @@
 </div>
 <dialog id="about-dialog">
 <button id="close-about" class="dialog-close" aria-label="Schließen">×</button>
-<span class="eyebrow">SONNENPFAD · 0.9</span>
+<span class="eyebrow">SONNENPFAD · 0.10</span>
 <h2 data-i="aboutTitle">Ein erster Schritt.</h2>
 <div id="about-content">
 </div>
