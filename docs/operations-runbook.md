@@ -15,7 +15,7 @@
 3. Confirm the Stuttgart basemap and pilot data load.
 4. Calculate a named-place route for Direct, Shade and Sun.
 5. Check the elevation profile and 2D/3D switch.
-6. Move the time slider and confirm shadow changes.
+6. Confirm that 2D stays shadow-free; switch to 3D, move the time slider and confirm one shadow update after release.
 7. Switch between German and English.
 8. Check a narrow mobile viewport.
 
@@ -32,4 +32,3 @@
 ## Incident record
 
 Record start/end time, affected version, user impact, evidence, mitigation, root cause and follow-up action in a GitHub issue without including secrets or unnecessary personal data.
-

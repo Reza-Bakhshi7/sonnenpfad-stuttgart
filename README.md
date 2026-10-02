@@ -1,4 +1,4 @@
-# Sonnenpfad Stuttgart — Prototype 0.9
+# Sonnenpfad Stuttgart — Prototype 0.10
 
 A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the Stuttgart Pedestrian Atlas. German and English, desktop and mobile. No application server, paid API key or database service required.
 
@@ -10,7 +10,7 @@ Project rules are documented in [GOVERNANCE.md](GOVERNANCE.md), [CONTRIBUTING.md
 
 Run `npm ci`, `npm run build`, and then serve `dist/` over HTTP (for example `python -m http.server 8080 --directory dist`). ES module workers do not run from `file://` URLs. Cloudflare Workers Static Assets uses `wrangler.jsonc`; `npm run deploy` performs a manual deployment. Cloudflare Builds should use `npm run build` as its build command and `npx wrangler deploy` as its deploy command.
 
-Prepared application data is split into size-bounded static chunks so the browser can load it reliably and Cloudflare can cache it efficiently. The routing and shadow worker remains embedded as a Blob. The original GeoPackage is a local, read-only pipeline input and is not committed.
+Prepared application data is split into size-bounded static chunks so the browser can load it reliably and Cloudflare can cache it efficiently. Visual tiles and 3D shadow-obstacle tiles are separate, allowing 2D to avoid building and tree payloads. The routing and shadow worker remains embedded as a Blob. The original GeoPackage is a local, read-only pipeline input and is not committed.
 
 ## Included
 
@@ -18,12 +18,13 @@ Prepared application data is split into size-bounded static chunks so the browse
 - Direct, shade-preferring and sun-preferring Dijkstra routes with separate uphill/downhill treatment.
 - Mobility presets for manual wheelchair, power wheelchair, cane/walker, blind or low-vision pedestrians and pushchairs. Known barriers are hard exclusions, unknown attributes remain routable but visible, and custom controls expose width, gradient, surface, stair, escalator and wheelchair restrictions. The exact assumptions are documented in [Step 5 routing profiles](docs/step5-routing-profiles.md).
 - Photon-backed Stuttgart place/address search with map picking and draggable endpoints.
-- Changing date/time updates solar geometry, shadow display and route weighting. The compact player animates continuously at 1×, 4× or 12×, and the solar compass responds immediately while dragging.
-- A worker rasterizes shadow polygons for responsive rendering. Interaction uses a simplified 384 px preview without route-edge resampling; pausing produces the exact route-aware result and a raster capped at 1,024 px. Background refreshes do not take over the route controls.
-- An unrestricted, tree-free 2D basemap and a locally generated 3D terrain surface with bounded visible-tile loading, hillshade, building extrusion and rounded height-aware tree crowns.
+- Changing date/time updates solar geometry, the 3D shadow display and route weighting. The solar compass responds immediately while the time slider is dragged; automatic time animation is intentionally disabled.
+- Hourly Open-Meteo weather for a fixed Stuttgart reference point: condition, temperature, cloud cover, direct radiation, 10 m wind, forecast-valid time and retrieval time. Direct radiation transparently scales the optional sun/shade preference; details and limitations are documented in [Step 6 live weather](docs/step6-live-weather.md).
+- A worker rasterizes shadow polygons for 3D rendering. The 2D map never requests or draws map-wide shadow rasters. A sun/shade route still computes exact shade values for a narrow route corridor, independently of the current 2D/3D view.
+- An unrestricted, tree- and shadow-free 2D basemap and a locally generated 3D terrain surface with bounded visible-tile loading, hillshade, building extrusion and rounded height-aware tree crowns.
 - Exactly one active atlas line theme for slope, surface, summer/winter shade, summer/winter UTCI, noise or relative wind exposure, each with a bilingual legend and explanation. Slope is the default; eligible segments receive at most one centred uphill arrow, while segments shorter than 24 m and colliding arrows are omitted.
 - Ten switchable citywide accessibility and comfort POI categories: signal crossings, elevators, ramps, escalators, stairs, barriers/gates, lowered and raised kerbs, benches and shelters. Signal crossings keep one layer toggle but use the atlas's four accessibility colours and expose sound, vibration, tactile, wheelchair and kerb attributes in their detail popup.
-- Balanced 3D level of detail: nearby buildings and rounded tree crowns receive progressively richer budgets as the user zooms in; identical views are not rebuilt and the 2D/3D switch no longer schedules a second delayed tile reload.
+- Display tiles are separated from heavier building/tree shadow tiles. 2D downloads only paths, themes and POIs; 3D loads the second payload lazily. Nearby buildings and rounded tree crowns receive progressively richer budgets, identical views are not rebuilt, and one exact shadow refresh runs only after the camera has settled.
 - Elevation profile with absolute route heights, ascent and descent.
 - DE/EN interface and explicit out-of-area feedback.
 
@@ -47,15 +48,15 @@ Every existing line vertex is a routing node. Exact coincident vertices connect;
 This is not a validated heat-risk, accessibility or navigation service.
 
 - The displayed 3D surface is an interpolation of elevations sampled along the walking network, not the original continuous DEM and not a survey model. Visual terrain exaggeration is 1.3×. It should not be used to infer precise ground heights away from sampled streets.
-- Geometric clear-sky shadows still assume flat ground, simplified vertical building prisms and spherical opaque tree crowns. Building heights include source estimates. Terrain occlusion, reflected radiation, cloud attenuation and thermal inertia are not modelled.
+- Geometric clear-sky shadows still assume flat ground, simplified vertical building prisms and spherical opaque tree crowns. Building heights include source estimates. Clouds do not alter geometry; hourly direct radiation only scales raster opacity and the optional routing preference. Terrain occlusion, reflected radiation and thermal inertia are not modelled.
 - Tree heights fall back to 8 m when absent; radius falls back to 2 m (minimum 1 m). April–October is the simplified leaf-on season; winter shade includes only trees explicitly classified evergreen. This is not phenology.
 - At solar elevations ≤2°, shade geometry is disabled; the UI suppresses percentage and uses direct weighting. Night is not represented as a sun/shade choice.
 - The selected instant applies to the whole route. Time-dependent arrival along a route is not modelled. Finite obstacle buffers can underestimate long shadows near the pilot edge.
 - Network centre lines can differ from actual sidewalks. Existing coincident vertices can still contain topology issues, especially at multi-level structures. Live access, closures and entrance availability are not verified.
 - Points search nearby network components within 200 m and use the closest component reachable from both endpoints. Dashed access lines make the snap explicit and are excluded from route length.
 - Walking time assumes 75 m/min plus 1 minute per 10 m of ascent. Elevation/slope inherit the atlas's uncertainties.
-- Shade/sun preference uses `length * (1 + 1.6 * undesired_exposure)`; gentler routes add `min(4, abs(slope_pct)/6)` to the multiplier. All costs are nonnegative. Additional distance is shown against the direct route with the same other settings. There is no hard detour cap in 0.7.
-- No live weather, SOLWEIG or turn-by-turn guidance. The displayed UTCI values are derived atlas snapshot indicators, not live measurements or individual heat-risk advice.
+- Shade/sun preference uses `length * (1 + 1.6 * undesired_exposure * solar_weight)`, where `solar_weight = clamp(direct_radiation / 500 W/m², 0, 1)` when a matching forecast hour exists and 1 otherwise. Mobility and safety rules are not weakened. This is a prototype heuristic, not a heat-risk model.
+- Live values are an hourly model forecast for one central-Stuttgart point, not station measurements or street-canyon conditions. No SOLWEIG or turn-by-turn guidance is included. The displayed UTCI line themes remain atlas snapshot indicators, not live measurements or individual heat-risk advice.
 
 ## Verification
 
@@ -65,13 +66,13 @@ Pull requests and pushes to `main` run `npm test` in GitHub Actions. Operational
 
 ## Privacy and attribution
 
-Routes are calculated locally in the browser. Location is requested only after a click and is not sent to an application backend. Shared URLs contain selected coordinates. External basemap providers receive tile requests (and associated IP/request metadata); Google Fonts is currently used with system-font fallback. No analytics, accounts or advertising.
+Routes are calculated locally in the browser. Location is requested only after a click and is not sent to an application backend. Shared URLs contain selected coordinates. External basemap providers receive tile requests (and associated IP/request metadata); Google Fonts is currently used with system-font fallback. Open-Meteo receives a fixed Stuttgart coordinate, never route endpoints or device location. No analytics, accounts or advertising.
 
-Base map: OpenFreeMap / OpenMapTiles / © OpenStreetMap contributors. MapLibre GL JS 5.6.2 is vendored under its BSD-3-Clause licence, see `dist/vendor/LICENSE-maplibre.txt`. Atlas-derived data retains its original source obligations; the code licence does not relicense geodata. The input package's full source documentation remains authoritative.
+Base map: OpenFreeMap / OpenMapTiles / © OpenStreetMap contributors. Weather: Open-Meteo, data under CC BY 4.0. MapLibre GL JS 5.6.2 is vendored under its BSD-3-Clause licence, see `dist/vendor/LICENSE-maplibre.txt`. Atlas-derived data retains its original source obligations; the code licence does not relicense geodata. The input package's full source documentation remains authoritative.
 
 ## Next useful increments
 
 1. Inspect the pilot visually and validate a few known route/shadow cases in the field.
 2. Replace the interpolated display terrain with an authoritative raster DEM when redistribution and hosting terms are confirmed; audit sidewalk alignment and topology.
-3. Add a suitable weather service, show its issue/validity time, and reduce automatic shade preference when direct radiation is low.
+3. Validate weather-aware route choices against representative clear and overcast days; decide whether animated spatial cloud rendering adds enough value for its performance cost.
 4. Add a user detour budget and expand coverage after performance measurements.
