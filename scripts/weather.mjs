@@ -40,9 +40,10 @@ export function weatherAt(model,day,minutes){
  for(const row of model.rows){const value=Date.parse(`${row.time}:00Z`),next=Math.abs(value-target);if(next<distance){best=row;distance=next;}}
  if(!best||distance>31*60*1000)return null;
  const direct=Math.max(0,Number(best.directRadiation)||0);
- // 500 W/m² is a deliberately simple prototype reference for strong direct sun.
- // It scales only the optional sun/shade routing preference, never safety filters.
- return {...best,solarWeight:clamp(direct/500),forecastDistanceMinutes:Math.round(distance/60000)};
+ // Below 40 W/m² there is effectively no useful direct-sun contrast for routing.
+ // From there to 490 W/m² the optional sun/shade preference increases smoothly.
+ // Weather never weakens mobility or safety criteria.
+ return {...best,solarWeight:clamp((direct-40)/450),forecastDistanceMinutes:Math.round(distance/60000)};
 }
 
 export function weatherCodeGroup(code){

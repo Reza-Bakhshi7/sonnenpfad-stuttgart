@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {buildAdj,route} from './core.mjs';
+import {bestAvailableRoute,buildAdj,route} from './core.mjs';
 
 const nodes=[[0,0],[20,0],[40,0],[20,20],[40,20],[60,0]];
 const makeEdge=(a,b,extras={})=>({
@@ -23,7 +23,6 @@ for(const barrier of [
  {escalator:true},
  {surface:3},
  {wheelchair:3},
- {width:.8},
  {sf:7,s:7,dz:1.4,z1:251.4},
 ]) assert(!edgeIds(routeFor(barrier)).includes(1),`wheelchair route used known barrier ${JSON.stringify(barrier)}`);
 
@@ -37,7 +36,6 @@ const assessedNetwork={nodes:nodes.slice(0,3),edges:[makeEdge(0,1),makeEdge(1,2,
 const assessed=route(assessedNetwork,buildAdj(assessedNetwork),[0,0],[1,0],[39,0],{mobilityProfile:'wheelchair'});
 assert(!assessed.error);
 assert.equal(assessed.criteria.maxSlope,6);
-assert.equal(assessed.criteria.minWidth,.9);
 assert(assessed.quality.surfaceKnown<1&&assessed.quality.widthKnown<1&&assessed.quality.wheelchairKnown<1);
 
 const blockedNodes=[[0,0],[100,0],[110,0],[210,0]];
@@ -47,10 +45,14 @@ const blocked={nodes:blockedNodes,edges:[
  {a:2,b:3,c:[blockedNodes[2],blockedNodes[3]],l:100,s:0,sf:0,dz:0,z0:250,z1:250,steps:false,escalator:false,dir:0,surface:1,way:1,width:1.5,wheelchair:1},
 ]};
 assert.equal(route(blocked,buildAdj(blocked),[0,0,0],[1,0],[209,0],{mobilityProfile:'wheelchair',maxSnap:20}).error,'profileBlocked');
+const fallback=bestAvailableRoute(blocked,buildAdj(blocked),[0,0,0],[1,0],[209,0],{mobilityProfile:'wheelchair',maxSnap:20}).result;
+assert(!fallback.error,'best-available routing must return a route when the unrestricted walking graph connects the points');
+assert(fallback.relaxedCriteria.includes('steps')&&fallback.relaxedCriteria.includes('wheelchairNo'));
 assert.equal(route(blocked,buildAdj(blocked),[0,0,0],[-500,0],[209,0],{mobilityProfile:'wheelchair',maxSnap:20}).error,'outside');
 
 const app=fs.readFileSync('scripts/app.source.mjs','utf8');
 const html=fs.readFileSync('dist/index.html','utf8');
-for(const token of ['profileBlocked','renderRouteAssessment','poor-surface','wheelchair-no','max-slope','min-width'])assert(app.includes(token)||html.includes(token),`missing Step 5 token ${token}`);
+for(const token of ['profileBlocked','renderRouteAssessment','poor-surface','wheelchair-no','relaxedCriteria'])assert(app.includes(token)||html.includes(token),`missing Step 5 token ${token}`);
+for(const removed of ['id="max-slope"','id="min-width"'])assert(!html.includes(removed),`obsolete custom criterion remains: ${removed}`);
 assert(html.includes('route-assessment'),'route assessment panel missing');
 console.log('Step 5 routing profiles and accessibility verification passed');

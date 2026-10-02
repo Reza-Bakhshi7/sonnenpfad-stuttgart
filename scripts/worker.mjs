@@ -1,4 +1,4 @@
-import {sunPosition,makeShadows,edgeShades,buildAdj,buildComponents,resolvedOptions,route} from './core.mjs';
+import {sunPosition,makeShadows,edgeShades,buildAdj,buildComponents,bestAvailableRoute,route} from './core.mjs';
 let network,obstacles={buildings:[],trees:[]},activeEdgeIds=null,meta,adj,componentCache=new Map(),shades=[];
 
 function finishNetwork(){adj=buildAdj(network);componentCache=new Map();shades=new Float32Array(network.edges.length);self.postMessage({type:'ready'});}
@@ -43,5 +43,5 @@ self.onmessage=async({data:d})=>{try{
  const blob=await canvas.convertToBlob({type:'image/png'});
  self.postMessage({type:'shade',id:d.id,sun,blob,bounds});return;
  }
- if(d.type==='route'){const base=resolvedOptions(d.options),key=[base.avoidSteps,base.avoidEscalators,base.avoidPoorSurface,base.avoidWheelchairNo,base.minWidth||0,base.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,base));const options={...base,components:componentCache.get(key)},result=route(network,adj,shades,d.start,d.end,options),shortest=options.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...options,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
+ if(d.type==='route'){const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=best.result,shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
  }catch(e){self.postMessage({type:'error',message:e.message,id:d.id});}};
