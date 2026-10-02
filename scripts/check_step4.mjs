@@ -12,7 +12,8 @@ const workerSource = fs.readFileSync(path.join(root, 'scripts', 'worker.mjs'), '
 const expectedThemes = ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'];
 
 assert(!appSource.includes("getAttribute('aria-label')=t('layersTitle')"), 'Layer language setup must not assign to getAttribute().');
-assert(appSource.includes("map.setMinZoom(is3D?15.25"), '3D zoom-out must be limited for performance.');
+assert(appSource.includes('map.jumpTo(camera)')&&appSource.includes('zoom:camera.zoom'), '2D/3D switching must preserve the exact camera before animating pitch.');
+assert(!appSource.includes('Math.max(map.getZoom(),15.4)'), '3D switching must not force a different zoom level.');
 assert(appSource.includes('prepareRouteShade'), 'Long routes must load a complete shade corridor before routing.');
 assert(appSource.includes('outsideLocation'), 'Out-of-city geolocation must use a dismissible message.');
 assert(appSource.includes('function addPoiMapImage'), 'POIs must be normalized into fixed-size map markers.');
@@ -28,7 +29,7 @@ assert(appSource.includes("'symbol-placement':'line-center'"), 'Each eligible at
 assert(appSource.includes('length<24'), 'Very short atlas segments must not receive slope arrows.');
 assert(appSource.includes("'icon-allow-overlap':false"), 'Slope arrows must respect collision detection to avoid visual clutter.');
 assert(!appSource.includes("'text-field':'➤'"), 'Slope arrows must not depend on an unavailable map font glyph.');
-assert(appSource.includes("14.5,3.4,17,5.8,19,7"), 'Thematic lines must use the thicker review widths.');
+assert(appSource.includes("14.5,4.4,17,7.2,19,8.8"), 'Thematic lines must use the thicker review widths.');
 assert(!appSource.includes('function toggleTimePlayer'), 'Time animation must remain removed.');
 assert(!appHtml.includes('time-play'), 'Time animation controls must remain removed.');
 assert(appSource.includes('function updateImmediateSun'), 'Sun direction must update immediately while time changes.');
@@ -36,7 +37,9 @@ assert(appSource.includes("setTimeout(()=>requestShade(false,{silent:true}),650)
 assert(appSource.includes("layout:{visibility:'none'},paint:{'raster-opacity':.34"), 'The shadow raster must be hidden in 2D.');
 assert(!appSource.includes('setTimeout(loadVisibleCityTiles,700)'), '2D/3D switching must not schedule a duplicate tile reload.');
 assert(!appSource.includes("id:'trees-fill'"), 'Tree geometry must not be rendered in 2D mode.');
-assert(appSource.includes("'line-color':'#d7191c','line-width':9"), 'The selected route must be a strong, double-width red line.');
+assert(appSource.includes("14.5,10,17,12.5,19,14"), 'The selected route must remain wider than the thematic lines.');
+assert(appSource.includes("id:'stairs-treads'")&&appSource.includes("id:'stairs-halo'"), 'Known steps must be rendered as a white-on-black line pattern.');
+assert(appSource.includes("'icon-allow-overlap':true,'icon-ignore-placement':true"), 'Selected POIs must never be hidden by symbol collision.');
 assert(appStyles.includes('.theme-option.selected'), 'Mandatory theme radio controls must be styled.');
 assert(workerSource.includes('if(d.routeAware)'), 'Only route-specific shade jobs may update edge weights.');
 for (const icon of ['shade-material.svg', 'walking-aid-material.svg']) {
@@ -57,6 +60,7 @@ assert.deepEqual(manifest.crossingAccessibility?.classes, {
 });
 assert.equal(manifest.visual?.count, manifest.network.edgeCount);
 assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.slopeDirections)).size, manifest.network.edgeCount);
+assert.equal(fs.statSync(path.join(cityRoot, manifest.visual.stepFlags)).size, manifest.network.edgeCount);
 
 let lines = 0;
 let pois = 0;

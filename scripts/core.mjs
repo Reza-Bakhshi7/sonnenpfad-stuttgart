@@ -51,11 +51,11 @@ export const MOBILITY_PROFILES={
  standard:{slopeMode:'none',speedMpm:75,ascentMinutesPer10m:1},
  // Hard filters apply only to explicitly known barriers. Missing attributes stay
  // routable, receive an uncertainty penalty and are reported to the user.
- wheelchair:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,avoidWheelchairNo:true,minWidth:0.9,maxSlope:6,slopeMode:'both',slopeFactor:.9,surfaceFactor:1.3,wayFactor:1.1,widthMin:1.2,wheelchairFactor:1.4,unknownFactor:.65,speedMpm:60,ascentMinutesPer10m:1.4},
- powerWheelchair:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,avoidWheelchairNo:true,minWidth:0.9,maxSlope:10,slopeMode:'both',slopeFactor:.55,surfaceFactor:1,wayFactor:1,widthMin:1.1,wheelchairFactor:1.1,unknownFactor:.5,speedMpm:75,ascentMinutesPer10m:.5},
- walkingAid:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,minWidth:0.8,maxSlope:10,slopeMode:'both',slopeFactor:.65,surfaceFactor:.9,wayFactor:.7,benchFactor:1.2,shelterFactor:.35,unknownFactor:.45,speedMpm:50,ascentMinutesPer10m:1.6},
+ wheelchair:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,avoidWheelchairNo:true,maxSlope:6,slopeMode:'both',slopeFactor:.9,surfaceFactor:1.3,wayFactor:1.1,wheelchairFactor:1.4,unknownFactor:.65,speedMpm:60,ascentMinutesPer10m:1.4},
+ powerWheelchair:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,avoidWheelchairNo:true,maxSlope:10,slopeMode:'both',slopeFactor:.55,surfaceFactor:1,wayFactor:1,wheelchairFactor:1.1,unknownFactor:.5,speedMpm:75,ascentMinutesPer10m:.5},
+ walkingAid:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,maxSlope:10,slopeMode:'both',slopeFactor:.65,surfaceFactor:.9,wayFactor:.7,benchFactor:1.2,shelterFactor:.35,unknownFactor:.45,speedMpm:50,ascentMinutesPer10m:1.6},
  vision:{slopeMode:'none',wayFactor:.9,crossingFactor:1.5,stairGuidanceFactor:1.2,unknownFactor:.25,speedMpm:65,ascentMinutesPer10m:1.1},
- stroller:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,minWidth:0.9,maxSlope:12,slopeMode:'both',slopeFactor:.7,downhillFactor:.25,surfaceFactor:1,wayFactor:1.2,widthMin:1.1,benchFactor:.35,unknownFactor:.4,speedMpm:65,ascentMinutesPer10m:1.2},
+ stroller:{avoidSteps:true,avoidEscalators:true,avoidPoorSurface:true,maxSlope:12,slopeMode:'both',slopeFactor:.7,downhillFactor:.25,surfaceFactor:1,wayFactor:1.2,benchFactor:.35,unknownFactor:.4,speedMpm:65,ascentMinutesPer10m:1.2},
 };
 export function resolvedOptions(options={}){
  const profile=options.mobilityProfile||'standard';
@@ -70,7 +70,6 @@ export function edgeAllowed(e,options={},forward=null){
  if(options.avoidEscalators&&e.escalator)return false;
  if(options.avoidPoorSurface&&e.surface===3)return false;
  if(options.avoidWheelchairNo&&e.wheelchair===3)return false;
- if(options.minWidth&&e.width>0&&e.width<options.minWidth)return false;
  if(options.maxSlope){
   if(forward===null)return edgeAllowed(e,{...options,maxSlope:0},true)&&(Math.abs(signedEdgeSlope(e,true)??0)<=options.maxSlope||Math.abs(signedEdgeSlope(e,false)??0)<=options.maxSlope);
   const slope=signedEdgeSlope(e,forward);if(slope!==null&&Math.abs(slope)>options.maxSlope)return false;
@@ -113,7 +112,7 @@ export function route(network,adj,shades,start,end,options={}){
  const starts=nearestByComponent(network,start,components,options,maxSnap),ends=nearestByComponent(network,end,components,options,maxSnap);let a=null,b=null,bestSnap=Infinity;
  for(const [component,sa] of starts){const sb=ends.get(component);if(!sb||sa.distance>maxSnap||sb.distance>maxSnap)continue;const score=sa.distance+sb.distance;if(score<bestSnap){bestSnap=score;a=sa;b=sb;}}
  if(!a||!b)return {error:hasRestrictions(options)&&sharedSnapExists(network,start,end,maxSnap)?'profileBlocked':'outside'};
- const penalty=(i,forward=true)=>{const e=network.edges[i],shade=Number.isFinite(shades[i])?shades[i]:0,exposure=preference==='shade'?1-shade:preference==='sun'?shade:0,solarWeight=Math.max(0,Math.min(1,Number.isFinite(options.solarWeight)?options.solarWeight:1)),directed=signedEdgeSlope(e,forward);let cost=1+exposure*1.6*solarWeight,slope=0;if(slopeMode!=='none'){if(directed===null)slope=24;else if(slopeMode==='uphill')slope=Math.max(0,directed);else if(slopeMode==='downhill')slope=Math.max(0,-directed);else slope=Math.abs(directed);cost+=Math.min(5,slope/6)*(options.slopeFactor??1);}if(options.downhillFactor&&directed!==null)cost+=Math.min(3,Math.max(0,-directed)/8)*options.downhillFactor;if(options.surfaceFactor)cost+=(e.surface===3?2.5:e.surface===2?.7:0)*options.surfaceFactor;if(options.wayFactor)cost+=(e.way===3?1.7:e.way===2?.35:0)*options.wayFactor;if(options.widthMin&&e.width>0&&e.width<options.widthMin)cost+=2.2;if(options.wheelchairFactor)cost+=(e.wheelchair===3?4:e.wheelchair===2?1.3:0)*options.wheelchairFactor;if(options.crossingFactor&&e.crossing)cost+=(e.crossing===1?2.4:e.crossing===2?.55:0)*options.crossingFactor;if(options.stairGuidanceFactor&&e.steps)cost+=(!e.handrail?1.2:0)+(!e.tactile?1.2:0);if(options.benchFactor)cost+=Math.min(2,Math.max(0,(Math.min(e.bench||1000,1000)-100)/450))*options.benchFactor;if(options.shelterFactor)cost+=Math.min(1.2,Math.max(0,(Math.min(e.shelter||1000,1000)-200)/650))*options.shelterFactor;if(options.unknownFactor){let unknown=0;if(e.surface===0)unknown++;if(!Number.isFinite(e.sf))unknown++;if((options.minWidth||options.widthMin)&&!e.width)unknown++;if(options.avoidWheelchairNo&&e.wheelchair===0)unknown++;cost+=unknown*options.unknownFactor;}return cost;};
+ const penalty=(i,forward=true)=>{const e=network.edges[i],shade=Number.isFinite(shades[i])?shades[i]:0,exposure=preference==='shade'?1-shade:preference==='sun'?shade:0,solarWeight=Math.max(0,Math.min(1,Number.isFinite(options.solarWeight)?options.solarWeight:1)),directed=signedEdgeSlope(e,forward);let cost=1+exposure*1.6*solarWeight,slope=0;if(slopeMode!=='none'){if(directed===null)slope=24;else if(slopeMode==='uphill')slope=Math.max(0,directed);else if(slopeMode==='downhill')slope=Math.max(0,-directed);else slope=Math.abs(directed);cost+=Math.min(5,slope/6)*(options.slopeFactor??1);}if(options.downhillFactor&&directed!==null)cost+=Math.min(3,Math.max(0,-directed)/8)*options.downhillFactor;if(options.surfaceFactor)cost+=(e.surface===3?2.5:e.surface===2?.7:0)*options.surfaceFactor;if(options.wayFactor)cost+=(e.way===3?1.7:e.way===2?.35:0)*options.wayFactor;if(options.wheelchairFactor)cost+=(e.wheelchair===3?4:e.wheelchair===2?1.3:0)*options.wheelchairFactor;if(options.crossingFactor&&e.crossing)cost+=(e.crossing===1?2.4:e.crossing===2?.55:0)*options.crossingFactor;if(options.stairGuidanceFactor&&e.steps)cost+=(!e.handrail?1.2:0)+(!e.tactile?1.2:0);if(options.benchFactor)cost+=Math.min(2,Math.max(0,(Math.min(e.bench||1000,1000)-100)/450))*options.benchFactor;if(options.shelterFactor)cost+=Math.min(1.2,Math.max(0,(Math.min(e.shelter||1000,1000)-200)/650))*options.shelterFactor;if(options.unknownFactor){let unknown=0;if(e.surface===0)unknown++;if(!Number.isFinite(e.sf))unknown++;if(options.avoidWheelchairNo&&e.wheelchair===0)unknown++;cost+=unknown*options.unknownFactor;}return cost;};
  const ae=network.edges[a.i],be=network.edges[b.i];
  if(a.i===b.i){
   const forward=b.t>=a.t,allowed=(forward?ae.dir!==-1:ae.dir!==1)&&edgeAllowed(ae,options,forward),frac=Math.abs(b.t-a.t);
@@ -137,7 +136,32 @@ export function route(network,adj,shades,start,end,options={}){
   for(const part of parts){const e=network.edges[part.i],len=e.l*part.frac,t0=part.t0??(part.forward?0:1),t1=part.t1??(part.forward?1:0),raw0=Number.isFinite(e.z0)?e.z0:0,raw1=Number.isFinite(e.z1)?e.z1:raw0+e.dz,dz=(raw1-raw0)*(t1-t0),segment=part.coords||(part.forward?e.c:e.c.slice().reverse()),directed=signedEdgeSlope(e,part.forward);if(currentZ===null){currentZ=raw0+(raw1-raw0)*t0;profile.push([0,currentZ]);}length+=len;currentZ+=dz;profile.push([length,currentZ]);shaded+=len*shades[part.i];ascent+=Math.max(0,dz);descent+=Math.max(0,-dz);if(e.steps&&len>.01)steps++;if(e.escalator&&len>.01)escalators++;if(e.surface){quality.surfaceKnown+=len;if(e.surface===3)quality.poorSurface+=len;}if(directed!==null){quality.slopeKnown+=len;quality.maxUphill=Math.max(quality.maxUphill,directed);quality.maxDownhill=Math.max(quality.maxDownhill,-directed);}if(e.width>0){quality.widthKnown+=len;quality.minWidth=quality.minWidth===null?e.width:Math.min(quality.minWidth,e.width);}if(e.wheelchair){quality.wheelchairKnown+=len;if(e.wheelchair>=2)quality.limitedWheelchair+=len;}for(const p of segment)if(!coords.length||Math.hypot(coords.at(-1)[0]-p[0],coords.at(-1)[1]-p[1])>.001)coords.push(p);}
   const speed=Math.max(1,options.speedMpm||75),ascentMinutes=options.ascentMinutesPer10m??1;
   for(const key of ['surfaceKnown','slopeKnown','widthKnown','wheelchairKnown','poorSurface','limitedWheelchair'])quality[key]=length?quality[key]/length:0;
-  return {path:parts,coords,profile,length,shade:length?shaded/length:0,ascent,descent,steps,escalators,quality,criteria:{minWidth:options.minWidth||0,maxSlope:options.maxSlope||0,avoidPoorSurface:Boolean(options.avoidPoorSurface),avoidWheelchairNo:Boolean(options.avoidWheelchairNo)},minutes:Math.ceil(length/speed+ascent/10*ascentMinutes),snaps:[a.p,b.p],snapDistances:[a.distance,b.distance]};
+  return {path:parts,coords,profile,length,shade:length?shaded/length:0,ascent,descent,steps,escalators,quality,criteria:{maxSlope:options.maxSlope||0,avoidPoorSurface:Boolean(options.avoidPoorSurface),avoidWheelchairNo:Boolean(options.avoidWheelchairNo),avoidSteps:Boolean(options.avoidSteps),avoidEscalators:Boolean(options.avoidEscalators)},minutes:Math.ceil(length/speed+ascent/10*ascentMinutes),snaps:[a.p,b.p],snapDistances:[a.distance,b.distance]};
  }
 }
-function hasRestrictions(options){return Boolean(options.avoidSteps||options.avoidEscalators||options.avoidPoorSurface||options.avoidWheelchairNo||options.minWidth||options.maxSlope);}
+function hasRestrictions(options){return Boolean(options.avoidSteps||options.avoidEscalators||options.avoidPoorSurface||options.avoidWheelchairNo||options.maxSlope);}
+
+export function relaxationTiers(options={}){
+ const base=resolvedOptions(options),tiers=[{options:base,relaxed:[]}],current={...base},relaxed=[];
+ const relax=(key,label,value)=>{if(!current[key])return;current[key]=value;relaxed.push(label);tiers.push({options:{...current},relaxed:[...relaxed]});};
+ // Keep physical barriers until the last possible stages. Strong gradients and
+ // surface quality are relaxed first, then wheelchair tags, escalators and stairs.
+ relax('maxSlope','maxSlope',0);
+ relax('avoidPoorSurface','poorSurface',false);
+ relax('avoidWheelchairNo','wheelchairNo',false);
+ relax('avoidEscalators','escalators',false);
+ relax('avoidSteps','steps',false);
+ return tiers;
+}
+
+export function bestAvailableRoute(network,adj,shades,start,end,options={},componentResolver=null){
+ const requestedProfile=options.mobilityProfile||'standard',tiers=relaxationTiers(options);let last={error:'outside'},usedOptions=tiers[0].options;
+ for(let level=0;level<tiers.length;level++){
+  const tier=tiers[level],candidateOptions={...tier.options};
+  if(componentResolver)candidateOptions.components=componentResolver(candidateOptions);
+  const candidate=route(network,adj,shades,start,end,candidateOptions);last=candidate;usedOptions=candidateOptions;
+  if(!candidate.error){candidate.fallbackLevel=level;candidate.relaxedCriteria=tier.relaxed;candidate.requestedProfile=requestedProfile;return {result:candidate,usedOptions};}
+  if(candidate.error!=='profileBlocked')break;
+ }
+ return {result:last,usedOptions};
+}

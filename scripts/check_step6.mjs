@@ -7,7 +7,7 @@ const payload={latitude:48.78,longitude:9.18,elevation:250,timezone:'Europe/Berl
  time:['2026-10-01T10:00','2026-10-01T11:00'],temperature_2m:[15,16],apparent_temperature:[14,15],weather_code:[3,1],cloud_cover:[95,35],wind_speed_10m:[8,10],wind_direction_10m:[240,250],wind_gusts_10m:[18,20],direct_radiation:[20,400],shortwave_radiation:[100,500],terrestrial_radiation:[500,600],
 }};
 const model=normalizeWeather(payload,Date.parse('2026-10-01T09:55:00Z')),cloudy=weatherAt(model,'2026-10-01',10*60),brighter=weatherAt(model,'2026-10-01',11*60);
-assert.equal(cloudy.solarWeight,.04);
+assert.equal(cloudy.solarWeight,0);
 assert.equal(brighter.solarWeight,.8);
 assert.equal(weatherAt(model,'2026-10-02',12*60),null);
 assert.equal(weatherCodeGroup(3),'overcast');
@@ -26,5 +26,7 @@ for(const token of ['loadWeather','selectedWeather','solarWeight','weatherRetrie
 for(const token of ['weather-strip','weather-radiation','weather-wind'])assert(html.includes(token),`missing Step 6 UI ${token}`);
 for(const token of ['cityShadeTileCache','includeShade:is3D','routeAware:true','setTimeout(()=>requestShade(false,{silent:true}),650)'])assert(app.includes(token),`missing performance token ${token}`);
 assert(!html.includes('time-play'), 'time animation controls must stay removed');
+assert(!html.includes('id="summer"')&&!html.includes('id="winter"'), 'season shortcuts must be removed');
+assert(html.includes('value="aerial"'), 'official aerial imagery basemap must be available');
 assert(app.includes("layout:{visibility:'none'},paint:{'raster-opacity':.34"), '2D shade layer must start hidden');
 console.log('Step 6 live weather and cloud-aware routing verification passed');
