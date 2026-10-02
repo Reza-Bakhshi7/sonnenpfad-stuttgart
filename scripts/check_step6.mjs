@@ -22,11 +22,13 @@ assert(!sunny.path.some(part=>part.i===1),'strong direct sun should favour shade
 assert(overcast.path.some(part=>part.i===1),'zero direct sun should reduce the preference to direct distance');
 
 const app=fs.readFileSync('scripts/app.source.mjs','utf8'),html=fs.readFileSync('dist/index.html','utf8');
-for(const token of ['loadWeather','selectedWeather','solarWeight','weatherRetrieved','weatherFallback'])assert(app.includes(token),`missing Step 6 token ${token}`);
-for(const token of ['weather-strip','weather-radiation','weather-wind'])assert(html.includes(token),`missing Step 6 UI ${token}`);
+for(const token of ['loadWeather','selectedWeather','effectiveWeather','liveWeatherEnabled','solarWeight','weatherRetrieved','weatherFallback'])assert(app.includes(token),`missing Step 6 token ${token}`);
+for(const token of ['weather-strip','weather-toggle','weather-radiation','weather-wind'])assert(html.includes(token),`missing Step 6 UI ${token}`);
 for(const token of ['cityShadeTileCache','includeShade:is3D','routeAware:true','setTimeout(()=>requestShade(false,{silent:true}),650)'])assert(app.includes(token),`missing performance token ${token}`);
 assert(!html.includes('time-play'), 'time animation controls must stay removed');
 assert(!html.includes('id="summer"')&&!html.includes('id="winter"'), 'season shortcuts must be removed');
 assert(html.includes('value="aerial"'), 'official aerial imagery basemap must be available');
+assert(app.includes('TILEMATRIX=GoogleMapsCompatible:{z}'), 'LGL aerial tiles must use the matrix identifier required by the WMTS capabilities.');
+assert(app.includes('if(points.every(Boolean)&&ready)calculate()'), 'Selecting a second address suggestion must start routing automatically.');
 assert(app.includes("layout:{visibility:'none'},paint:{'raster-opacity':.34"), '2D shade layer must start hidden');
 console.log('Step 6 live weather and cloud-aware routing verification passed');
