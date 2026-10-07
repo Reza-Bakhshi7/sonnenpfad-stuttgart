@@ -6,11 +6,11 @@ Only the current production release on `main` is supported.
 
 ## Reporting
 
-Do not publish credentials, private source data, precise personal locations or security-sensitive logs in a public issue. Report a suspected vulnerability directly to the repository owner or the appointed NVBW technical administrator.
+Do not publish credentials, private source data, precise personal locations or security-sensitive logs in a public issue. Report a suspected vulnerability directly to the repository owner.
 
 ## Secrets
 
-- Secrets belong in Cloudflare or GitHub secret stores, never in source files.
+- Secrets belong in deployment-platform or GitHub secret stores, never in source files.
 - Use scoped service tokens with the minimum permissions and an expiry or rotation date.
 - Never share passwords, one-time codes or API tokens in chat, issues or documentation.
 - Revoke credentials immediately when a maintainer leaves the project.
@@ -26,4 +26,3 @@ Routing runs in the browser. The application does not intentionally persist sele
 3. Preserve relevant logs without copying unnecessary personal data.
 4. Document impact, timeline and remediation.
 5. Release and verify the fix before restoring normal operation.
-
