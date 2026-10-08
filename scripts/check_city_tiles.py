@@ -40,17 +40,20 @@ def main() -> int:
     buildings = trees = lines = pois = scaled = 0
     crossing_classes = {0: 0, 1: 0, 2: 0, 3: 0}
     for tile in manifest["obstacles"]["tiles"].values():
-        payload = json.loads((root / tile["file"]).read_text(encoding="utf-8"))
-        assert len(payload["buildings"]) == tile["buildings"]
-        assert len(payload["trees"]) == tile["trees"]
-        assert len(payload["lines"]) == tile["lines"]
-        assert len(payload["edgeIds"]) == tile["edgeIds"] == tile["lines"]
-        assert len(payload["themes"]) == tile["themes"] == tile["lines"]
-        assert len(payload["pois"]) == tile["pois"]
-        assert all(isinstance(edge_id, int) for edge_id in payload["edgeIds"])
-        assert all(isinstance(theme, list) and len(theme) == 8 for theme in payload["themes"])
-        assert all(isinstance(poi.get("k"), int) and len(poi.get("p", [])) == 2 for poi in payload["pois"])
-        for poi in payload["pois"]:
+        display = json.loads((root / tile["displayFile"]).read_text(encoding="utf-8"))
+        shade = json.loads((root / tile["shadeFile"]).read_text(encoding="utf-8"))
+        assert len(shade["buildings"]) == tile["buildings"]
+        assert len(shade["trees"]) == tile["trees"]
+        assert len(display["lines"]) == tile["lines"]
+        assert len(display["edgeIds"]) == tile["edgeIds"] == tile["lines"]
+        assert len(display["themes"]) == tile["themes"] == tile["lines"]
+        assert len(display["pois"]) == tile["pois"]
+        assert all(isinstance(edge_id, int) for edge_id in display["edgeIds"])
+        assert all(isinstance(theme, list) and len(theme) == 8 for theme in display["themes"])
+        assert all(isinstance(poi.get("k"), int) and len(poi.get("p", [])) == 2 for poi in display["pois"])
+        for poi in display["pois"]:
+            assert "n" not in poi, "POI names must not be exported to public detail cards"
+            assert poi.get("src"), "Every POI must expose a source or source layer"
             if poi["k"] == 1:
                 assert all(isinstance(poi.get(field), int) for field in ("q", "a", "v", "t", "w", "c", "b"))
                 crossing_classes[poi["q"]] += 1
@@ -58,13 +61,11 @@ def main() -> int:
         trees += tile["trees"]
         lines += tile["lines"]
         pois += tile["pois"]
-        for tree in payload["trees"]:
+        for tree in shade["trees"]:
+            assert math.isclose(tree["dh"], round(tree["h"] * 0.7, 1))
+            assert math.isclose(tree["dr"], round(tree["r"] * 0.7, 1))
             if tree["h"] >= 15:
                 scaled += 1
-                assert math.isclose(tree["dh"], round(tree["h"] * 0.8, 1))
-                assert math.isclose(tree["dr"], round(tree["r"] * 0.8, 1))
-            else:
-                assert "dh" not in tree and "dr" not in tree
     assert buildings == manifest["counts"]["buildings"]
     assert trees == manifest["counts"]["trees"]
     assert lines == manifest["counts"]["lines"]
