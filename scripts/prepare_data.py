@@ -258,6 +258,7 @@ def main() -> int:
         access = str(row["access_current"] or "").lower()
         foot = str(row["foot_current"] or "").lower()
         highway = row["highway_current"] or row["fclass"]
+        display_class = str(row["fclass_display"] or row["fclass"] or "").strip().lower()
         restricted = foot in ("no", "private") or (
             access in ("no", "private") and foot not in ("yes", "designated", "permissive")
         )
@@ -285,7 +286,10 @@ def main() -> int:
             "a": node(coords[0]), "b": node(coords[-1]), "c": coords, "l": round(length, 2),
             "s": round(slope, 3), "_z0": z0, "_z1": z1,
             "_valid0": valid0, "_valid1": valid1,
-            "steps": (highway == "steps" or row["fclass"] == "steps") and not escalator,
+            # The atlas display class is the authoritative staircase contract.
+            # `highway_current`, historic `fclass` and especially `step_count`
+            # must not independently turn an ordinary road into a staircase.
+            "steps": display_class == "steps" and not escalator,
             "escalator": escalator,
             "bridge": bridge,
             "tunnel": tunnel,
@@ -402,6 +406,26 @@ def main() -> int:
 
     crossings = point_features(crossings_table, crossing_support)
 
+    def compact_value(row, key, digits=1, limit=100):
+        if key not in row.keys() or row[key] is None:
+            return None
+        value = row[key]
+        if isinstance(value, (int, float)):
+            return round(value, digits) if math.isfinite(value) else None
+        text = str(value).strip()
+        return text[:limit] if text else None
+
+    def first_compact(row, *keys, digits=1, limit=100):
+        for key in keys:
+            value = compact_value(row, key, digits=digits, limit=limit)
+            if value is not None:
+                return value
+        return None
+
+    def put(poi, key, value):
+        if value is not None and value != "":
+            poi[key] = value
+
     pois = []
     for kind, table in poi_tables.items():
         for row in db.execute(f"SELECT * FROM {quoted(table)} ORDER BY atlas_id"):
@@ -409,13 +433,11 @@ def main() -> int:
             point = local(shape.x, shape.y)
             if not inside(point, 250):
                 continue
-            keys = set(row.keys())
-            name = ""
-            for candidate in ("name", "stop_name", "hst_name", "connection", "barrier", "shelter_type"):
-                if candidate in keys and row[candidate]:
-                    name = str(row[candidate]).strip()
-                    break
-            poi = {"p": point, "k": kind, "n": name[:80]}
+            # Names in the point layers are commonly duplicated, technical or
+            # meaningless. Public cards therefore use the object type as their
+            # title and export only useful attributes plus provenance.
+            poi = {"p": point, "k": kind}
+            put(poi, "src", compact_value(row, "source", limit=60) or table)
             if kind == 1:
                 poi.update({
                     "q": crossing_support(row),
@@ -426,6 +448,81 @@ def main() -> int:
                     "c": kerb_state(row["kerb"]),
                     "b": documented_state(row["button_operated"]),
                 })
+                put(poi, "is", compact_value(row, "crossing_island"))
+                put(poi, "mk", compact_value(row, "crossing_markings"))
+                put(poi, "kh", first_compact(row, "kerb_height", "height"))
+                put(poi, "li", compact_value(row, "lit"))
+                put(poi, "sf", compact_value(row, "surface"))
+            elif kind == 2:
+                for key, value in {
+                    "dw": first_compact(row, "tuerweite_cm", "door_width", "width"),
+                    "cw": compact_value(row, "kabinenbreite_cm"),
+                    "cl": compact_value(row, "kabinenlaenge_cm"),
+                    "cf": compact_value(row, "verbindungsfunktion"),
+                    "ds": compact_value(row, "datenstatus"),
+                    "dt": first_compact(row, "erfassungsdatum", "start_date"),
+                    "ac": compact_value(row, "access"),
+                    "op": compact_value(row, "operator"),
+                    "lv": compact_value(row, "level"),
+                    "wc": compact_value(row, "wheelchair"),
+                    "sp": compact_value(row, "speech_output"),
+                    "tw": compact_value(row, "tactile_writing"),
+                }.items(): put(poi, key, value)
+            elif kind == 3:
+                for key, value in {
+                    "le": compact_value(row, "length_cm"), "wi": compact_value(row, "width_cm"),
+                    "sl": compact_value(row, "slope_pct"), "cs": compact_value(row, "cross_slope_pct"),
+                    "cn": compact_value(row, "connection"), "dt": compact_value(row, "capture_date"),
+                    "ds": compact_value(row, "data_status"),
+                }.items(): put(poi, key, value)
+            elif kind == 4:
+                for key, value in {
+                    "di": compact_value(row, "direction"), "rv": compact_value(row, "reversible"),
+                    "du": compact_value(row, "duration_sec"), "cn": compact_value(row, "connection"),
+                    "dt": compact_value(row, "capture_date"), "ds": compact_value(row, "data_status"),
+                }.items(): put(poi, key, value)
+            elif kind == 5:
+                for key, value in {
+                    "sc": compact_value(row, "step_count"), "sh": compact_value(row, "step_height_cm"),
+                    "hl": compact_value(row, "handrail_left"), "hr": compact_value(row, "handrail_right"),
+                    "hc": compact_value(row, "handrail_center"), "bg": compact_value(row, "bicycle_groove"),
+                    "cn": compact_value(row, "connection"), "dt": compact_value(row, "capture_date"),
+                    "ds": compact_value(row, "data_status"),
+                }.items(): put(poi, key, value)
+            elif kind == 6:
+                for key, value in {
+                    "bt": compact_value(row, "barrier"), "gt": compact_value(row, "gate_type"),
+                    "wc": compact_value(row, "wheelchair"), "wi": first_compact(row, "width", "maxwidth_physical", "maxwidth"),
+                    "ac": compact_value(row, "access"), "oh": compact_value(row, "opening_hours"),
+                    "lk": compact_value(row, "locked"), "ft": compact_value(row, "foot"),
+                    "bi": compact_value(row, "bicycle"), "op": compact_value(row, "operator"),
+                }.items(): put(poi, key, value)
+            elif kind in (7, 8):
+                for key, value in {
+                    "kb": compact_value(row, "kerb"), "tp": compact_value(row, "tactile_paving"),
+                    "wc": compact_value(row, "wheelchair"), "sf": compact_value(row, "surface"),
+                    "kh": first_compact(row, "kerb_height", "height"), "cr": compact_value(row, "crossing"),
+                    "is": compact_value(row, "crossing_island"),
+                }.items(): put(poi, key, value)
+            elif kind == 9:
+                for key, value in {
+                    "wc": compact_value(row, "wheelchair"), "ac": compact_value(row, "access"),
+                    "br": compact_value(row, "backrest"), "ar": compact_value(row, "armrest"),
+                    "se": compact_value(row, "seats"), "ma": compact_value(row, "material"),
+                    "cv": compact_value(row, "covered"), "li": compact_value(row, "lit"),
+                    "sf": compact_value(row, "surface"), "oh": compact_value(row, "opening_hours"),
+                    "op": compact_value(row, "operator"),
+                }.items(): put(poi, key, value)
+            elif kind == 10:
+                for key, value in {
+                    "wc": compact_value(row, "wheelchair"), "ac": compact_value(row, "access"),
+                    "ty": compact_value(row, "shelter_type"), "be": compact_value(row, "bench"),
+                    "bi": compact_value(row, "bin"), "li": compact_value(row, "lit"),
+                    "tp": compact_value(row, "tactile_paving"), "kb": compact_value(row, "kerb"),
+                    "pt": compact_value(row, "public_transport"), "db": compact_value(row, "departures_board"),
+                    "op": compact_value(row, "operator"), "oh": compact_value(row, "opening_hours"),
+                    "sf": compact_value(row, "surface"), "cv": compact_value(row, "covered"),
+                }.items(): put(poi, key, value)
             pois.append(poi)
 
     def spatial_index(features, cell=200):
