@@ -108,7 +108,7 @@ function nearestByComponent(network,p,components,options,maxSnap){
 }
 function sharedSnapExists(network,start,end,maxSnap){const components=buildComponents(network,{}),starts=nearestByComponent(network,start,components,{},maxSnap),ends=nearestByComponent(network,end,components,{},maxSnap);for(const [component,a] of starts){const b=ends.get(component);if(b&&a.distance<=maxSnap&&b.distance<=maxSnap)return true;}return false;}
 export function route(network,adj,shades,start,end,options={}){
- options=resolvedOptions(options);const {preference='balanced',gentle=false}=options,slopeMode=options.slopeMode||(gentle?'both':'none'),components=options.components||buildComponents(network,options),maxSnap=options.maxSnap||200;
+ options=resolvedOptions(options);const {preference='balanced',gentle=false}=options,slopeMode=options.slopeMode||(gentle?'both':'none'),components=options.components||buildComponents(network,options),maxSnap=options.maxSnap||30;
  const starts=nearestByComponent(network,start,components,options,maxSnap),ends=nearestByComponent(network,end,components,options,maxSnap);let a=null,b=null,bestSnap=Infinity;
  for(const [component,sa] of starts){const sb=ends.get(component);if(!sb||sa.distance>maxSnap||sb.distance>maxSnap)continue;const score=sa.distance+sb.distance;if(score<bestSnap){bestSnap=score;a=sa;b=sb;}}
  if(!a||!b)return {error:hasRestrictions(options)&&sharedSnapExists(network,start,end,maxSnap)?'profileBlocked':'outside'};
