@@ -4,6 +4,8 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
+- Cloudflare development/deployment tooling updated to Wrangler 4.149.0 to remediate audited transitive sharp/undici vulnerabilities.
+
 - Explicit, one-shot map endpoint selection on all devices: activate the start or destination button before tapping; holding, dragging and pinching no longer create route endpoints. Repeat the button or press Escape to cancel.
 - Mobile POI and path detail cards available on tap; hover remains limited to fine-pointer desktop devices.
 - Larger mobile touch controls and scrollable detail cards; bilingual instructions and labelled weather information button.
