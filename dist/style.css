@@ -85,7 +85,10 @@ html,body{width:100%;height:100%;overflow:hidden}.app{height:100dvh;min-height:0
  .weather-strip>#weather-info{width:44px;height:44px;font-size:14px}
  .weather-strip>#weather-toggle{min-height:44px;font-size:10px}
  .date-actions input,.date-actions button{min-height:44px}
- #time{height:28px;margin:4px 0;background:transparent;touch-action:pan-y}
+ #time{height:44px;margin:4px 0;background:linear-gradient(to right,#a8b4c4 0%,#f4c542 25%,#f4c542 75%,#a8b4c4 100%) center/100% 4px no-repeat;touch-action:pan-y}
+ .weather-strip{gap:5px}
+ .weather-main{min-width:0;flex:1;overflow:hidden}
+ .weather-facts{flex-shrink:0;gap:6px}
  .layers-panel{right:64px}
  .theme-legend{right:64px}
  .feature-detail .maplibregl-popup-content{max-height:40dvh;overflow-y:auto;overscroll-behavior:contain}
