@@ -8,10 +8,10 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-v3.css">
-<link rel="stylesheet" href="./style.css?v=20261002-step6-review3">
+<link rel="stylesheet" href="./style.css?v=20261009-mobile-picking1">
 <script defer src="./vendor/maplibre-v3.js">
 </script>
-<script type="module" src="./app-v7.mjs?v=20261008-optimisation-test1">
+<script type="module" src="./app-v7.mjs?v=20261009-mobile-picking1">
 </script>
 </head>
 <body>
@@ -42,7 +42,7 @@
 <div id="origin-results" class="search-results" role="listbox" hidden>
 </div>
 </div>
-<button id="pick-origin" class="pick" title="Auf Karte wählen" aria-label="Start auf Karte wählen">⌖</button>
+<button id="pick-origin" class="pick" aria-pressed="false" title="Auf Karte wählen" aria-label="Start auf Karte wählen">⌖</button>
 </div>
 <div class="place-divider">
 <span>
@@ -57,9 +57,9 @@
 <div id="destination-results" class="search-results" role="listbox" hidden>
 </div>
 </div>
-<button id="pick-destination" class="pick" title="Auf Karte wählen" aria-label="Ziel auf Karte wählen">⌖</button>
+<button id="pick-destination" class="pick" aria-pressed="false" title="Auf Karte wählen" aria-label="Ziel auf Karte wählen">⌖</button>
 </div>
-<p id="pick-hint" class="micro" data-i="pickHint">Doppelklick: Start, danach Ziel. Mobil: lange drücken.</p>
+<p id="pick-hint" class="micro" data-i="pickHint">Erst ⌖ neben Start oder Ziel antippen, dann den Punkt auf der Karte wählen.</p>
 </section><section class="preferences tool-group is-open">
 <div class="tool-heading" data-i="routeOptions">Route &amp; Mobilität</div>
 <h3 data-i="preference">Wie möchtest du gehen?</h3>
@@ -317,7 +317,7 @@
 <span title="Wind"><b id="weather-wind-arrow" aria-hidden="true">↑</b> <span id="weather-wind">–</span></span>
 </div>
 <button id="weather-toggle" type="button" aria-pressed="true">Wetter</button>
-<button id="weather-info" type="button" aria-expanded="false" aria-controls="weather-details">i</button>
+<button id="weather-info" type="button" aria-label="Wetterinformationen" aria-expanded="false" aria-controls="weather-details">i</button>
 <div id="weather-details" hidden></div>
 </div>
 <label class="sr-only" for="time" data-i="time">Uhrzeit</label>
@@ -350,3 +350,4 @@
 <noscript>Für diese interaktive Karte ist JavaScript erforderlich. / This interactive map requires JavaScript.</noscript>
 </body>
 </html>
+
