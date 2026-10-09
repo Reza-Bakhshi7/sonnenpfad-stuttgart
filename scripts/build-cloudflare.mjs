@@ -13,7 +13,8 @@ const appData = read('scripts/app-data.mjs').replaceAll('export function ', 'fun
 const weather = read('scripts/weather.mjs')
   .replaceAll('export const ', 'const ')
   .replaceAll('export function ', 'function ');
-const application = read('scripts/app.source.mjs');
+const mapInteractions = read('scripts/map-interactions.mjs').replaceAll('export function ', 'function ');
+const application = `${mapInteractions}\n${read('scripts/app.source.mjs')}`;
 const workerSource = `${core}\n${worker}`;
 
 fs.mkdirSync(path.join(root, 'dist/vendor'), { recursive: true });
@@ -43,3 +44,4 @@ for (const required of [
 }
 
 console.log(`Cloudflare bundle ready (${vendorParts.length} vendor chunks).`);
+
