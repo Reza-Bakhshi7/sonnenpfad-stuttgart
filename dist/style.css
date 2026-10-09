@@ -75,4 +75,22 @@ html,body{width:100%;height:100%;overflow:hidden}.app{height:100dvh;min-height:0
 
 /* Desktop feature inspection cards. Mobile stays intentionally uncluttered. */
 .feature-card{min-width:225px;color:var(--ink)}.feature-card>strong{display:block;margin:0 0 9px;font:750 14px/1.25 Manrope,sans-serif}.feature-card dl{display:grid;grid-template-columns:minmax(105px,1fr) auto;gap:5px 12px;margin:0;padding:9px 0;border-top:1px solid var(--line);font-size:11px}.feature-card dt{color:var(--muted)}.feature-card dd{margin:0;max-width:155px;text-align:right;font-weight:700;overflow-wrap:anywhere}.feature-card>small:last-child{display:block;padding-top:7px;border-top:1px solid var(--line);color:var(--muted);font-size:9px;line-height:1.35}.feature-card.compact{min-width:185px}.feature-card.compact>strong{margin-bottom:6px;font-size:12px}.feature-card.compact dl{grid-template-columns:1fr auto;padding:6px 0 0;border-top:1px solid var(--line);font-size:10px}.feature-hover .maplibregl-popup-content{padding:10px 12px;border-radius:9px;box-shadow:0 5px 22px #102b4530}.feature-detail .maplibregl-popup-content{padding:15px 16px;border-radius:12px;box-shadow:0 8px 30px #102b4540}
-@media(max-width:800px){.feature-hover,.feature-detail{display:none!important}}
+@media(max-width:800px){.feature-hover{display:none!important}}
+
+
+/* Mobile controls need generous touch areas without intercepting map gestures. */
+@media(max-width:800px){
+ .pick,#swap,.map-tools button,.map-tools #basemap,.layers-head button,.map-toast button{min-width:44px;min-height:44px}
+ .sidebar-body .profile-icons button{min-height:44px}
+ .weather-strip>#weather-info{width:44px;height:44px;font-size:14px}
+ .weather-strip>#weather-toggle{min-height:44px;font-size:10px}
+ .date-actions input,.date-actions button{min-height:44px}
+ #time{height:28px;margin:4px 0;background:transparent;touch-action:pan-y}
+ .layers-panel{right:64px}
+ .theme-legend{right:64px}
+ .feature-detail .maplibregl-popup-content{max-height:40dvh;overflow-y:auto;overscroll-behavior:contain}
+ .feature-detail .maplibregl-popup-close-button{width:44px;height:44px;font-size:22px}
+ .feature-detail .feature-card{padding-right:26px}
+ .theme-option,.poi-toggle{min-height:44px}
+ .theme-option:has(input:focus-visible),.poi-toggle:has(input:focus-visible){outline:3px solid #c99c18;outline-offset:2px}
+}
