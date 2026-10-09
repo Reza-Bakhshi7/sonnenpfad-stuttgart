@@ -4,6 +4,10 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
+- Explicit, one-shot map endpoint selection on all devices: activate the start or destination button before tapping; holding, dragging and pinching no longer create route endpoints. Repeat the button or press Escape to cancel.
+- Mobile POI and path detail cards available on tap; hover remains limited to fine-pointer desktop devices.
+- Larger mobile touch controls and scrollable detail cards; bilingual instructions and labelled weather information button.
+
 - 2D tree polygons removed completely; tree crowns are now a 3D-only layer, eliminating a major GeoJSON/rendering cost during ordinary map use.
 - Slope arrows limited to one centred marker per eligible atlas segment, omitted below 24 m, collision-aware, thinner and longer.
 - Selected routes changed to a high-contrast red line at twice the previous width with a wider white halo.
@@ -54,3 +58,4 @@ All notable product changes are documented here. The project follows semantic ve
 - Coverage is limited to the Stuttgart-Mitte pilot.
 - Weather, cloud attenuation, UTCI and public-transport positions are not live in 0.7.0.
 - The display terrain is interpolated from network elevation samples.
+
