@@ -18,6 +18,16 @@ canvas.emit('pointerdown',1);canvas.emit('pointercancel',1);
 assert.equal(guard.blocked,true,'cancelled pointers must not create an endpoint');
 canvas.emit('pointerdown',1);canvas.emit('pointerup',1);
 assert.equal(guard.blocked,false,'the next independent tap must work');
+const outsideTarget=canvasStub(),outsideCanvas=canvasStub();
+outsideCanvas.ownerDocument={defaultView:outsideTarget};
+const outsideGuard=createMapSelectionGuard(outsideCanvas);
+outsideCanvas.emit('pointerdown',1);outsideTarget.emit('pointerup',1,40);
+assert.equal(outsideGuard.blocked,true,'a release outside the canvas must block the drag');
+outsideCanvas.emit('pointerdown',1);outsideTarget.emit('pointerup',1);
+assert.equal(outsideGuard.blocked,false,'outside releases must not leave stale pointers');
+outsideCanvas.emit('pointerdown',1);outsideTarget.emit('blur');
+outsideCanvas.emit('pointerdown',1);outsideTarget.emit('pointerup',1);
+assert.equal(outsideGuard.blocked,false,'window focus loss must clear held pointers');
 
 // Execute the actual application's selection/card handlers, with the map and DOM mocked.
 const source=fs.readFileSync(new URL('./app.source.mjs',import.meta.url),'utf8');
