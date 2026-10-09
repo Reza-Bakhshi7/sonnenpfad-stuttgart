@@ -19,7 +19,7 @@ assert(source.includes('tree.r*.7')&&source.includes('tree.h*.7'),'fallback tree
 assert(source.includes("slices=zoom<15.6?8:zoom<16.4?10:12"),'tree crowns must use rounded multi-slice geometry');
 assert(source.includes('function installFeatureCards'),'desktop feature cards must be installed');
 assert(source.includes('poiDetails[key]||{}'),'compact POI details must enrich existing visual tiles');
-assert(source.includes("innerWidth<=800||!matchMedia('(hover:hover) and (pointer:fine)').matches"),'feature cards must stay disabled on mobile/coarse pointers');
+assert(source.includes("innerWidth<=800||!matchMedia('(hover:hover) and (pointer:fine)').matches"),'hover cards must stay disabled on mobile/coarse pointers');
 assert(source.includes('Quelle: Fußgängeratlas Stuttgart')&&source.includes('Source: Stuttgart Pedestrian Atlas'),'detail cards must expose provenance');
 assert(styles.includes('.feature-card')&&styles.includes('.feature-hover'),'feature card styling is required');
 
@@ -38,3 +38,4 @@ assert.equal(route(network,adj,[0],[50,31],[80,0]).error,'outside','default snap
 assert(!route(network,adj,[0],[50,30],[80,0]).error,'the documented 30 m access limit must remain inclusive');
 
 console.log(`Optimisation verification passed: ${steps.filter(Boolean).length} stair subedges, ${Object.keys(poiDetails).length} sourced POI locations, 30% smaller transparent trees.`);
+
