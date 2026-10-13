@@ -1,6 +1,6 @@
 # Sonnenpfad Stuttgart — Prototype 0.10
 
-A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the Stuttgart Pedestrian Atlas. German and English, desktop and mobile. No application server, paid API key or database service required.
+A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the Stuttgart Pedestrian Atlas. German and English, desktop and mobile. Standard Direct routes use the Sonnenpfad HTTPS API backed by PostGIS/pgRouting on the Oracle server. Shade, Sun, custom and mobility profiles currently retain the browser engine. No paid routing API key is required.
 
 Production: <https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/>
 
@@ -41,7 +41,7 @@ The script converts EPSG:25832 to WGS84, then to local equirectangular metres ar
 
 `python scripts/generate_terrain.py` reconstructs static Mapbox Terrain-RGB tiles at zooms 12–14 from the DEM-derived elevation values at network endpoints. It uses 8-neighbour inverse-distance interpolation followed by light smoothing. Run it before `python scripts/bundle_app.py`; the generated tiles are written to `dist/dem/` and need no external terrain API.
 
-Every existing line vertex is a routing node. Exact coincident vertices connect; geometry-only intersections are not noded. No arbitrary network edges are inserted across gaps. Segment endpoint elevation and slope are inherited; elevation is interpolated along subedges. Source `atlas_id` is preserved per subedge.
+For the browser routing profiles, every existing line vertex is a routing node. Exact coincident vertices connect; geometry-only intersections are not noded. No arbitrary network edges are inserted across gaps. Segment endpoint elevation and slope are inherited; elevation is interpolated along subedges. Source `atlas_id` is preserved per subedge.
 
 ## Scientific limitations
 
@@ -58,6 +58,10 @@ This is not a validated heat-risk, accessibility or navigation service.
 - Shade/sun preference uses `length * (1 + 1.6 * undesired_exposure * solar_weight)`, where `solar_weight = clamp(direct_radiation / 500 W/m², 0, 1)` when a matching forecast hour exists and 1 otherwise. Mobility and safety rules are not weakened. This is a prototype heuristic, not a heat-risk model.
 - Live values are an hourly model forecast for one central-Stuttgart point, not station measurements or street-canyon conditions. No SOLWEIG or turn-by-turn guidance is included. The displayed UTCI line themes remain atlas snapshot indicators, not live measurements or individual heat-risk advice.
 
+## Oracle Direct routing
+
+The standard Direct profile uses the audited Atlas network, matched against the local OSM reference from 2026-08-30T20:21:06Z, with 216,937 currently routable pieces. Connectivity follows OSM node identifiers, preserving distinct levels and excluding unresolved matches. The API snaps to the nearest walkable edge within 50 m and splits it for partial start/end routes. The response includes oriented original Atlas attributes; heights are interpolated along source segments, not new DEM measurements. The browser evaluates geometric shade along this actual route using the selected date/time. Unknown elevations and shadow payload failures remain unknown. Other profiles have not yet migrated to the server.
+
 ## Verification
 
 `node scripts/check_engine.mjs` checks solar direction/elevation, a known shadow geometry, route continuity, varied sun/shade route choices, edge snapping, automatic fallback from isolated fragments, the elevation profile and out-of-area rejection. Recorded results are in `scripts/verification.json`. Static source/asset checks were also run. Browser rendering and device-specific WebGL performance have not yet been verified in this environment. Optional WebMCP state read-back is feature-detected; supported-browser registration validation was unavailable.
@@ -66,7 +70,7 @@ Pull requests and pushes to `main` run `npm test` in GitHub Actions. Operational
 
 ## Privacy and attribution
 
-Routes are calculated locally in the browser. Location is requested only after a click and is not sent to an application backend. Shared URLs contain selected coordinates. External basemap providers receive tile requests (and associated IP/request metadata); Google Fonts is currently used with system-font fallback. Open-Meteo receives a fixed Stuttgart coordinate, never route endpoints or device location. No analytics, accounts or advertising.
+Standard Direct routes transmit selected start and destination coordinates to the Sonnenpfad server at https://138.2.184.1 over HTTPS. Those coordinates may originate from clicked map points, selected addresses or a device location explicitly requested by the user. Shade, Sun, custom and mobility routes currently run locally in the browser. Location is requested only after a click. Shared URLs contain selected coordinates. External basemap providers receive tile requests (and associated IP/request metadata); Google Fonts is currently used with system-font fallback. Open-Meteo receives a fixed Stuttgart coordinate, never route endpoints or device location. No analytics, accounts or advertising.
 
 Base map: OpenFreeMap / OpenMapTiles / © OpenStreetMap contributors. Weather: Open-Meteo, data under CC BY 4.0. MapLibre GL JS 5.6.2 is vendored under its BSD-3-Clause licence, see `dist/vendor/LICENSE-maplibre.txt`. Atlas-derived data retains its original source obligations; the code licence does not relicense geodata. The input package's full source documentation remains authoritative.
 
