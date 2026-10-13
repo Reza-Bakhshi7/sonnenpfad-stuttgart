@@ -8,13 +8,14 @@ const core = read('scripts/core.mjs')
   .replaceAll('export const ', 'const ')
   .replaceAll('export function ', 'function ')
   .replaceAll('export class ', 'class ');
-const worker = read('scripts/worker.mjs').split('\n').slice(1).join('\n');
+const worker = read('scripts/worker.mjs').split('\n').filter(line=>!line.startsWith('import ')).join('\n');
+const serverRouting = read('scripts/server-routing.mjs').replaceAll('export const ', 'const ').replaceAll('export function ', 'function ').replaceAll('export async function ', 'async function ');
 const appData = read('scripts/app-data.mjs').replaceAll('export function ', 'function ');
 const weather = read('scripts/weather.mjs')
   .replaceAll('export const ', 'const ')
   .replaceAll('export function ', 'function ');
-const application = read('scripts/app.source.mjs');
-const workerSource = `${core}\n${worker}`;
+const application = `${serverRouting}\n${read('scripts/app.source.mjs')}`;
+const workerSource = `${core}\n${serverRouting}\n${worker}`;
 
 fs.mkdirSync(path.join(root, 'dist/vendor'), { recursive: true });
 fs.writeFileSync(
