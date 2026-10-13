@@ -1,4 +1,5 @@
 import {sunPosition,makeShadows,edgeShades,buildAdj,buildComponents,bestAvailableRoute,route} from './core.mjs';
+import {adaptServerRoute} from './server-routing.mjs';
 let network,obstacles={buildings:[],trees:[]},activeEdgeIds=null,meta,adj,componentCache=new Map(),shades=[];
 
 function finishNetwork(){adj=buildAdj(network);componentCache=new Map();shades=new Float32Array(network.edges.length);self.postMessage({type:'ready'});}
@@ -42,6 +43,15 @@ self.onmessage=async({data:d})=>{try{
  for(const rings of polys){ctx.beginPath();for(const ring of rings){for(let i=0;i<ring.length;i++){const x=(ring[i][0]-x0)*xs,y=(y1-ring[i][1])*ys;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();}ctx.fill('evenodd');}
  const blob=await canvas.convertToBlob({type:'image/png'});
  self.postMessage({type:'shade',id:d.id,sun,blob,bounds});return;
+ }
+ if(d.type==='serverRoute'){
+  try {
+   const toLocal=p=>[(p[0]-meta.origin[0])*meta.scale[0],(p[1]-meta.origin[1])*meta.scale[1]],segments=d.route.properties.segments;
+   let fractions=null;
+   if(d.obstacles){const sun=sunPosition(new Date(d.iso),d.center[1],d.center[0]),polys=makeShadows(d.obstacles,sun,d.leafOn);fractions=edgeShades(segments.map(s=>{let tags={};try{tags=typeof s.atlas_attributes.routing_osm_tags==='string'?JSON.parse(s.atlas_attributes.routing_osm_tags):s.atlas_attributes.routing_osm_tags||{};}catch{}return {c:s.geometry.coordinates.map(toLocal),covered:tags.tunnel==='yes'||tags.covered==='yes'};}),polys,sun.altitude<=0);}
+   const result=adaptServerRoute(d.route,toLocal,fractions);self.postMessage({type:'route',id:d.id,result,shortest:result});
+  } catch(error){self.postMessage({type:'route',id:d.id,result:{error:'serverUnavailable'}});}
+  return;
  }
  if(d.type==='route'){const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=best.result,shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
  }catch(e){self.postMessage({type:'error',message:e.message,id:d.id});}};

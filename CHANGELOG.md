@@ -4,6 +4,16 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-13
+
+- Standard Direct walking routes use the Oracle-hosted PostGIS/pgRouting API 0.2 over HTTPS, with audited OSM node topology and pedestrian access rules.
+- Directed route-piece metadata preserves partial-segment heights and original Atlas attributes. Missing heights suppress the elevation profile instead of inventing values.
+- The geometric shadow model evaluates the returned route for the selected time. Shade, Sun, custom and mobility routes still use the browser engine.
+- Superseded server requests are cancelled and stale responses cannot replace a newer route. Service failures are shown without silently falling back to the old graph.
+- Privacy text explains that standard Direct route endpoint coordinates are transmitted to the Sonnenpfad server. Added adapter, worker and UI cancellation checks.
+- Rollback baseline: commit 3bb1004761d2c6fad82a40c794d2f21d351e4e3b; revert PR #10 to restore browser-only routing through Cloudflare Builds.
+
+
 - 2D tree polygons removed completely; tree crowns are now a 3D-only layer, eliminating a major GeoJSON/rendering cost during ordinary map use.
 - Slope arrows limited to one centred marker per eligible atlas segment, omitted below 24 m, collision-aware, thinner and longer.
 - Selected routes changed to a high-contrast red line at twice the previous width with a wider white halo.
