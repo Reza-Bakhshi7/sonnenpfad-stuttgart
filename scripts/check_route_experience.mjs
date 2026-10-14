@@ -32,14 +32,20 @@ vm.runInNewContext('const maplibregl=moduleNamespace;'+initCode+';this.initializ
 const source=fs.readFileSync(new URL('./app.source.mjs',import.meta.url),'utf8'),choose=source.slice(source.indexOf('function chooseMapPoint'),source.indexOf('function installDirectMapPicking'));
 // Reproduce the SDK's actual missing-data value: its API would return 0.
 // Scene heights must not consult that API at all, even after repeated renders.
-let samples=0,rendered=0;const map={getCanvas:()=>({}),triggerRepaint(){},queryTerrainElevation:()=>{throw Error('Transient renderer elevation must never be read');}},terrain={sample:async()=>{samples++;return 300;},sampleMany:async points=>points.map(()=>300)};
-const scene=createCitySceneLayer({origin:[9.18,48.77],toLngLat:p=>[9.18+p[0]/100000,48.77+p[1]/100000],dimensions:t=>({r:t.r,h:t.h}),terrain,rendererFactory:()=>({resetState(){},render(){rendered++;},dispose(){}})});
+let samples=0,rendered=0,renderedScene=null;const map={getCanvas:()=>({}),triggerRepaint(){},queryTerrainElevation:()=>{throw Error('Transient renderer elevation must never be read');}},terrain={sample:async()=>{samples++;return 300;},sampleMany:async points=>points.map(()=>300)};
+const scene=createCitySceneLayer({origin:[9.18,48.77],toLngLat:p=>[9.18+p[0]/100000,48.77+p[1]/100000],dimensions:t=>({r:t.r,h:t.h}),terrain,rendererFactory:()=>({resetState(){},render(value){rendered++;renderedScene=value;},dispose(){}})});
 scene.onAdd(map,{});const tree={p:[0,0],r:5,h:20};await scene.setObjects({trees:[tree],buildings:[]},[0,0]);await Promise.resolve();scene.setVisible(true);
 const stable=scene.snapshot().trees[0].ground;assert(stable>299&&stable<301);assert.equal(scene.snapshot().instances,1);
 await scene.setObjects({trees:[{...tree}],buildings:[]},[0,0]);await Promise.resolve();assert.equal(samples,1,'known objects must reuse their immutable height');
 const renderArgs={defaultProjectionData:{mainMatrix:[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]}};
 for(let i=0;i<10;i++){scene.setVisible(false);scene.render({},renderArgs);scene.setVisible(true);scene.render({},renderArgs);assert.equal(scene.snapshot().trees[0].ground,stable);}
 assert.equal(rendered,10);assert.equal(samples,1);
+// Inspect real cylinder vertices after instancing: ground altitude must never
+// become the trunk length (the regression that drew hundreds-of-metres spikes).
+const trunkMesh=renderedScene.children[0].children[1],trunkMatrix=new THREE.Matrix4();trunkMesh.getMatrixAt(0,trunkMatrix);const trunkPoints=trunkMesh.geometry.getAttribute('position'),point=new THREE.Vector3();let bottom=Infinity,top=-Infinity;
+for(let i=0;i<trunkPoints.count;i++){point.fromBufferAttribute(trunkPoints,i).applyMatrix4(trunkMatrix);bottom=Math.min(bottom,point.z);top=Math.max(top,point.z);}
+assert(Math.abs(bottom-stable)<.001,'trunk must begin at the cached ground height');assert(top-bottom<20,'a 20 m tree must not produce a several-hundred-metre trunk');assert(top<=stable+20,'trunk must terminate inside its crown');
+
 terrain.sample=async()=>{throw Error('Tile temporarily unavailable');};await scene.setObjects({trees:[tree,{p:[10,0],r:5,h:20}],buildings:[]},[0,0]);await Promise.resolve();assert.equal(scene.snapshot().instances,1,'a failed DEM fetch must retain existing crowns');assert.equal(scene.snapshot().trees[0].ground,stable);
 const frame=createCityFrame([9.18,48.77]),oneMetre=frame.point([9.18+1/(111319.49079327358*Math.cos(48.77*Math.PI/180)),48.77]);assert(Math.abs(Math.fround(oneMetre[0])-1)<1e-6,'local Float32 positions must retain metre precision');
 const centimetre=frame.point([9.18+.01/(111319.49079327358*Math.cos(48.77*Math.PI/180)),48.77]);assert(Math.abs(Math.fround(centimetre[0])-.01)<1e-6);

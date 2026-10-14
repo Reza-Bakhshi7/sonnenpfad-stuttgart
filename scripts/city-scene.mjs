@@ -53,7 +53,7 @@ export function createCitySceneLayer({origin,toLngLat,dimensions,terrain,rendere
   for(const record of visibleTrees) {
    if(index===treeCap)break;
    const {r,h}=dimensions(record.tree),radius=Math.max(.3,frame.radius(record.ll,Math.min(r,h*.48))),height=Math.max(radius*2,frame.radius(record.ll,h)),ground=record.ground;
-   const canopyCentre=ground+Math.max(radius+.35,height-radius),trunkHeight=Math.max(.6,canopyCentre-radius*.65),trunkRadius=Math.max(.12,Math.min(.28,r*.13));
+   const canopyCentre=ground+Math.max(radius+.35,height-radius),trunkHeight=Math.max(.6,canopyCentre-ground-radius*.65),trunkRadius=Math.max(.12,Math.min(.28,r*.13));
    instance.position.set(record.xy[0],record.xy[1],canopyCentre);instance.scale.setScalar(radius);instance.updateMatrix();crowns.setMatrixAt(index,instance.matrix);
    colour.set(record.tree.evergreen?0x37694c:0x5c9164);crowns.setColorAt(index,colour);
    instance.position.set(record.xy[0],record.xy[1],ground+trunkHeight/2);instance.scale.set(trunkRadius,trunkRadius,trunkHeight);instance.updateMatrix();trunks.setMatrixAt(index,instance.matrix);index++;

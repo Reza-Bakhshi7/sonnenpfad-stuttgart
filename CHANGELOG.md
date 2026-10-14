@@ -4,6 +4,8 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
+- Correct instanced trunk lengths to use crown height relative to the ground, preventing hundreds-of-metres vertical spikes. Test the transformed cylinder bounds.
+
 - Fix the ESM startup guard: an imported MapLibre namespace no longer requires a window global. Only actual GPUInitializationError failures show the WebGL notice; module/configuration errors no longer misidentify the device.
 
 - Move city buildings, spherical tree crowns/trunks and the 3D route into one cached Three.js scene using local metre coordinates. Crowns remain 30% smaller and slightly translucent, with a shared smooth sphere mesh and depth writes.
