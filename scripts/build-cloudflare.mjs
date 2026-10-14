@@ -14,7 +14,8 @@ const appData = read('scripts/app-data.mjs').replaceAll('export function ', 'fun
 const weather = read('scripts/weather.mjs')
   .replaceAll('export const ', 'const ')
   .replaceAll('export function ', 'function ');
-const application = `${serverRouting}\n${read('scripts/app.source.mjs')}`;
+const experience = ['route-experience.mjs','sphere-trees.mjs'].map(name=>read('scripts/'+name).replaceAll('export function ', 'function ')).join('\n');
+const application = `${experience}\n${serverRouting}\n${read('scripts/app.source.mjs')}\n${read('scripts/map-experience.mjs')}`;
 const workerSource = `${core}\n${serverRouting}\n${worker}`;
 
 fs.mkdirSync(path.join(root, 'dist/vendor'), { recursive: true });
