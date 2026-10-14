@@ -1,3 +1,6 @@
+import * as maplibregl from './vendor/maplibre-gl.mjs';
+let THREE;
+maplibregl.setWorkerUrl(new URL('./vendor/maplibre-gl-worker.mjs',import.meta.url).href);
 function parseCityManifest(text) {
   let manifest;
   try {
@@ -116,55 +119,168 @@ function pointAlongRoute(measure,fraction) {
 function smoothBearing(previous,next,weight) {
  return previous+(((next-previous+540)%360)-180)*Math.max(0,Math.min(1,weight));
 }
-
-// A shared smooth sphere mesh, drawn once with instances. No sliced extrusions,
-// camera-facing impostors, per-frame GeoJSON or third-party renderer is needed.
-function sphereMesh(longitudes=16,latitudes=10){
- const vertices=[],indices=[];
- for(let y=0;y<=latitudes;y++){const phi=y*Math.PI/latitudes;for(let x=0;x<=longitudes;x++){const theta=x*2*Math.PI/longitudes;vertices.push(Math.sin(phi)*Math.cos(theta),Math.sin(phi)*Math.sin(theta),Math.cos(phi));}}
- for(let y=0;y<latitudes;y++)for(let x=0;x<longitudes;x++){const a=y*(longitudes+1)+x,b=a+longitudes+1;if(y>0)indices.push(a,b,a+1);if(y<latitudes-1)indices.push(a+1,b,b+1);}
- return {vertices:new Float32Array(vertices),indices:new Uint16Array(indices)};
+function valueAlongRoute(measure,values,fraction) {
+ const target=Math.max(0,Math.min(1,fraction))*measure.total;
+ let lo=1,hi=measure.cumulative.length-1;
+ while(lo<hi){const mid=(lo+hi)>>1;if(measure.cumulative[mid]<target)lo=mid+1;else hi=mid;}
+ const i=Math.min(lo,values.length-1),a=Math.max(0,i-1),length=measure.cumulative[i]-measure.cumulative[a],f=length?(target-measure.cumulative[a])/length:0;
+ return values[a]+(values[i]-values[a])*f;
 }
-function createSphereTreeLayer({toLngLat,dimensions}){
- let map,glContext,program,vao,vertexBuffer,indexBuffer,instanceBuffer,indexCount=0,instanceCount=0,instances=[],dirty=true,lastTerrain=-1,visible=false,instanceSignature='',pendingGround=false,lastGroundRetry=-Infinity;
- const groundHeights=new Map();
- const vertex=`#version 300 es
- precision highp float;
- layout(location=0) in vec3 unitSphere;
- layout(location=1) in vec4 tree;
- layout(location=2) in vec3 tint;
- uniform mat4 matrix;
- out vec3 normal;out vec3 colour;
- void main(){normal=unitSphere;colour=tint;gl_Position=matrix*vec4(tree.xyz+tree.w*unitSphere,1.0);}`;
- const fragment=`#version 300 es
- precision highp float;
- in vec3 normal;in vec3 colour;out vec4 outputColour;
- void main(){vec3 n=normalize(normal);float light=.60+.40*max(0.0,dot(n,normalize(vec3(-.4,-.5,1.0))));outputColour=vec4(colour*light*.74,.74);}`;
- const compile=(gl,type,source)=>{const shader=gl.createShader(type);gl.shaderSource(shader,source);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){const error=gl.getShaderInfoLog(shader);gl.deleteShader(shader);throw Error(error);}return shader;};
- const layer={id:'tree-spheres',type:'custom',renderingMode:'3d',terrainRevision:0,
-  setVisible(value){visible=Boolean(value);map?.triggerRepaint();},
-  setTrees(trees){const signature=trees.map(tree=>`${tree.p.join(':')}:${tree.r}:${tree.h}:${tree.evergreen}`).join('|');if(signature===instanceSignature)return;instanceSignature=signature;instances=trees;dirty=true;map?.triggerRepaint();},
-  onAdd(current,gl){map=current;glContext=gl;if(!gl.drawElementsInstanced)throw Error('Sphere crowns require WebGL2');
-   const vs=compile(gl,gl.VERTEX_SHADER,vertex),fs=compile(gl,gl.FRAGMENT_SHADER,fragment);program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
-   const mesh=sphereMesh();indexCount=mesh.indices.length;vao=gl.createVertexArray();vertexBuffer=gl.createBuffer();indexBuffer=gl.createBuffer();instanceBuffer=gl.createBuffer();gl.bindVertexArray(vao);
-   gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer);gl.bufferData(gl.ARRAY_BUFFER,mesh.vertices,gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,3,gl.FLOAT,false,12,0);
-   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indexBuffer);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,mesh.indices,gl.STATIC_DRAW);
-   gl.bindBuffer(gl.ARRAY_BUFFER,instanceBuffer);for(const [index,size,offset]of [[1,4,0],[2,3,16]]){gl.enableVertexAttribArray(index);gl.vertexAttribPointer(index,size,gl.FLOAT,false,28,offset);gl.vertexAttribDivisor(index,1);}gl.bindVertexArray(null);
-  },
-  render(gl,args){if(!visible||!instances.length)return;const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16)return;
-   if(dirty||lastTerrain!==layer.terrainRevision||pendingGround&&performance.now()-lastGroundRetry>250){const values=[];pendingGround=false;lastGroundRetry=performance.now();for(const tree of instances.slice().reverse()){const ll=toLngLat(tree.p),key=tree.p.join(':'),{r,h}=dimensions(tree),sample=map.queryTerrainElevation(ll);let ground;
-    if(Number.isFinite(sample)){ground=sample;groundHeights.set(key,ground);}else if(groundHeights.has(key))ground=groundHeights.get(key);else if(!map.getTerrain())ground=0;else{pendingGround=true;continue;}
-    const altitude=ground+Math.max(r+.5,h-r),point=maplibregl.MercatorCoordinate.fromLngLat(ll,altitude),scale=point.meterInMercatorCoordinateUnits();values.push(point.x,point.y,point.z,r*scale,...(tree.evergreen?[.16,.40,.27]:[.28,.53,.35]));}
-    instanceCount=values.length/7;gl.bindBuffer(gl.ARRAY_BUFFER,instanceBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(values),gl.DYNAMIC_DRAW);dirty=false;lastTerrain=layer.terrainRevision;
-    if(groundHeights.size>8000){const active=new Set(instances.map(tree=>tree.p.join(':')));for(const key of groundHeights.keys()){if(!active.has(key))groundHeights.delete(key);if(groundHeights.size<=8000)break;}}
+function densifyRoute(coords,spacing=12) {
+ if(coords.length<2)return coords;
+ const total=routeMeasure(coords).total,step=Math.max(spacing,total/10000),points=[coords[0]];
+ for(let i=1;i<coords.length;i++){const a=coords[i-1],b=coords[i],count=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step));for(let j=1;j<=count;j++){const f=j/count;points.push([a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f]);}}
+ return points;
+}
+
+// Object heights come from immutable DEM assets, never the renderer's transient
+// visible-tile cache. A missing/failed tile is an error, not a sea-level sample.
+function terrainTilePoint(lngLat, zoom=14) {
+ const [lon,lat]=lngLat,n=2**zoom,sin=Math.sin(lat*Math.PI/180);
+ const x=(lon+180)/360*n,y=(.5-Math.log((1+sin)/(1-sin))/(4*Math.PI))*n;
+ return {x:Math.floor(x),y:Math.floor(y),u:x-Math.floor(x),v:y-Math.floor(y)};
+}
+function interpolateDEMTile(tile,u,v) {
+ const x=Math.max(0,Math.min(tile.width-1,u*tile.width)),y=Math.max(0,Math.min(tile.height-1,v*tile.height)),a=Math.floor(x),b=Math.floor(y),tx=x-a,ty=y-b;
+ const at=(i,j)=>tile.heights[Math.min(j,tile.height-1)*tile.width+Math.min(i,tile.width-1)];
+ return at(a,b)*(1-tx)*(1-ty)+at(a+1,b)*tx*(1-ty)+at(a,b+1)*(1-tx)*ty+at(a+1,b+1)*tx*ty;
+}
+async function decodeDEMPNG(blob) {
+ const image=await createImageBitmap(blob,{colorSpaceConversion:'none',premultiplyAlpha:'none'});
+ const canvas=typeof OffscreenCanvas==='function'?new OffscreenCanvas(image.width,image.height):Object.assign(document.createElement('canvas'),{width:image.width,height:image.height});
+ const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0);image.close();
+ const rgba=context.getImageData(0,0,canvas.width,canvas.height).data,heights=new Float32Array(canvas.width*canvas.height);
+ for(let i=0;i<heights.length;i++){const p=i*4;heights[i]=-10000+(rgba[p]*65536+rgba[p+1]*256+rgba[p+2])*.1;}
+ return {width:canvas.width,height:canvas.height,heights};
+}
+function createTerrainHeightfield({baseURL,zoom=14,exaggeration=1.3,loadTile,maxTiles=96,concurrency=6}) {
+ const tiles=new Map(),pending=new Map(),samples=new Map(),queue=[];let active=0;
+ const pump=()=>{while(active<concurrency&&queue.length){const {task,resolve,reject}=queue.shift();active++;Promise.resolve().then(task).then(resolve,reject).finally(()=>{active--;pump();});}};
+ const schedule=task=>new Promise((resolve,reject)=>{queue.push({task,resolve,reject});pump();});
+ const readTile=loadTile||(async(x,y)=>{const response=await fetch(new URL(`${zoom}/${x}/${y}.png`,baseURL),{signal:AbortSignal.timeout(12000)});if(!response.ok)throw Error(`Terrain tile ${x}/${y}: ${response.status}`);return decodeDEMPNG(await response.blob());});
+ const getTile=(x,y)=>{const key=`${x}/${y}`;if(tiles.has(key)){const tile=tiles.get(key);tiles.delete(key);tiles.set(key,tile);return Promise.resolve(tile);}if(pending.has(key))return pending.get(key);
+  const request=schedule(()=>readTile(x,y)).then(tile=>{if(!tile?.heights||!tile.width||!tile.height)throw Error('Invalid DEM tile');tiles.set(key,tile);while(tiles.size>maxTiles)tiles.delete(tiles.keys().next().value);return tile;}).finally(()=>pending.delete(key));pending.set(key,request);return request;};
+ const keyFor=point=>point.map(value=>Number(value).toFixed(8)).join(':');
+ return {
+  async sample(point){const key=keyFor(point);if(samples.has(key))return samples.get(key);const p=terrainTilePoint(point,zoom),tile=await getTile(p.x,p.y),height=interpolateDEMTile(tile,p.u,p.v)*exaggeration;if(!Number.isFinite(height))throw Error('Non-finite DEM height');samples.set(key,height);if(samples.size>100000)samples.delete(samples.keys().next().value);return height;},
+  sampleMany(points){return Promise.all(points.map(point=>this.sample(point)));},
+  peek(point){const key=keyFor(point);if(samples.has(key))return samples.get(key);const p=terrainTilePoint(point,zoom),tile=tiles.get(`${p.x}/${p.y}`);return tile?interpolateDEMTile(tile,p.u,p.v)*exaggeration:undefined;},
+  get stats(){return {tiles:tiles.size,pending:pending.size,samples:samples.size};}
+ };
+}
+
+
+
+
+// Keep all city geometry in metres around one origin. Convert the origin in the
+// camera matrix, in double precision, before sending that matrix to the GPU.
+function createCityFrame(origin) {
+ const earth=40075016.68557849;
+ const mercator=([lon,lat])=>{const sin=Math.sin(lat*Math.PI/180);return [(lon+180)/360,.5-Math.log((1+sin)/(1-sin))/(4*Math.PI)];};
+ const [x,y]=mercator(origin),unit=1/(earth*Math.cos(origin[1]*Math.PI/180));
+ return {x,y,unit,point(point,height=0){const [px,py]=mercator(point),scale=1/(earth*Math.cos(point[1]*Math.PI/180));return [(px-x)/unit,(py-y)/unit,height*scale/unit];},radius(point,radius){return radius/(earth*Math.cos(point[1]*Math.PI/180))/unit;}};
+}
+
+function mergeCityGeometry(geometries) {
+ const result=new THREE.BufferGeometry();
+ for(const name of ['position','normal']) {
+  const count=geometries.reduce((sum,geometry)=>sum+geometry.getAttribute(name).array.length,0),data=new Float32Array(count);let offset=0;
+  for(const geometry of geometries){const array=geometry.getAttribute(name).array;data.set(array,offset);offset+=array.length;}
+  result.setAttribute(name,new THREE.BufferAttribute(data,3));
+ }
+ result.computeBoundingSphere();return result;
+}
+
+function cityBuildingGeometry(building,frame,toLngLat,heights) {
+ const rings=building.r.map(ring=>ring.map(point=>frame.point(toLngLat(point))));
+ if(rings[0]?.length<4)return null;
+ const shape=new THREE.Shape(rings[0].map(point=>new THREE.Vector2(point[0],point[1])));
+ for(const ring of rings.slice(1))if(ring.length>=4)shape.holes.push(new THREE.Path(ring.map(point=>new THREE.Vector2(point[0],point[1]))));
+ // Extend walls down to the lowest footprint sample, while keeping the roof
+ // level and above the highest sample on sloping streets.
+ const low=Math.min(...heights)-1,high=Math.max(...heights)+Math.max(2,Number(building.h)||8);
+ const geometry=new THREE.ExtrudeGeometry(shape,{depth:high-low,bevelEnabled:false,steps:1});geometry.translate(0,0,low);geometry.deleteAttribute('uv');geometry.clearGroups();
+ return geometry;
+}
+
+function createCitySceneLayer({origin,toLngLat,dimensions,terrain,rendererFactory,treeCap=5000}) {
+ const frame=createCityFrame(origin),scene=new THREE.Scene(),camera=new THREE.Camera(),objects=new THREE.Group();scene.add(objects);
+ const ambient=new THREE.AmbientLight(0xffffff,.65),sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(-400,-600,900);scene.add(ambient,sun);
+ const crownGeometry=new THREE.SphereGeometry(1,24,16),trunkGeometry=new THREE.CylinderGeometry(1,1,1,8);trunkGeometry.rotateX(Math.PI/2);
+ const crownMaterial=new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:.82,depthWrite:true}),trunkMaterial=new THREE.MeshLambertMaterial({color:0x795b3e,depthWrite:true}),buildingMaterial=new THREE.MeshLambertMaterial({color:0xe2e7e7,side:THREE.DoubleSide});
+ const crowns=new THREE.InstancedMesh(crownGeometry,crownMaterial,treeCap),trunks=new THREE.InstancedMesh(trunkGeometry,trunkMaterial,treeCap);crowns.count=trunks.count=0;crowns.frustumCulled=trunks.frustumCulled=false;objects.add(crowns,trunks);
+ const trees=new Map(),buildings=new Map(),pending=new Map(),batches=new Map(),dirtyBuckets=new Set(),instance=new THREE.Object3D(),colour=new THREE.Color();
+ const localMatrix=new THREE.Matrix4().makeTranslation(frame.x,frame.y,0).scale(new THREE.Vector3(frame.unit,frame.unit,frame.unit)),projection=new THREE.Matrix4();
+ let map,renderer,visible=false,disposed=false,rebuildQueued=false,route=null,routeVersion=0,routeSignature='',centre=[0,0],lastError=null,lastInput=null,retryTimer=null,retryAttempts=0,updateVersion=0;
+ const geometryQueue=[];let geometryTimer=null;
+ const buildBatch=()=>{geometryTimer=null;const started=performance.now();let count=0;while(geometryQueue.length&&count++<12&&performance.now()-started<6){const item=geometryQueue.shift();try{item.resolve(disposed?null:item.task());}catch(error){item.reject(error);}}if(geometryQueue.length)geometryTimer=setTimeout(buildBatch,0);};
+ const buildGeometry=task=>new Promise((resolve,reject)=>{geometryQueue.push({task,resolve,reject});if(geometryTimer===null)geometryTimer=setTimeout(buildBatch,0);});
+ const keyFor=point=>point.map(value=>Number(value).toFixed(2)).join(':');
+ const bucketFor=point=>`${Math.floor(point[0]/500)}:${Math.floor(point[1]/500)}`;
+ const queueRebuild=()=>{if(rebuildQueued||disposed)return;rebuildQueued=true;queueMicrotask(()=>{rebuildQueued=false;if(disposed)return;rebuild();map?.triggerRepaint();});};
+ function rebuild() {
+  let index=0;
+  const visibleTrees=[...trees.values()].sort((a,b)=>distance(a.tree.p)-distance(b.tree.p));
+  for(const record of visibleTrees) {
+   if(index===treeCap)break;
+   const {r,h}=dimensions(record.tree),radius=Math.max(.3,frame.radius(record.ll,Math.min(r,h*.48))),height=Math.max(radius*2,frame.radius(record.ll,h)),ground=record.ground;
+   const canopyCentre=ground+Math.max(radius+.35,height-radius),trunkHeight=Math.max(.6,canopyCentre-radius*.65),trunkRadius=Math.max(.12,Math.min(.28,r*.13));
+   instance.position.set(record.xy[0],record.xy[1],canopyCentre);instance.scale.setScalar(radius);instance.updateMatrix();crowns.setMatrixAt(index,instance.matrix);
+   colour.set(record.tree.evergreen?0x37694c:0x5c9164);crowns.setColorAt(index,colour);
+   instance.position.set(record.xy[0],record.xy[1],ground+trunkHeight/2);instance.scale.set(trunkRadius,trunkRadius,trunkHeight);instance.updateMatrix();trunks.setMatrixAt(index,instance.matrix);index++;
+  }
+  crowns.count=trunks.count=index;crowns.instanceMatrix.needsUpdate=trunks.instanceMatrix.needsUpdate=true;if(crowns.instanceColor)crowns.instanceColor.needsUpdate=true;
+  const grouped=new Map();for(const record of buildings.values())if(dirtyBuckets.has(record.bucket)){if(!grouped.has(record.bucket))grouped.set(record.bucket,[]);grouped.get(record.bucket).push(record.geometry);}
+  for(const bucket of dirtyBuckets) {
+   const old=batches.get(bucket);if(old){objects.remove(old);old.geometry.dispose();batches.delete(bucket);}
+   const geometries=grouped.get(bucket)||[];
+   if(geometries.length){const mesh=new THREE.Mesh(mergeCityGeometry(geometries),buildingMaterial);mesh.frustumCulled=false;objects.add(mesh);batches.set(bucket,mesh);}
+  }
+  dirtyBuckets.clear();
+ }
+ const distance=point=>Math.hypot(point[0]-centre[0],point[1]-centre[1]);
+ function prune() {
+  for(const [key,record] of trees)if(distance(record.tree.p)>2600)trees.delete(key);
+  for(const [key,record] of buildings)if(distance(record.p)>3200){record.geometry.dispose();dirtyBuckets.add(record.bucket);buildings.delete(key);}
+ }
+ const runOnce=(key,task)=>{if(pending.has(key))return pending.get(key);const request=task().finally(()=>pending.delete(key));pending.set(key,request);return request;};
+ const retryFailed=version=>{if(retryTimer!==null||!visible||disposed||!lastInput||retryAttempts>=4)return;retryTimer=setTimeout(()=>{retryTimer=null;if(visible&&!disposed&&version===updateVersion){retryAttempts++;layer.setObjects(lastInput.data,lastInput.center,{retry:true});}},500*2**retryAttempts);};
+ const layer={id:'city-scene-3d',type:'custom',renderingMode:'3d',
+  onAdd(current,gl){map=current;renderer=rendererFactory?rendererFactory(current,gl):new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl,antialias:true});renderer.autoClear=false;},
+  setVisible(value){visible=Boolean(value);if(!visible){clearTimeout(retryTimer);retryTimer=null;}else if(lastError)retryFailed(updateVersion);map?.triggerRepaint();},
+  setSun(value){if(!value)return;const az=value.azimuth*Math.PI/180,alt=Math.max(.1,value.altitude*Math.PI/180);sun.position.set(Math.sin(az)*Math.cos(alt)*1000,-Math.cos(az)*Math.cos(alt)*1000,Math.sin(alt)*1000);sun.intensity=value.altitude>0?2:0;ambient.intensity=value.altitude>0?.65:.85;map?.triggerRepaint();},
+  async setObjects(data,center,{retry=false}={}){
+   if(!retry){updateVersion++;retryAttempts=0;clearTimeout(retryTimer);retryTimer=null;lastInput={data,center};}const version=updateVersion;
+   centre=center;prune();const tasks=[];
+   for(const tree of data.trees) {
+    const key=keyFor(tree.p);if(trees.has(key)||distance(tree.p)>2600)continue;
+    tasks.push(runOnce('t:'+key,async()=>{const ll=toLngLat(tree.p),height=await terrain.sample(ll);if(disposed||distance(tree.p)>2600)return;const point=frame.point(ll,height);trees.set(key,{tree,ll,xy:point,ground:point[2]});}));
    }
-   if(!instanceCount)return;
-   const depthMask=gl.getParameter(gl.DEPTH_WRITEMASK),blend=gl.isEnabled(gl.BLEND),cull=gl.isEnabled(gl.CULL_FACE),frontFace=gl.getParameter(gl.FRONT_FACE),cullMode=gl.getParameter(gl.CULL_FACE_MODE);
-   gl.useProgram(program);gl.bindVertexArray(vao);gl.uniformMatrix4fv(gl.getUniformLocation(program,'matrix'),false,matrix);gl.enable(gl.DEPTH_TEST);gl.depthMask(false);gl.enable(gl.CULL_FACE);gl.frontFace(gl.CCW);gl.cullFace(gl.BACK);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
-   gl.drawElementsInstanced(gl.TRIANGLES,indexCount,gl.UNSIGNED_SHORT,0,instanceCount);
-   gl.depthMask(depthMask);gl.frontFace(frontFace);gl.cullFace(cullMode);if(!blend)gl.disable(gl.BLEND);if(!cull)gl.disable(gl.CULL_FACE);gl.bindVertexArray(null);
+   for(const building of data.buildings) {
+    const p=building.r?.[0]?.[0];if(!p||building.r[0].length<4||distance(p)>3200)continue;
+    const key=JSON.stringify(building.r)+':'+building.h;if(buildings.has(key))continue;
+    tasks.push(runOnce('b:'+key,async()=>{const footprint=building.r[0],locations=footprint.map(toLngLat),heights=await terrain.sampleMany(locations);if(disposed||distance(p)>3200)return;const sceneHeights=locations.map((ll,index)=>frame.point(ll,heights[index])[2]),geometry=await buildGeometry(()=>cityBuildingGeometry(building,frame,toLngLat,sceneHeights));if(!geometry)return;if(disposed||distance(p)>3200){geometry.dispose();return;}const bucket=bucketFor(p);buildings.set(key,{p,bucket,geometry});dirtyBuckets.add(bucket);}));
+   }
+   const results=await Promise.allSettled(tasks);const failure=results.find(result=>result.status==='rejected');if(version===updateVersion){if(failure){lastError=String(failure.reason);console.warn('Some 3D objects await their DEM tile:',failure.reason);retryFailed(version);}else lastError=null;}
+   if(!disposed){queueRebuild();}return !failure;
   },
-  onRemove(){const gl=glContext;if(gl){for(const buffer of [vertexBuffer,indexBuffer,instanceBuffer])gl.deleteBuffer(buffer);gl.deleteVertexArray(vao);gl.deleteProgram(program);}map=null;}
+  async setRoute(coordinates) {
+   const signature=coordinates.map(point=>point.join(':')).join('|');if(signature===routeSignature)return;routeSignature=signature;const version=++routeVersion;
+   if(!coordinates.length){if(route){objects.remove(route);route.geometry.dispose();route.material.dispose();route=null;}map?.triggerRepaint();return;}
+   try {
+    coordinates=densifyRoute(coordinates);
+    const ll=coordinates.map(toLngLat),heights=await terrain.sampleMany(ll);if(version!==routeVersion||disposed)return;
+    const points=ll.map((point,index)=>new THREE.Vector3(...frame.point(point,heights[index]+1.2))),path=new THREE.CurvePath();
+    for(let i=1;i<points.length;i++)if(points[i].distanceTo(points[i-1])>.01)path.add(new THREE.LineCurve3(points[i-1],points[i]));
+    if(!path.curves.length)return;
+    const segments=Math.min(4096,Math.max(points.length*2,Math.ceil(path.getLength()/2))),geometry=new THREE.TubeGeometry(path,segments,1.4,6,false),material=new THREE.MeshBasicMaterial({color:0xd7191c,depthTest:false,depthWrite:false});
+    if(route){objects.remove(route);route.geometry.dispose();route.material.dispose();}route=new THREE.Mesh(geometry,material);route.renderOrder=10;route.frustumCulled=false;objects.add(route);map?.triggerRepaint();
+   }catch(error){if(version===routeVersion){routeSignature='';console.warn('3D route height unavailable:',error);}}
+  },
+  render(gl,args){if(!visible||!renderer)return;const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16)return;camera.projectionMatrix.copy(projection.fromArray(matrix).multiply(localMatrix));camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();renderer.resetState();renderer.render(scene,camera);renderer.resetState();},
+  // Used by geometry/lifecycle regression tests; no renderer internals exposed.
+  snapshot(){return {trees:[...trees.values()].map(record=>({p:record.tree.p,ground:record.ground})),buildings:buildings.size,batches:batches.size,instances:crowns.count,visible,pending:pending.size,error:lastError,route:!!route};},
+  onRemove(){disposed=true;clearTimeout(retryTimer);routeVersion++;for(const record of buildings.values())record.geometry.dispose();for(const mesh of batches.values())mesh.geometry.dispose();for(const value of [crownGeometry,trunkGeometry,crownMaterial,trunkMaterial,buildingMaterial])value.dispose();if(route){route.geometry.dispose();route.material.dispose();}renderer?.dispose();trees.clear();buildings.clear();batches.clear();map=null;}
  };
  return layer;
 }
@@ -190,17 +306,6 @@ function projectBoundaryPath(rings,matrix,width,height){
  let path='';
  for(const ring of rings){const clipped=clipCameraPolygon(ring.map(point=>multiplyPoint(matrix,point)));if(clipped.length<3)continue;path+=clipped.map((p,i)=>`${i?'L':'M'}${((p[0]/p[3]+1)*width/2).toFixed(2)} ${((1-p[1]/p[3])*height/2).toFixed(2)}`).join('')+'Z';}
  return path;
-}
-
-function treeKey(tree){return tree.p.map(value=>Number(value).toFixed(2)).join(':');}
-function stableTreeSelection(trees,previousKeys,center,cap=1200){
- const available=new Map(trees.map(tree=>[treeKey(tree),tree])),selected=[];
- // Retain existing crowns across zoom-band and tile refreshes. Replace only
- // trees that have genuinely left the loaded area, not the whole population.
- for(const key of previousKeys){if(available.has(key)&&selected.length<cap){selected.push(available.get(key));available.delete(key);}}
- const remaining=[...available.values()].sort((a,b)=>Math.hypot(a.p[0]-center[0],a.p[1]-center[1])-Math.hypot(b.p[0]-center[0],b.p[1]-center[1])||treeKey(a).localeCompare(treeKey(b)));
- selected.push(...remaining.slice(0,cap-selected.length));
- return {trees:selected,keys:selected.map(treeKey)};
 }
 
 // API 0.2 metadata describes oriented route pieces. Atlas heights are interpolated,
@@ -252,9 +357,9 @@ function adaptServerRoute(data,toLocal,shadeFractions=null) {
 
 
 let serverRouteController=null,serverRoutingPending=false;
-let exploreMode=true,treeSphereLayer=null,profileMarker=null,routeMeasureCache=null,previewFrame=0,previewState=null;
+let exploreMode=true,citySceneLayer=null,terrainHeightfield=null,profileMarker=null,routeMeasureCache=null,previewFrame=0,previewState=null,previewPreparing=false,previewRequestId=0;
 const cityFetchPending=new Map();
-let selectedTreeKeys=[],viewTransitionId=0;
+let viewTransitionId=0;
 const $=id=>document.getElementById(id);
 const strings={de:{pilot:'FUSSWEGE · PILOT MITTE',headline:'Dein Weg. Dein Wetter.',intro:'Entdecke den Weg mit mehr Schatten, mehr Sonne oder weniger Steigung.',from:'Start',to:'Ziel',pickHint:'Oder mit ⌖ einen Punkt auf der Karte wählen.',preference:'Wie möchtest du gehen?',balanced:'Direkt',shade:'Schatten',sun:'Sonne',gentle:'Weniger Steigung bevorzugen',steps:'Treppen vermeiden',calculate:'Route entdecken',loading:'Kartendaten werden geladen …',yourRoute:'Dein Weg',minutes:'Minuten¹',kilometres:'Kilometer',shadePart:'im Schatten²',elevationProfile:'Höhenprofil',share:'Route als Link teilen ↗',note:'Schatten für den gewählten Zeitpunkt. Ein Modell, keine Messung vor Ort.',about:'Über den Pilot',prototype:'PROTOTYP 0.7',modelShade:'Modellierter Schatten',walkRoute:'Dein Weg',exploreTime:'SONNE & SCHATTEN ENTDECKEN',date:'Datum',now:'Jetzt',time:'Uhrzeit',summer:'Sommer',winter:'Winter',timezone:'Ortszeit Stuttgart',aboutTitle:'Ein erster Schritt.',understood:'Verstanden',ready:'Bereit. Wähle Start und Ziel.',computing:'Schatten werden berechnet …',routing:'Dein Weg wird berechnet …',done:'Route auf dem Fußwegenetz gefunden.',pickStart:'Klicke auf die Karte, um den Start zu setzen.',pickEnd:'Klicke auf die Karte, um das Ziel zu setzen.',point:'Kartenpunkt',outsidePilot:'Mindestens ein Punkt liegt außerhalb des gestrichelten Pilotgebiets Stuttgart-Mitte.',outside:'Innerhalb von 200 m wurde kein gemeinsam erreichbarer Fußweg gefunden. Bitte einen Punkt näher an eine graue Netzlinie setzen.',disconnected:'Für diese Richtung wurde keine begehbare Verbindung gefunden.',same:'Start und Ziel liegen praktisch am selben Ort. Bitte weiter auseinander wählen.',copied:'Link kopiert.',copyFail:'Link konnte nicht kopiert werden. Die Adresse im Browser enthält deine Route.',night:'Nacht · keine direkte Sonne',lowSun:'Sonne sehr tief · Modell pausiert',sunHeight:'Sonnenhöhe',baseFailed:'Hintergrundkarte nicht verfügbar. Die eigenen Atlasdaten bleiben nutzbar.',loadFail:'Daten konnten nicht geladen werden. Bitte die Seite neu laden.',locationFail:'Standort nicht verfügbar. Bitte einen Punkt auf der Karte wählen.',modelFailed:'Berechnung fehlgeschlagen. Bitte erneut versuchen.',flat:'zusätzlich',routeLabel:'Direkter Weg',noHeat:'Noch keine Live-Wetterdaten',swap:'Start und Ziel tauschen',pickOrigin:'Start auf Karte wählen',pickDestination:'Ziel auf Karte wählen',locate:'Mein Standort',fit:'Gesamte Route anzeigen',close:'Schließen'},en:{pilot:'WALKING · CITY CENTRE PILOT',headline:'Walk with the weather.',intro:'Find a walk with more shade, more sunshine or gentler slopes.',from:'From',to:'To',pickHint:'Or use ⌖ to choose a point on the map.',preference:'How would you like to walk?',balanced:'Direct',shade:'Shade',sun:'Sun',gentle:'Prefer gentler slopes',steps:'Avoid stairs',calculate:'Find my route',loading:'Loading map data …',yourRoute:'Your walk',minutes:'minutes¹',kilometres:'kilometres',shadePart:'in shade²',elevationProfile:'Elevation profile',share:'Share route link ↗',note:'Shade at the selected time. A model, not an on-site measurement.',about:'About this pilot',prototype:'PROTOTYPE 0.7',modelShade:'Modelled shade',walkRoute:'Your walk',exploreTime:'EXPLORE SUN & SHADE',date:'Date',now:'Now',time:'Time',summer:'Summer',winter:'Winter',timezone:'Stuttgart local time',aboutTitle:'A first step.',understood:'Got it',ready:'Ready. Choose your start and destination.',computing:'Calculating shade …',routing:'Finding your walk …',done:'Route found on the pedestrian network.',pickStart:'Click on the map to set your starting point.',pickEnd:'Click on the map to set your destination.',point:'Map point',outsidePilot:'At least one point is outside the dashed Stuttgart city-centre pilot area.',outside:'No mutually reachable walking line was found within 200 m. Place a point closer to a grey network line.',disconnected:'No walkable connection was found for this direction.',same:'The two points are effectively at the same place. Please move them further apart.',copied:'Link copied.',copyFail:'Could not copy the link. Your browser address contains the route.',night:'Night · no direct sun',lowSun:'Sun too low · model paused',sunHeight:'Solar elevation',baseFailed:'Basemap unavailable. The atlas layers still work.',loadFail:'Could not load the data. Please reload the page.',locationFail:'Location unavailable. Please choose a point on the map.',modelFailed:'Calculation failed. Please try again.',flat:'extra',routeLabel:'Direct route',noHeat:'Live weather not connected yet',swap:'Swap start and destination',pickOrigin:'Choose start on map',pickDestination:'Choose destination on map',locate:'My location',fit:'Show entire route',close:'Close'}};
 strings.de.mapUnsupported='Die 2D-/3D-Karte kann auf diesem Gerät nicht gestartet werden (WebGL ist deaktiviert oder nicht verfügbar). Bitte Hardwarebeschleunigung aktivieren oder einen aktuellen Browser verwenden.';
@@ -374,7 +479,7 @@ function applyPoiFilter(){if(map?.getLayer('poi-points'))map.setFilter('poi-poin
 function updateStep4Language(){if(!$('theme'))return;for(const option of $('theme').options)option.textContent=THEME_DEFS[option.value]?.[lang]||option.textContent;for(const label of document.querySelectorAll('.theme-option')){const definition=THEME_DEFS[label.dataset.theme];if(!definition)continue;label.querySelector('.theme-name').textContent=definition[lang];label.title=definition[lang+'Help'];label.querySelector('input').setAttribute('aria-label',`${definition[lang]}. ${definition[lang+'Help']}`);}for(const label of document.querySelectorAll('.poi-toggle')){const definition=POI_DEFS.find(item=>item.k===+label.dataset.kind);if(definition)label.querySelector('.poi-name').textContent=definition[lang];}const layersToggle=$('layers-toggle'),layersTitle=t('layersTitle');layersToggle.title=layersTitle;layersToggle.setAttribute('aria-label',layersTitle);$('theme-description').textContent=THEME_DEFS[activeTheme][lang+'Help'];renderThemeLegend();updateCrossingLegend();}
 function refreshPoiControlIcons(){for(const label of document.querySelectorAll('.poi-toggle')){const definition=POI_DEFS.find(item=>item.k===+label.dataset.kind);if(definition&&poiIcons[definition.icon])label.style.setProperty('--poi-icon',`url("${poiIcons[definition.icon]}")`);}}
 function setupStep4Controls(){const themes=$('theme-options');for(const [key,definition] of Object.entries(THEME_DEFS)){const label=document.createElement('label');label.className='theme-option';label.dataset.theme=key;label.style.setProperty('--theme-color',definition.legend[0][0]);label.innerHTML=`<input type="radio" name="line-theme" value="${key}"><i></i><span class="theme-name"></span>`;const input=label.querySelector('input');input.checked=key===activeTheme;input.onchange=()=>{if(!input.checked)return;activeTheme=key;$('theme').value=key;document.querySelectorAll('.theme-option').forEach(item=>item.classList.toggle('selected',item.dataset.theme===key));applyTheme();updateStep4Language();};label.onmouseenter=()=>{$('theme-description').textContent=definition[lang+'Help'];};label.onmouseleave=()=>{$('theme-description').textContent=THEME_DEFS[activeTheme][lang+'Help'];};label.classList.toggle('selected',input.checked);themes.append(label);}const holder=$('poi-options');for(const definition of POI_DEFS){const label=document.createElement('label');label.className='poi-toggle';label.dataset.kind=definition.k;label.style.setProperty('--poi-color',definition.color);label.style.setProperty('--poi-foreground',definition.foreground);label.innerHTML=`<input type="checkbox" value="${definition.k}"><span class="poi-symbol"></span><span class="poi-name"></span>`;const input=label.querySelector('input');input.checked=selectedPois.has(definition.k);input.onchange=event=>{event.target.checked?selectedPois.add(definition.k):selectedPois.delete(definition.k);applyPoiFilter();};holder.append(label);}$('theme').value=activeTheme;const close=()=>{$('layers-panel').hidden=true;$('layers-toggle').setAttribute('aria-expanded','false');};$('layers-toggle').onclick=()=>{const opening=$('layers-panel').hidden;$('layers-panel').hidden=!opening;$('layers-toggle').setAttribute('aria-expanded',String(opening));};$('layers-close').onclick=close;updateStep4Language();}
-function updateSunDirection(){const el=$('sun-direction');if(!el||!currentSun)return;const angle=currentSun.azimuth-(map?.getBearing()||0);el.style.setProperty('--sun-angle',`${angle}deg`);el.style.setProperty('--ray-angle',`${angle+180}deg`);el.classList.toggle('is-night',currentSun.altitude<=0);el.setAttribute('aria-label',lang==='de'?`Sonne: ${Math.round(currentSun.altitude)} Grad Höhe, ${Math.round(currentSun.azimuth)} Grad Azimut`:`Sun: ${Math.round(currentSun.altitude)} degrees elevation, ${Math.round(currentSun.azimuth)} degrees azimuth`);}
+function updateSunDirection(){citySceneLayer?.setSun(currentSun);const el=$('sun-direction');if(!el||!currentSun)return;const angle=currentSun.azimuth-(map?.getBearing()||0);el.style.setProperty('--sun-angle',`${angle}deg`);el.style.setProperty('--ray-angle',`${angle+180}deg`);el.classList.toggle('is-night',currentSun.altitude<=0);el.setAttribute('aria-label',lang==='de'?`Sonne: ${Math.round(currentSun.altitude)} Grad Höhe, ${Math.round(currentSun.azimuth)} Grad Azimut`:`Sun: ${Math.round(currentSun.altitude)} degrees elevation, ${Math.round(currentSun.azimuth)} degrees azimuth`);}
 function updateClock(){const v=Math.round(+$('time').value),hours=Math.floor(v/60)%24,minutes=v%60;$('clock').textContent=String(hours).padStart(2,'0')+':'+String(minutes).padStart(2,'0');if(currentSun)$('sun-elevation').textContent=currentSun.altitude<=0?t('night'):currentSun.altitude<=2?t('lowSun'):`☀ ${Math.round(currentSun.altitude)}° · ${t('sunHeight')}`;updateSunDirection();renderWeather();}
 function placeLabel(feature){const p=feature.properties||{},name=p.name||p.street||p.city||t('point'),context=[p.street&&p.street!==name?p.street:null,p.housenumber,p.postcode,p.city].filter(Boolean).join(' ');return {name,context};}
 function showSearchResults(i,features,message=''){const box=$(i?'destination-results':'origin-results');box.replaceChildren();if(message){const item=document.createElement('div');item.className='search-empty';item.textContent=message;box.append(item);}for(const featureItem of features){const coordinates=featureItem.geometry?.coordinates;if(!Array.isArray(coordinates)||coordinates.length<2)continue;const label=placeLabel(featureItem),button=document.createElement('button');button.type='button';button.className='search-result';button.setAttribute('role','option');button.innerHTML=`<strong></strong><span></span>`;button.querySelector('strong').textContent=label.name;button.querySelector('span').textContent=label.context;button.onclick=()=>{setCustom(i,[coordinates[0],coordinates[1]],[label.name,label.context].filter(Boolean).join(', '));box.hidden=true;if(points.every(Boolean)&&ready)calculate();else map?.flyTo({center:coordinates,zoom:15});};box.append(button);}box.hidden=!box.childElementCount;}
@@ -385,10 +490,10 @@ function finishPickMode(next=null){pick=next;document.querySelectorAll('.pick').
 function chooseMapPoint(p,{touch=false,forcedIndex=null}={}){if(exploreMode&&forcedIndex===null)return;stopRoutePreview(false);if(!inPilot(p)){showToast('outsideLocation');return;}let index=forcedIndex;if(index===null){if(!points[0])index=0;else if(!points[1])index=1;else{points[1]=null;$('destination').value='';markers[1]?.remove();markers[1]=null;index=0;}}setCustom(index,p);if(index===0){finishPickMode(forcedIndex===0?1:null);hideToast();}else{finishPickMode(null);hideToast();if(ready)calculate();}}
 function installDirectMapPicking(){if(exploreMode)map.doubleClickZoom.enable();else map.doubleClickZoom.disable();map.on('dblclick',event=>{if(exploreMode)return;event.originalEvent?.preventDefault?.();chooseMapPoint([event.lngLat.lng,event.lngLat.lat]);});const canvas=map.getCanvas();let timer=null,start=null;const cancel=()=>{clearTimeout(timer);timer=null;start=null;};canvas.addEventListener('pointerdown',event=>{if(exploreMode||event.pointerType!=='touch')return;start=[event.clientX,event.clientY];timer=setTimeout(()=>{const point=map.unproject([event.offsetX,event.offsetY]);chooseMapPoint([point.lng,point.lat],{touch:true});timer=null;},560);},{passive:true});canvas.addEventListener('pointermove',event=>{if(start&&Math.hypot(event.clientX-start[0],event.clientY-start[1])>9)cancel();},{passive:true});canvas.addEventListener('pointerup',cancel,{passive:true});canvas.addEventListener('pointercancel',cancel,{passive:true});}
 function updateMarkers(){if(!map)return;points.forEach((p,i)=>{if(!p)return;if(markers[i])markers[i].setLngLat(p);else{const el=document.createElement('div');el.className='point pin '+(i?'end':'start');el.textContent=i?'B':'A';markers[i]=new maplibregl.Marker({element:el,draggable:true}).setLngLat(p).addTo(map);markers[i].on('dragend',()=>{const c=markers[i].getLngLat();setCustom(i,[c.lng,c.lat]);});}});}
-function invalidateRoute(){stopRoutePreview(false);hideRoutePosition();routeMeasureCache=null;$('route-preview').disabled=true;serverRoutingPending=false;serverRouteController?.abort();result=null;shortest=null;autoRoute=false;routeId++;$('result').hidden=true;$('panel-toggle').lastElementChild.textContent=t('planRoute');if(map?.getSource('route'))map.getSource('route').setData(fc([]));if(ready)status('ready');}
+function invalidateRoute(){stopRoutePreview(false);hideRoutePosition();routeMeasureCache=null;$('route-preview').disabled=true;serverRoutingPending=false;serverRouteController?.abort();result=null;shortest=null;autoRoute=false;routeId++;$('result').hidden=true;$('panel-toggle').lastElementChild.textContent=t('planRoute');if(map?.getSource('route'))map.getSource('route').setData(fc([]));citySceneLayer?.setRoute([]);if(ready)status('ready');}
 function setPreference(p){preference=p;document.querySelectorAll('[data-pref]').forEach(b=>{b.classList.toggle('selected',b.dataset.pref===p);b.setAttribute('aria-pressed',String(b.dataset.pref===p));});if(result||serverRoutingPending)calculate();}
 function requestShade(recalculateRoute=false,{silent=false}={}){if(!ready||!is3D||silent&&shadeBusyInteractive)return;if(recalculateRoute)invalidateShownRoute();if(!silent){shadeReady=false;shadeBusyInteractive=true;$('calculate').disabled=true;status('computing');}if(pendingShade)shadeContexts.delete(pendingShade.id);shadeId++;const detailed=!cityManifest||map.getZoom()>=14.5,b=detailed&&cityManifest?map.getBounds():null,c=cityManifest?map.getCenter():null;shadeContexts.set(shadeId,{silent,routeOnly:false});pendingShade={type:'shade',id:shadeId,iso:selectedISO(),leafOn:(+$('date').value.slice(5,7))>=4&&(+$('date').value.slice(5,7))<=10,bounds:b?[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()]:null,center:c?[c.lng,c.lat]:null,preview:false,routeAware:false};if(!shading)sendShade();}
-function invalidateShownRoute(){serverRouteController?.abort();if(result){autoRoute=true;$('result').hidden=true;if(map?.getSource('route'))map.getSource('route').setData(fc([]));}routeId++;}
+function invalidateShownRoute(){serverRouteController?.abort();if(result){autoRoute=true;$('result').hidden=true;if(map?.getSource('route'))map.getSource('route').setData(fc([]));citySceneLayer?.setRoute([]);}routeId++;}
 function sendShade(){if(!pendingShade)return;shading=true;worker.postMessage(pendingShade);pendingShade=null;}
 function pointInRing(point,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
 function inPilot(p){if(!meta||p[0]<meta.bounds[0]||p[0]>meta.bounds[2]||p[1]<meta.bounds[1]||p[1]>meta.bounds[3])return false;if(!cityBoundary)return true;return cityBoundary.geometry.coordinates.some(polygon=>pointInRing(p,polygon[0])&&!polygon.slice(1).some(ring=>pointInRing(p,ring)));}
@@ -417,7 +522,7 @@ async function calculateServerRoute(){
   if(id!==routeId)return;if(controller.signal.aborted)throw Error('Routing timed out');worker.postMessage({type:'serverRoute',id,route,obstacles:routeObstacles,iso,center:[(start[0]+end[0])/2,(start[1]+end[1])/2],leafOn:+iso.slice(5,7)>=4&&+iso.slice(5,7)<=10});
  }catch(error){if(id!==routeId)return;onWorker({data:{type:'route',id,result:{error:error.routeError||'serverUnavailable'}}});}finally{clearTimeout(timeout);if(serverRouteController===controller)serverRouteController=null;}
 }
-async function calculate(){stopRoutePreview(false);hideRoutePosition();if(points.some(p=>!p)){status('choosePoints');return;}if(points.some(p=>!inPilot(p))){$('result').hidden=true;if(map?.getSource('route'))map.getSource('route').setData(fc([]));status('outsidePilot');return;}routeId++;serverRouteController?.abort();if(usesServerRouting({...routeOptions(),preference})){await calculateServerRoute();return;}serverRoutingPending=false;if(cityManifest){try{if(!await prepareRouteShade())return;}catch(error){console.error(error);status('modelFailed');$('calculate').disabled=false;return;}}else if(!shadeReady&&map?.getZoom()>=14.5){autoRoute=true;return;}status('routing');$('calculate').disabled=true;worker.postMessage({type:'route',id:++routeId,start:local(points[0]),end:local(points[1]),options:routeOptions()});}
+async function calculate(){stopRoutePreview(false);hideRoutePosition();if(points.some(p=>!p)){status('choosePoints');return;}if(points.some(p=>!inPilot(p))){$('result').hidden=true;if(map?.getSource('route'))map.getSource('route').setData(fc([]));citySceneLayer?.setRoute([]);status('outsidePilot');return;}routeId++;serverRouteController?.abort();if(usesServerRouting({...routeOptions(),preference})){await calculateServerRoute();return;}serverRoutingPending=false;if(cityManifest){try{if(!await prepareRouteShade())return;}catch(error){console.error(error);status('modelFailed');$('calculate').disabled=false;return;}}else if(!shadeReady&&map?.getZoom()>=14.5){autoRoute=true;return;}status('routing');$('calculate').disabled=true;worker.postMessage({type:'route',id:++routeId,start:local(points[0]),end:local(points[1]),options:routeOptions()});}
 function routePoiCounts(maxDistance=12){const counts={};if(!result?.coords?.length||!routePois.length)return counts;const segmentDistance=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],den=dx*dx+dy*dy,t=den?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/den)):0;return Math.hypot(p[0]-(a[0]+t*dx),p[1]-(a[1]+t*dy));};for(const poi of routePois){if(![6,7,8].includes(poi.k))continue;for(let i=1;i<result.coords.length;i++)if(segmentDistance(poi.p,result.coords[i-1],result.coords[i])<=maxDistance){counts[poi.k]=(counts[poi.k]||0)+1;break;}}return counts;}
 function renderRouteAssessment(){const box=$('route-assessment'),q=result?.quality,criteria=result?.criteria||{};if(!box||!q){if(box)box.replaceChildren();return;}const selected=$('mobility-profile').value||'standard',coverageValues=[q.surfaceKnown,q.slopeKnown];if(criteria.avoidWheelchairNo)coverageValues.push(q.wheelchairKnown);const coverage=Math.round(Math.min(...coverageValues)*100),nearby=routePoiCounts(),relaxed=result.relaxedCriteria||[],fallback=relaxed.length>0,warning=fallback||coverage<80||result.steps||result.escalators||q.poorSurface>0||nearby[6]||nearby[8],headline=fallback?(lang==='de'?'Bestmögliche Route – Kriterien nicht vollständig erfüllt':'Best available route – not all criteria are met'):selected==='standard'?(lang==='de'?'Route geprüft':'Route checked'):(lang==='de'?'Bekannte Profilkriterien erfüllt':'Known profile criteria satisfied'),relaxNames={de:{maxSlope:'Steigungsgrenze',poorSurface:'Oberflächenqualität',wheelchairNo:'Rollstuhleignung',escalators:'Rolltreppen',steps:'Treppen'},en:{maxSlope:'gradient limit',poorSurface:'surface quality',wheelchairNo:'wheelchair suitability',escalators:'escalators',steps:'stairs'}},note=fallback?(lang==='de'?`Mangels vollständig passender Verbindung wurden gelockert: ${relaxed.map(key=>relaxNames.de[key]).join(', ')}. Bitte Route vor Ort prüfen.`:`No fully matching connection exists. Relaxed: ${relaxed.map(key=>relaxNames.en[key]).join(', ')}. Check conditions on site.`):coverage<80?(lang==='de'?`${100-coverage} % der Route haben mindestens eine fehlende relevante Angabe. Das Ergebnis ist keine Barrierefreiheits-Zertifizierung.`:`At least one relevant attribute is missing on ${100-coverage}% of the route. This is not an accessibility certification.`):(lang==='de'?'Bewertung anhand der bekannten Atlasattribute; keine Vor-Ort-Garantie.':'Assessment uses known atlas attributes; no on-site guarantee.');const facts=[];facts.push(`${lang==='de'?'max. bergauf':'max uphill'} ${(q.maxUphill===null?'—':q.maxUphill.toLocaleString(lang,{maximumFractionDigits:1}))} %`);facts.push(`${lang==='de'?'max. bergab':'max downhill'} ${(q.maxDownhill===null?'—':q.maxDownhill.toLocaleString(lang,{maximumFractionDigits:1}))} %`);facts.push(`${lang==='de'?'Oberfläche bekannt':'surface known'} ${Math.round(q.surfaceKnown*100)} %`);if(q.poorSurface)facts.push(`${Math.round(q.poorSurface*100)} % ${lang==='de'?'schlechte Oberfläche':'poor surface'}`);if(result.steps)facts.push(`${result.steps} ${lang==='de'?'Treppenabschnitt(e)':'stair segment(s)'}`);if(result.escalators)facts.push(`${result.escalators} ${lang==='de'?'Rolltreppenabschnitt(e)':'escalator segment(s)'}`);if(nearby[6])facts.push(`${nearby[6]} ${lang==='de'?'Barriere(n) im 12-m-Korridor':'barrier(s) within 12 m'}`);if(nearby[8])facts.push(`${nearby[8]} ${lang==='de'?'erhöhte Borde im 12-m-Korridor':'raised kerbs within 12 m'}`);if(nearby[7])facts.push(`${nearby[7]} ${lang==='de'?'abgesenkte Borde im 12-m-Korridor':'lowered kerbs within 12 m'}`);box.classList.toggle('warning',warning);box.innerHTML='<strong></strong><span class="assessment-note"></span><div class="route-facts"></div>';box.querySelector('strong').textContent=headline;box.querySelector('.assessment-note').textContent=note;for(const fact of facts){const item=document.createElement('span');item.textContent=fact;box.querySelector('.route-facts').append(item);}}
 function showResult(){if(!result||result.error)return;const weather=effectiveWeather(),shadeActive=Number.isFinite(result.shade)&&currentSun?.altitude>2&&(!weather||weather.solarWeight>=.05);$('result').hidden=false;$('duration').textContent=result.minutes;$('distance').textContent=(result.length/1000).toLocaleString(lang,{minimumFractionDigits:2,maximumFractionDigits:2});$('shade-value').textContent=shadeActive?Math.round(result.shade*100)+'%':'—';$('exposure-fill').style.width=shadeActive?result.shade*100+'%':'0%';$('route-type').textContent=t(currentSun?.altitude<=2?'balanced':preference)+(weather&&preference!=='balanced'?` · ${Math.round(weather.solarWeight*100)} % ${lang==='de'?'Wetterwirkung':'weather influence'}`:!liveWeatherEnabled&&preference!=='balanced'?` · ${t('weatherClearSky')}`:'');$('elevation').textContent=`↗ ${Number.isFinite(result.ascent)?Math.round(result.ascent):'—'} m  ·  ↘ ${Number.isFinite(result.descent)?Math.round(result.descent):'—'} m`;renderRouteAssessment();
@@ -425,15 +530,12 @@ function showResult(){if(!result||result.error)return;const weather=effectiveWea
  $('snap-note').textContent=lang==='de'?`Netzanschluss: Start ${Math.round(result.snapDistances[0])} m, Ziel ${Math.round(result.snapDistances[1])} m entfernt. Anschlusswege nicht berechnet.`:`Network snap: start ${Math.round(result.snapDistances[0])} m, destination ${Math.round(result.snapDistances[1])} m away. Access links not calculated.`;}
 function fitRoute(){if(!map||!result?.coords)return;const b=new maplibregl.LngLatBounds();result.coords.map(ll).forEach(p=>b.extend(p));map.fitBounds(b,{padding:{top:95,bottom:innerWidth<=800?210:100,left:45,right:45},maxZoom:is3D?16.3:17,duration:500});}
 function shareURL(){const q=new URLSearchParams({lang,date:$('date').value,time:$('time').value,pref:preference,weather:liveWeatherEnabled?'1':'0',from:points[0].join(','),to:points[1].join(','),profile:$('mobility-profile').value,steps:$('steps').checked?'1':'0',escalators:$('escalators').checked?'1':'0',poorSurface:$('poor-surface').checked?'1':'0',wheelchairNo:$('wheelchair-no').checked?'1':'0',slope:$('slope-mode').value,theme:activeTheme,poi:[...selectedPois].join(',')});return location.origin+location.pathname+'?'+q;}
-function updateVisibleCitySources(selected,visualOnly=false){
+async function updateVisibleCitySources(selected,visualOnly=false){
  obstacles={buildings:selected.flatMap(t=>t.buildings),trees:selected.flatMap(t=>t.trees)};
  const lines=selected.flatMap(t=>t.lines),themes=selected.flatMap(t=>t.themes||[]),pois=selected.flatMap(t=>t.pois||[]);activeCityEdgeIds=selected.flatMap(t=>t.edgeIds||[]);
  if(!visualOnly){map.getSource('network')?.setData(fc(lines.map((coordinates,index)=>{const edgeId=activeCityEdgeIds[index];return feature('LineString',coordinates.map(ll),themeProperties(themes[index],structureFlags[edgeId]||0,edgeId));})));map.getSource('stairs-lines')?.setData(fc(lines.flatMap((coordinates,index)=>stepFlags[activeCityEdgeIds[index]]?[feature('LineString',coordinates.map(ll),{edgeId:activeCityEdgeIds[index]})]:[])));map.getSource('slope-direction')?.setData(fc(slopeArrowFeatures(lines,themes,activeCityEdgeIds)));map.getSource('pois')?.setData(fc(pois.map(({p,k,...properties})=>{const key=`${k}:${p[0].toFixed(2)}:${p[1].toFixed(2)}`,details=poiDetails[key]||{};delete properties.n;return feature('Point',ll(p),{k,...properties,...details});})));}
- if(is3D){map.getSource('buildings')?.setData(fc(obstacles.buildings.map(building=>feature('Polygon',building.r.map(ring=>ring.map(ll)),{height:building.h}))));
-  const center=local([map.getCenter().lng,map.getCenter().lat]),selection=stableTreeSelection(obstacles.trees.filter(tree=>inPilot(ll(tree.p))),selectedTreeKeys,center);selectedTreeKeys=selection.keys;
-  map.getSource('trees-3d')?.setData(fc(treePartsFor(selection.trees)));treeSphereLayer?.setTrees(selection.trees);
- }
- treeSphereLayer?.setVisible(is3D&&!viewSwitching);
+ if(is3D){const center=local([map.getCenter().lng,map.getCenter().lat]);await citySceneLayer?.setObjects({buildings:obstacles.buildings,trees:obstacles.trees.filter(tree=>inPilot(ll(tree.p)))},center);}
+ citySceneLayer?.setVisible(is3D&&!viewSwitching);
 
 
 }
@@ -443,8 +545,8 @@ async function loadVisibleCityTiles({force=false}={}){if(viewSwitching&&!force)r
  clearTimeout(cityShadeTimer);
  if(map.getZoom()<14.45){
   ++tileLoadId;
-  if(activeTileKeys){activeTileKeys='';activeCityViewSignature='';activeCityEdgeIds=[];obstacles={buildings:[],trees:[]};for(const source of ['network','stairs-lines','slope-direction','buildings','trees-3d','pois'])map.getSource(source)?.setData(fc([]));worker?.postMessage({type:'obstacles',obstacles,edgeIds:[]});}
-  map.setLayoutProperty('shade-fill','visibility','none');renderThemeLegend();shadeReady=true;$('calculate').disabled=!ready;if(ready)status(result?'done':'ready');return;
+  if(activeTileKeys){activeTileKeys='';activeCityViewSignature='';activeCityEdgeIds=[];obstacles={buildings:[],trees:[]};for(const source of ['network','stairs-lines','slope-direction','pois'])map.getSource(source)?.setData(fc([]));worker?.postMessage({type:'obstacles',obstacles,edgeIds:[]});}
+  citySceneLayer?.setVisible(false);map.setLayoutProperty('shade-fill','visibility','none');renderThemeLegend();shadeReady=true;$('calculate').disabled=!ready;if(ready)status(result?'done':'ready');return;
  }
  map.setLayoutProperty('shade-fill','visibility',is3D&&!viewSwitching?'visible':'none');
  const loadId=++tileLoadId,zoom=map.getZoom(),grid=cityManifest.obstacles.grid,b=map.getBounds(),toCell=(lon,lat)=>[Math.floor((lon-meta.origin[0])*meta.scale[0]/grid),Math.floor((lat-meta.origin[1])*meta.scale[1]/grid)],a=toCell(b.getWest(),b.getSouth()),z=toCell(b.getEast(),b.getNorth()),center=toCell(map.getCenter().lng,map.getCenter().lat),available=cityManifest.obstacles.tiles,candidates=[],bearing=(map.getBearing()||0)*Math.PI/180,forward=[Math.sin(bearing),Math.cos(bearing)];
@@ -454,16 +556,17 @@ async function loadVisibleCityTiles({force=false}={}){if(viewSwitching&&!force)r
  if(nextSignature===activeCityViewSignature)return;
  const selected=await fetchCityTiles(keys,{includeShade:is3D});
  if(loadId!==tileLoadId)return;for(const cache of [cityTileCache,cityShadeTileCache])while(cache.size>Math.max(64,keys.length+12)){const old=[...cache.keys()].find(key=>!keys.includes(key));if(!old)break;cache.delete(old);}
- const nextKeys=keys.join(','),tilesChanged=nextKeys!==activeTileKeys;activeTileKeys=nextKeys;activeCityViewSignature=nextSignature;updateVisibleCitySources(selected,!tilesChanged);renderThemeLegend();
+ const nextKeys=keys.join(','),tilesChanged=nextKeys!==activeTileKeys;activeTileKeys=nextKeys;activeCityViewSignature=nextSignature;await updateVisibleCitySources(selected,!tilesChanged);if(loadId!==tileLoadId)return;renderThemeLegend();
  if(ready&&is3D&&!previewState){worker.postMessage({type:'obstacles',obstacles,edgeIds:activeCityEdgeIds});clearTimeout(cityShadeTimer);cityShadeTimer=setTimeout(()=>requestShade(false,{silent:true}),650);}
 }
 async function init(){
  try{
  const loaded=await loadChunkedData();[meta,network,obstacles]=loaded;if(cityManifest){strings.de.pilot='FUSSWEGE · STADTGEBIET';strings.en.pilot='WALKING · STUTTGART';strings.de.outsidePilot='Mindestens ein Punkt liegt außerhalb des Stadtgebiets Stuttgart.';strings.en.outsidePilot='At least one point is outside Stuttgart city limits.';const [boundaryResponse,directionResponse,stepResponse,structureResponse,poiDetailResponse]=await Promise.all([fetch(new URL('stuttgart-boundary.json',cityBaseURL)),cityManifest.visual?.slopeDirections?fetch(new URL(cityManifest.visual.slopeDirections,cityBaseURL)):Promise.resolve(null),cityManifest.visual?.stepFlags?fetch(new URL(cityManifest.visual.stepFlags,cityBaseURL)):Promise.resolve(null),cityManifest.visual?.structureFlags?fetch(new URL(cityManifest.visual.structureFlags,cityBaseURL)):Promise.resolve(null),cityManifest.visual?.poiDetails?fetch(new URL(cityManifest.visual.poiDetails,cityBaseURL)):Promise.resolve(null)]);if(boundaryResponse.ok)cityBoundary=await boundaryResponse.json();if(directionResponse?.ok){const values=new Int8Array(await directionResponse.arrayBuffer());if(values.length===cityManifest.network.edgeCount)slopeDirections=values;}if(stepResponse?.ok){const values=new Uint8Array(await stepResponse.arrayBuffer());if(values.length===cityManifest.network.edgeCount)stepFlags=values;}if(structureResponse?.ok){const values=new Uint8Array(await structureResponse.arrayBuffer());if(values.length===cityManifest.network.edgeCount)structureFlags=values;}if(poiDetailResponse?.ok)poiDetails=await poiDetailResponse.json();}const iconResponse=await fetch('./poi-icons.json');if(iconResponse.ok)poiIcons=await iconResponse.json();refreshPoiControlIcons();language();
  if(!globalThis.maplibregl||typeof maplibregl.Map!=='function')throw Error('MapLibre unavailable');
+ terrainHeightfield=createTerrainHeightfield({baseURL:new URL('./dem/',location.href)});
  let style={version:8,sources:{},layers:[{id:'background',type:'background',paint:{'background-color':'#edf1ed'}}]};
  try{const r=await fetch('https://tiles.openfreemap.org/styles/positron',{signal:AbortSignal.timeout(7000)});if(!r.ok)throw Error();style=await r.json();style.layers=style.layers.filter(l=>l.type!=='fill-extrusion');}catch{}
- map=new maplibregl.Map({container:'map',style,center:[9.1779,48.7775],zoom:cityManifest?12.2:15.2,minZoom:cityManifest?11.7:12,maxZoom:18,maxBounds:cityManifest?[[meta.bounds[0],meta.bounds[1]],[meta.bounds[2],meta.bounds[3]]]:undefined,maxPitch:0,attributionControl:false,pitch:0,canvasContextAttributes:{antialias:true}});
+ map=new maplibregl.Map({container:'map',style,center:[9.1779,48.7775],zoom:cityManifest?12.2:15.2,minZoom:cityManifest?11.7:12,maxZoom:18,maxBounds:cityManifest?[[meta.bounds[0],meta.bounds[1]],[meta.bounds[2],meta.bounds[3]]]:undefined,maxPitch:0,attributionControl:false,pitch:0,centerClampedToGround:true,canvasContextAttributes:{antialias:true}});
  map.touchPitch.disable();
  map.addControl(new maplibregl.NavigationControl({showCompass:true}),'top-right');
  map.addControl(new maplibregl.AttributionControl({compact:false,customAttribution:'Atlas: M. Bakhshi'}),'bottom-right');
@@ -476,16 +579,13 @@ function setupLayers(){
  map.addSource('network',{type:'geojson',data:fc(network.edges.map(e=>feature('LineString',e.c.map(ll),themeProperties(e.theme,(e.bridge?1:0)|(e.tunnel?2:0)))))});map.addLayer({id:'network-line',type:'line',source:'network',minzoom:14.5,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#c2ccd0','line-width':['interpolate',['linear'],['zoom'],13,.7,17,2.5],'line-opacity':.65}});
  const emptyCanvas=document.createElement('canvas');emptyCanvas.width=1;emptyCanvas.height=1;
  map.addSource('shade',{type:'image',url:emptyCanvas.toDataURL(),coordinates:[[meta.bounds[0],meta.bounds[3]],[meta.bounds[2],meta.bounds[3]],[meta.bounds[2],meta.bounds[1]],[meta.bounds[0],meta.bounds[1]]]});map.addLayer({id:'shade-fill',type:'raster',source:'shade',layout:{visibility:'none'},paint:{'raster-opacity':.34,'raster-fade-duration':0}});
- map.addSource('buildings',{type:'geojson',data:fc(obstacles.buildings.map(b=>feature('Polygon',toPoly(b),{height:b.h})))});
- map.addLayer({id:'buildings-flat',type:'fill',source:'buildings',layout:{visibility:'none'},paint:{'fill-color':'#d8dedf','fill-outline-color':'#c1cbce'}});
- map.addLayer({id:'buildings-3d',type:'fill-extrusion',source:'buildings',layout:{visibility:'none'},paint:{'fill-extrusion-color':'#e2e7e7','fill-extrusion-height':['get','height'],'fill-extrusion-opacity':1}});
  map.addSource('boundary',{type:'geojson',data:cityBoundary?fc([cityBoundary]):fc([feature('Polygon',[[[meta.bounds[0],meta.bounds[1]],[meta.bounds[2],meta.bounds[1]],[meta.bounds[2],meta.bounds[3]],[meta.bounds[0],meta.bounds[3]],[meta.bounds[0],meta.bounds[1]]]])])});map.addLayer({id:'pilot-boundary',type:'line',source:'boundary',paint:{'line-color':'#f4c542','line-width':['interpolate',['linear'],['zoom'],11.5,2,16,4],'line-opacity':1}});
  map.addSource('route',{type:'geojson',data:fc([])});map.addLayer({id:'route-halo',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],14.5,15,17,18,19,20]}});map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#d7191c','line-width':['interpolate',['linear'],['zoom'],14.5,10,17,12.5,19,14],'line-opacity':1}});
 }
 function onWorker({data:d}){
  if(d.type==='ready'){ready=true;$('calculate').disabled=false;shadeReady=true;status('ready');if(is3D){worker.postMessage({type:'obstacles',obstacles,edgeIds:activeCityEdgeIds});requestShade();}else if(autoRoute)calculate();return;}
  if(d.type==='shade'){shading=false;const context=shadeContexts.get(d.id)||{silent:false,routeOnly:false};shadeContexts.delete(d.id);if(d.id!==shadeId){sendShade();return;}currentSun=d.sun;if(is3D&&!context.routeOnly){const previousURL=shadowURL;shadowURL=URL.createObjectURL(d.blob);const update={url:shadowURL};if(d.bounds)update.coordinates=[[d.bounds[0],d.bounds[3]],[d.bounds[2],d.bounds[3]],[d.bounds[2],d.bounds[1]],[d.bounds[0],d.bounds[1]]];map.getSource('shade').updateImage(update);if(previousURL)setTimeout(()=>URL.revokeObjectURL(previousURL),3000);}shadeReady=true;updateClock();if(!context.silent){shadeBusyInteractive=false;$('calculate').disabled=false;status(result?'done':'ready');}if(autoRoute&&context.routeOnly){autoRoute=false;calculate();}sendShade();return;}
- if(d.type==='route'){if(d.id!==routeId)return;serverRoutingPending=false;$('calculate').disabled=false;result=d.result;shortest=d.shortest;if(result.error){$('result').hidden=true;map.getSource('route').setData(fc([]));status(result.error);return;}status('done');showResult();map.getSource('route').setData(fc([feature('LineString',result.coords.map(ll))]));$('panel-toggle').lastElementChild.textContent=`${t('yourRoute')} · ${result.minutes} min · ${(result.length/1000).toFixed(1)} km`;fitRoute();return;}
+ if(d.type==='route'){if(d.id!==routeId)return;serverRoutingPending=false;$('calculate').disabled=false;result=d.result;shortest=d.shortest;if(result.error){$('result').hidden=true;map.getSource('route').setData(fc([]));citySceneLayer?.setRoute([]);status(result.error);return;}status('done');showResult();map.getSource('route').setData(fc([feature('LineString',result.coords.map(ll))]));citySceneLayer?.setRoute(result.coords);$('panel-toggle').lastElementChild.textContent=`${t('yourRoute')} · ${result.minutes} min · ${(result.length/1000).toFixed(1)} km`;fitRoute();return;}
  if(d.type==='error'){shading=false;const context=shadeContexts.get(d.id)||{silent:false};shadeContexts.delete(d.id);if(d.id!==shadeId){sendShade();return;}if(!context.silent){shadeBusyInteractive=false;status('modelFailed');$('calculate').disabled=!shadeReady;}console.error(d.message);sendShade();}
 }
 populate();$('date').value=dateNow();{const now=berlinParts(new Date());$('time').value=+now.hour*60+ +now.minute;}$('date').min='2020-01-01';$('date').max='2035-12-31';
@@ -508,10 +608,8 @@ $('about').onclick=()=>{$('about-content').innerHTML=aboutContent();$('about-dia
 // v0.7 presentation, terrain and routing UX extensions.
 function renderProfile(){routeMeasureCache=result?.coords?.length?routeMeasure(result.coords):null;const box=$('elevation-profile'),values=result?.profile?.filter(p=>p.every(Number.isFinite));if(!box||!values||values.length<2){if(box)box.hidden=true;return;}box.hidden=false;const w=300,h=86,bottom=10,zs=values.map(p=>p[1]),min=Math.min(...zs),max=Math.max(...zs),range=Math.max(8,max-min),low=(min+max-range)/2,high=low+range,total=values.at(-1)[0]||1;const pts=values.map(([d,z])=>[d/total*w,6+(high-z)/(high-low)*(h-16)]),line=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' '),area=line+` L ${w} ${h-bottom} L 0 ${h-bottom} Z`;$('elevation-line').setAttribute('d',line);$('elevation-area').setAttribute('d',area);$('elevation-range').textContent=`${Math.round(min)}–${Math.round(max)} m`;$('elevation-start').textContent=`A · ${Math.round(values[0][1])} m`;$('elevation-end').textContent=`B · ${Math.round(values.at(-1)[1])} m`;}
 const showResultBase=showResult;showResult=()=>{showResultBase();if(result&&!result.error){$('snap-note').textContent=lang==='de'?`Automatischer Netzanschluss: Start ${Math.round(result.snapDistances[0])} m, Ziel ${Math.round(result.snapDistances[1])} m. Die Anschlusslinien zählen nicht zur Route.`:`Automatic network connection: start ${Math.round(result.snapDistances[0])} m, destination ${Math.round(result.snapDistances[1])} m. Access lines are not counted in the route.`;renderProfile();$('route-preview').disabled=!routeMeasureCache;}};
-function circlePolygon(center,r,steps=12){const ring=[];for(let i=0;i<=steps;i++){const a=i*Math.PI*2/steps;ring.push(ll([center[0]+r*Math.cos(a),center[1]+r*Math.sin(a)]));}return [ring];}
 function treeDimensions(tree){return {r:tree.r*.7,h:tree.h*.7};}
-function treePartsFor(trees){return trees.map(tree=>{const {r,h}=treeDimensions(tree);return feature('Polygon',circlePolygon(tree.p,Math.max(.14,Math.min(.28,r*.13)),10),{base:0,height:Math.max(.7,h-2*r+.2),color:'#6b4d32'});});}
-function addV7Layers(){map.setPaintProperty('shade-fill','raster-opacity',.55);map.addSource('osm-raster',{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© OpenStreetMap contributors'});map.addLayer({id:'osm-raster',type:'raster',source:'osm-raster',layout:{visibility:'none'}},'network-line');map.addSource('topo-raster',{type:'raster',tiles:['https://tile.opentopomap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:17,attribution:'© OpenStreetMap contributors · SRTM · OpenTopoMap'});map.addLayer({id:'topo-raster',type:'raster',source:'topo-raster',layout:{visibility:'none'}},'network-line');const aerial='https://owsproxy.lgl-bw.de/owsproxy/ows/WMTS_LGL-BW_ATKIS_DOP_20_C?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=DOP_20_C&STYLE=default&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX=GoogleMapsCompatible:{z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg';map.addSource('aerial-raster',{type:'raster',tiles:[aerial],tileSize:256,minzoom:0,maxzoom:20,bounds:[7.49,47.46,10.67,49.81],attribution:'LGL-BW (2026) · dl-de/by-2-0 · www.lgl-bw.de'});map.addLayer({id:'aerial-raster',type:'raster',source:'aerial-raster',layout:{visibility:'none'},paint:{'raster-fade-duration':120}},'network-line');if(map.getLayer('city-mask'))map.moveLayer('city-mask','network-line');const terrainTiles=[new URL('./dem/',location.href).href+'{z}/{x}/{y}.png'],terrainSource={type:'raster-dem',tiles:terrainTiles,tileSize:256,minzoom:12,maxzoom:14,bounds:meta.bounds,encoding:'mapbox',attribution:'Terrain: Fußgängeratlas Stuttgart'};map.addSource('terrain-dem',terrainSource);map.addSource('terrain-hillshade',{...terrainSource});map.addLayer({id:'terrain-hillshade',type:'hillshade',source:'terrain-hillshade',layout:{visibility:'none'},paint:{'hillshade-exaggeration':.38,'hillshade-shadow-color':'#26384f','hillshade-highlight-color':'#f5cf62','hillshade-accent-color':'#70808d'}},'network-line');if(map.getLayer('city-mask'))map.moveLayer('city-mask');map.addSource('trees-3d',{type:'geojson',data:fc([])});map.addLayer({id:'trees-3d',type:'fill-extrusion',source:'trees-3d',layout:{visibility:'none'},paint:{'fill-extrusion-color':['get','color'],'fill-extrusion-base':['get','base'],'fill-extrusion-height':['get','height'],'fill-extrusion-opacity':.74,'fill-extrusion-vertical-gradient':true}});map.addSource('access',{type:'geojson',data:fc([])});map.addLayer({id:'access-line',type:'line',source:'access',layout:{'line-cap':'round'},paint:{'line-color':'#f4c542','line-width':3,'line-dasharray':[1.2,1.2]}});}
+function addV7Layers(){map.setPaintProperty('shade-fill','raster-opacity',.55);map.addSource('osm-raster',{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© OpenStreetMap contributors'});map.addLayer({id:'osm-raster',type:'raster',source:'osm-raster',layout:{visibility:'none'}},'network-line');map.addSource('topo-raster',{type:'raster',tiles:['https://tile.opentopomap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:17,attribution:'© OpenStreetMap contributors · SRTM · OpenTopoMap'});map.addLayer({id:'topo-raster',type:'raster',source:'topo-raster',layout:{visibility:'none'}},'network-line');const aerial='https://owsproxy.lgl-bw.de/owsproxy/ows/WMTS_LGL-BW_ATKIS_DOP_20_C?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=DOP_20_C&STYLE=default&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX=GoogleMapsCompatible:{z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg';map.addSource('aerial-raster',{type:'raster',tiles:[aerial],tileSize:256,minzoom:0,maxzoom:20,bounds:[7.49,47.46,10.67,49.81],attribution:'LGL-BW (2026) · dl-de/by-2-0 · www.lgl-bw.de'});map.addLayer({id:'aerial-raster',type:'raster',source:'aerial-raster',layout:{visibility:'none'},paint:{'raster-fade-duration':120}},'network-line');if(map.getLayer('city-mask'))map.moveLayer('city-mask','network-line');const terrainTiles=[new URL('./dem/',location.href).href+'{z}/{x}/{y}.png'],terrainSource={type:'raster-dem',tiles:terrainTiles,tileSize:256,minzoom:12,maxzoom:14,bounds:meta.bounds,encoding:'mapbox',attribution:'Terrain: Fußgängeratlas Stuttgart'};map.addSource('terrain-dem',terrainSource);map.addSource('terrain-hillshade',{...terrainSource});map.addLayer({id:'terrain-hillshade',type:'hillshade',source:'terrain-hillshade',layout:{visibility:'none'},paint:{'hillshade-exaggeration':.38,'hillshade-shadow-color':'#26384f','hillshade-highlight-color':'#f5cf62','hillshade-accent-color':'#70808d'}},'network-line');if(map.getLayer('city-mask'))map.moveLayer('city-mask');map.addSource('access',{type:'geojson',data:fc([])});map.addLayer({id:'access-line',type:'line',source:'access',layout:{'line-cap':'round'},paint:{'line-color':'#f4c542','line-width':3,'line-dasharray':[1.2,1.2]}});}
 function addPoiMapImage(definition,id=`poi-${definition.k}`,color=definition.color){return new Promise(resolve=>{const image=new Image();image.onload=()=>{const size=64,canvas=document.createElement('canvas'),context=canvas.getContext('2d'),glyph=document.createElement('canvas'),glyphContext=glyph.getContext('2d');canvas.width=canvas.height=glyph.width=glyph.height=size;context.beginPath();context.arc(size/2,size/2,28,0,Math.PI*2);context.fillStyle=color;context.fill();context.lineWidth=2;context.strokeStyle='#111';context.stroke();const naturalWidth=image.naturalWidth||size,naturalHeight=image.naturalHeight||size,max=38,ratio=naturalWidth/naturalHeight,width=ratio>=1?max:max*ratio,height=ratio>=1?max/ratio:max,x=(size-width)/2,y=(size-height)/2;glyphContext.drawImage(image,x,y,width,height);glyphContext.globalCompositeOperation='source-in';glyphContext.fillStyle=definition.foreground;glyphContext.fillRect(0,0,size,size);context.drawImage(glyph,0,0);if(!map.hasImage(id))map.addImage(id,context.getImageData(0,0,size,size),{pixelRatio:2});resolve();};image.onerror=resolve;image.src=poiIcons[definition.icon];});}
 function crossingValue(value,other=false){value=+value;if(value===1)return lang==='de'?'Ja':'Yes';if(value===2)return lang==='de'?'Nein':'No';if(value===3&&other)return lang==='de'?'Abweichende Angabe':'Other value';return lang==='de'?'Unbekannt':'Unknown';}
 function crossingPopup(item,kind){const p=item.properties||{},quality=CROSSING_CLASSES[+p.q]||CROSSING_CLASSES[0],content=document.createElement('div');content.className='crossing-popup feature-card';const title=document.createElement('strong');title.textContent=kind[lang];const badge=document.createElement('span');badge.className='crossing-quality';badge.style.setProperty('--quality-color',quality.color);badge.textContent=quality[lang];const rule=document.createElement('small');rule.textContent=quality[lang+'Rule'];content.append(title,badge,rule);const rows=lang==='de'?[['Akustisches Signal',crossingValue(p.a)],['Vibrationssignal',crossingValue(p.v)],['Taktiles Leitsystem',crossingValue(p.t,true)],['Rollstuhleignung',({1:'Ja',2:'Eingeschränkt',3:'Nein'})[+p.w]||'Unbekannt'],['Bordstein',({1:'Abgesenkt',2:'Bündig',3:'Erhöht',4:'Kein Bordstein'})[+p.c]||'Unbekannt'],['Tasterbetrieb',crossingValue(p.b)],['Mittelinsel',cleanDetailValue(p.is)],['Markierung',cleanDetailValue(p.mk)],['Beleuchtung',cleanDetailValue(p.li)]]:[['Audible signal',crossingValue(p.a)],['Vibration signal',crossingValue(p.v)],['Tactile paving',crossingValue(p.t,true)],['Wheelchair suitability',({1:'Yes',2:'Limited',3:'No'})[+p.w]||'Unknown'],['Kerb',({1:'Lowered',2:'Flush',3:'Raised',4:'No kerb'})[+p.c]||'Unknown'],['Button operated',crossingValue(p.b)],['Traffic island',cleanDetailValue(p.is)],['Marking',cleanDetailValue(p.mk)],['Lighting',cleanDetailValue(p.li)]];const list=document.createElement('dl');for(const [label,value] of rows){if(value===null)continue;const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;list.append(dt,dd);}content.append(list);const footer=document.createElement('small');footer.textContent=lang==='de'?`Quelle: Fußgängeratlas Stuttgart · ${p.src||'Ampelübergänge'} · Stand ${cityManifest?.sourceDate||meta?.sourceDate||'2026-09-15'}`:`Source: Stuttgart Pedestrian Atlas · ${p.src||'signal crossings'} · data ${cityManifest?.sourceDate||meta?.sourceDate||'2026-09-15'}`;content.append(footer);return content;}
@@ -542,20 +640,27 @@ const invalidateRouteBase=invalidateRoute;invalidateRoute=()=>{invalidateRouteBa
 const onWorkerBase=onWorker;onWorker=e=>{onWorkerBase(e);const d=e.data;if(d.type==='route'&&d.id===routeId&&d.result&&!d.result.error&&map?.getSource('access')){const s=d.result.snaps;map.getSource('access').setData(fc([feature('LineString',[points[0],ll(s[0])]),feature('LineString',[ll(s[1]),points[1]])]));}else if(d.type==='route'&&d.id===routeId&&map?.getSource('access'))map.getSource('access').setData(fc([]));};
 function easeCamera(options){return new Promise(resolve=>{let finished=false;const finish=()=>{if(finished)return;finished=true;map.off('moveend',finish);resolve();};map.once('moveend',finish);map.easeTo(options);setTimeout(finish,(options.duration||0)+300);});}
 async function setMapViewMode(entering){
- if(!map?.getLayer('buildings-3d')||viewSwitching||entering===is3D)return;
- viewSwitching=true;const transition=++viewTransitionId,button=$('view');button.disabled=true;button.classList.add('is-switching');stopRoutePreview(false);map.stop();++tileLoadId;clearTimeout(cityShadeTimer);pendingShade=null;shadeId++;
- const camera={center:[map.getCenter().lng,map.getCenter().lat],zoom:map.getZoom(),bearing:map.getBearing()},target={center:camera.center,zoom:entering?Math.max(14.5,Math.min(camera.zoom,16.4)):camera.zoom,bearing:camera.bearing,pitch:entering?44:0,duration:650,easing:value=>1-Math.pow(1-value,3),essential:true};
- is3D=entering;button.setAttribute('aria-pressed',String(is3D));button.textContent=is3D?'2D':'3D';$('city-screen-mask')?.setAttribute('hidden','');treeSphereLayer?.setVisible(false);
- for(const id of ['shade-fill','buildings-flat','buildings-3d','trees-3d','terrain-hillshade'])map.setLayoutProperty(id,'visibility','none');
- map.setMinZoom(cityManifest&&is3D?14.5:cityManifest?11.7:12);map.setMaxZoom(18);map.setMaxPitch(60);if(is3D)map.touchPitch.enable();else map.touchPitch.disable();
- // Terrain changes once, before the camera animation, never in a second jump.
- map.setTerrain(is3D?{source:'terrain-dem',exaggeration:1.3}:null);
- try{await easeCamera(target);if(transition!==viewTransitionId)return;activeCityViewSignature='';await loadVisibleCityTiles({force:true});}
- catch(error){console.warn('View data could not be refreshed',error);}
+ if(!map?.getLayer('terrain-hillshade')||viewSwitching||entering===is3D)return;
+ const was3D=is3D;viewSwitching=true;const transition=++viewTransitionId,button=$('view');button.disabled=true;button.classList.add('is-switching');map.getContainer?.()?.parentElement?.classList?.add('is-view-switching');stopRoutePreview(false);map.stop();++tileLoadId;clearTimeout(cityShadeTimer);pendingShade=null;shadeId++;
+ const camera={center:[map.getCenter().lng,map.getCenter().lat],zoom:map.getZoom(),bearing:map.getBearing()},target={center:camera.center,zoom:entering?Math.max(14.5,Math.min(camera.zoom,16.4)):camera.zoom,bearing:camera.bearing,pitch:entering?44:0,duration:650,freezeElevation:true,easing:value=>1-Math.pow(1-value,3),essential:true};
+ is3D=entering;button.setAttribute('aria-pressed',String(is3D));button.textContent=is3D?'2D':'3D';$('city-screen-mask')?.setAttribute('hidden','');citySceneLayer?.setVisible(false);
+ for(const id of ['shade-fill','terrain-hillshade'])map.setLayoutProperty(id,'visibility','none');
+ map.setMinZoom(cityManifest?11.7:12);map.setMaxZoom(18);map.setMaxPitch(60);if(is3D)map.touchPitch.enable();else map.touchPitch.disable();
+ try{
+  // Establish terrain only once. Flattening the camera leaves the terrain and
+  // its caches alive, so repeated switches cannot race destroy/reload cycles.
+  const [ground]=await Promise.all([terrainHeightfield.sample(camera.center),is3D?ensureCityScene():null]);if(transition!==viewTransitionId)return;
+  map.setCenterClampedToGround(false);
+  if(is3D&&!map.getTerrain())map.setTerrain({source:'terrain-dem',exaggeration:1.3});
+  if(map.getTerrain())map.setCenterElevation(ground);
+  await easeCamera(target);if(transition!==viewTransitionId)return;activeCityViewSignature='';await loadVisibleCityTiles({force:true});
+  if(is3D&&result?.coords?.length)await citySceneLayer?.setRoute(result.coords);
+ }catch(error){is3D=was3D;button.setAttribute('aria-pressed',String(is3D));button.textContent=is3D?'2D':'3D';console.warn('View data could not be refreshed',error);}
  finally{if(transition===viewTransitionId){
-  for(const id of ['buildings-3d','trees-3d','terrain-hillshade'])map.setLayoutProperty(id,'visibility',is3D?'visible':'none');
-  map.setLayoutProperty('shade-fill','visibility',is3D&&map.getZoom()>=14.45?'visible':'none');treeSphereLayer?.setVisible(is3D);
-  if(!is3D)map.setMaxPitch(0);viewSwitching=false;button.disabled=false;button.classList.remove('is-switching');shadeReady=true;shadeBusyInteractive=false;$('calculate').disabled=!ready;updateSunDirection();map.triggerRepaint();
+  // One scene owns the objects; native layers draw the ground and its themes.
+  map.setLayoutProperty('terrain-hillshade','visibility',is3D?'visible':'none');
+  map.setLayoutProperty('shade-fill','visibility',is3D&&map.getZoom()>=14.45?'visible':'none');citySceneLayer?.setVisible(is3D);
+  map.setMinZoom(cityManifest&&is3D?14.5:cityManifest?11.7:12);if(!is3D){map.setMaxPitch(0);map.touchPitch.disable();}map.setCenterClampedToGround(true);viewSwitching=false;button.disabled=false;button.classList.remove('is-switching');map.getContainer?.()?.parentElement?.classList?.remove('is-view-switching');shadeReady=true;shadeBusyInteractive=false;$('calculate').disabled=!ready;updateSunDirection();map.triggerRepaint();
   if(is3D&&ready&&!previewState){worker.postMessage({type:'obstacles',obstacles,edgeIds:activeCityEdgeIds});cityShadeTimer=setTimeout(()=>requestShade(false,{silent:true}),650);}
  }}
 }
@@ -579,14 +684,30 @@ function updateExperienceLanguage(){
 function setExploreMode(active){exploreMode=active;stopRoutePreview(false);finishPickMode(null);hideToast();$('explore-mode').setAttribute('aria-pressed',String(active));if(active)map.doubleClickZoom.enable();else map.doubleClickZoom.disable();updateExperienceLanguage();}
 function showRoutePosition(fraction){if(!map||!routeMeasureCache)return;const position=pointAlongRoute(routeMeasureCache,fraction);if(!position)return;if(!profileMarker){const element=document.createElement('div');element.className='profile-map-point';profileMarker=new maplibregl.Marker({element}).setLngLat(ll(position)).addTo(map);}else profileMarker.setLngLat(ll(position));const cursor=$('elevation-cursor');cursor.hidden=false;cursor.setAttribute('d',`M${Math.max(0,Math.min(1,fraction))*300} 0V86`);}
 function hideRoutePosition(){profileMarker?.remove();profileMarker=null;if($('elevation-cursor'))$('elevation-cursor').hidden=true;}
-function stopRoutePreview(restore=true){if(!previewState)return;const camera=previewState.camera;previewState=null;cancelAnimationFrame(previewFrame);previewFrame=0;hideRoutePosition();updateExperienceLanguage();if(restore&&map)map.easeTo({...camera,duration:500});if(map&&cityManifest)loadVisibleCityTiles().catch(console.warn);}
+function stopRoutePreview(restore=true){
+ ++previewRequestId;previewPreparing=false;if($('route-preview'))$('route-preview').disabled=!result?.coords?.length;
+ if(!previewState)return;const camera=previewState.camera;previewState=null;cancelAnimationFrame(previewFrame);previewFrame=0;map?.setCenterClampedToGround(true);hideRoutePosition();updateExperienceLanguage();if(restore&&map)map.easeTo({...camera,duration:500});if(map&&cityManifest)loadVisibleCityTiles().catch(console.warn);
+}
 async function startRoutePreview(){
- if(previewState){stopRoutePreview();return;}if(!result?.coords?.length||!map)return;
+ if(previewState){stopRoutePreview();return;}if(previewPreparing||viewSwitching||!result?.coords?.length||!map)return;
  if(!is3D){await $('view').onclick();if(!is3D||viewSwitching)return;}
- routeMeasureCache=routeMeasure(result.coords);if(!routeMeasureCache.total)return;
- map.stop();previewState={camera:{center:[map.getCenter().lng,map.getCenter().lat],zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch()},last:performance.now(),distance:0,bearing:map.getBearing()};updateExperienceLanguage();
- // 18 m/s, with bearings eased through curves. Nothing is calculated during playback.
- const tick=now=>{if(!previewState)return;const state=previewState,dt=Math.min(.1,(now-state.last)/1000);state.last=now;state.distance=Math.min(routeMeasureCache.total,state.distance+dt*18);const f=state.distance/routeMeasureCache.total,point=pointAlongRoute(routeMeasureCache,f),ahead=pointAlongRoute(routeMeasureCache,Math.min(1,(state.distance+25)/routeMeasureCache.total));if(Math.hypot(ahead[0]-point[0],ahead[1]-point[1])>.01){const bearing=Math.atan2(ahead[0]-point[0],ahead[1]-point[1])*180/Math.PI;state.bearing=smoothBearing(state.bearing,(bearing+360)%360,1-Math.exp(-dt*4));}map.jumpTo({center:ll(point),zoom:17,pitch:50,bearing:state.bearing});showRoutePosition(f);if(f>=1){stopRoutePreview(false);return;}previewFrame=requestAnimationFrame(tick);};previewFrame=requestAnimationFrame(tick);
+ const route=result,coordinates=densifyRoute(route.coords),request=++previewRequestId;previewPreparing=true;$('route-preview').disabled=true;
+ let elevations;try{elevations=await terrainHeightfield.sampleMany(coordinates.map(ll));}catch(error){console.warn('Preview is waiting for terrain heights:',error);return;}finally{if(request===previewRequestId){previewPreparing=false;$('route-preview').disabled=!result?.coords?.length;}}
+ if(request!==previewRequestId||route!==result||!is3D)return;
+ routeMeasureCache=routeMeasure(coordinates);if(!routeMeasureCache.total)return;
+ map.stop();map.setCenterClampedToGround(false);
+ const camera={center:[map.getCenter().lng,map.getCenter().lat],zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch(),elevation:map.getCenterElevation()},state={camera,last:performance.now(),started:performance.now(),distance:0,bearing:camera.bearing,elevations};previewState=state;updateExperienceLanguage();
+ // One camera owner, with explicit cached elevations. Enter smoothly, then
+ // follow the route at 18 m/s. No per-frame DEM query or automatic grounding.
+ const tick=now=>{
+  if(previewState!==state)return;const dt=Math.min(.1,(now-state.last)/1000);state.last=now;const intro=Math.min(1,(now-state.started)/650);
+  if(intro>=1)state.distance=Math.min(routeMeasureCache.total,state.distance+dt*18);
+  const f=state.distance/routeMeasureCache.total,point=pointAlongRoute(routeMeasureCache,f),ahead=pointAlongRoute(routeMeasureCache,Math.min(1,(state.distance+25)/routeMeasureCache.total));
+  if(Math.hypot(ahead[0]-point[0],ahead[1]-point[1])>.01){const bearing=Math.atan2(ahead[0]-point[0],ahead[1]-point[1])*180/Math.PI;state.bearing=smoothBearing(state.bearing,(bearing+360)%360,1-Math.exp(-dt*4));}
+  const target=ll(point),blend=1-Math.pow(1-intro,3),elevation=valueAlongRoute(routeMeasureCache,state.elevations,f);
+  map.jumpTo({center:intro<1?camera.center.map((value,index)=>value+(target[index]-value)*blend):target,zoom:camera.zoom+(17-camera.zoom)*blend,pitch:camera.pitch+(50-camera.pitch)*blend,bearing:state.bearing,elevation:camera.elevation+(elevation-camera.elevation)*blend});showRoutePosition(f);
+  if(f>=1){stopRoutePreview(false);return;}previewFrame=requestAnimationFrame(tick);
+ };previewFrame=requestAnimationFrame(tick);
 }
 function setupRouteExperience(){
  $('explore-mode').onclick=()=>setExploreMode(!exploreMode);$('route-preview').onclick=startRoutePreview;
@@ -597,22 +718,25 @@ function setupRouteExperience(){
  chart.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();lastFraction=event.key==='Home'?0:event.key==='End'?1:Math.max(0,Math.min(1,lastFraction+(event.key==='ArrowRight'?.02:-.02)));chart.setAttribute('aria-valuenow',String(Math.round(lastFraction*100)));showRoutePosition(lastFraction);});chart.addEventListener('blur',()=>{if(!previewState)hideRoutePosition();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopRoutePreview(false);});document.addEventListener('keydown',event=>{if(event.key==='Escape')stopRoutePreview();});
 }
+async function ensureCityScene(){
+ if(!citySceneLayer){THREE=await import('./vendor/three.mjs');citySceneLayer=createCitySceneLayer({origin:meta.origin,toLngLat:ll,dimensions:treeDimensions,terrain:terrainHeightfield});map.addLayer(citySceneLayer,'route-halo');citySceneLayer.setSun(currentSun);}
+ return citySceneLayer;
+}
 function installMapExperience(){
- treeSphereLayer=createSphereTreeLayer({toLngLat:ll,dimensions:treeDimensions});map.addLayer(treeSphereLayer);
- map.on('sourcedata',event=>{if(event.sourceId==='terrain-dem'&&event.sourceDataType==='content'){treeSphereLayer.terrainRevision++;map.triggerRepaint();}});
  for(const event of ['dragstart','zoomstart','rotatestart','pitchstart'])map.on(event,e=>{if(e.originalEvent)stopRoutePreview(false);});
  // Credits live in a reserved DOM slot, outside the map's control corners.
  const attribution=document.querySelector('.maplibregl-ctrl-attrib'),host=$('map-credits');
- if(attribution&&host){$('credits-content').append(attribution);$('credits-toggle').onclick=()=>{const content=$('credits-content'),open=content.hidden;content.hidden=!open;$('credits-toggle').setAttribute('aria-expanded',String(open));host.classList.toggle('is-open',open);updateExperienceLanguage();};const measure=()=>{const height=host.getBoundingClientRect().height;map.getContainer().parentElement.style.setProperty('--attribution-height',`${Math.ceil(height)}px`);};if(globalThis.ResizeObserver)new ResizeObserver(measure).observe(host);measure();}
+ if(attribution&&host){$('credits-content').append(attribution);$('credits-toggle').onclick=()=>{const content=$('credits-content'),open=content.hidden;content.hidden=!open;$('credits-toggle').setAttribute('aria-expanded',String(open));host.classList.toggle('is-open',open);updateExperienceLanguage();};const measure=()=>{const rect=host.getBoundingClientRect(),area=map.getContainer().parentElement;area.style.setProperty('--attribution-height',`${Math.ceil(rect.height)}px`);area.style.setProperty('--credits-clearance',`${Math.ceil(area.getBoundingClientRect().bottom-rect.top)}px`);};if(globalThis.ResizeObserver){const observer=new ResizeObserver(measure);observer.observe(host);observer.observe(map.getContainer().parentElement);}measure();}
  const tools=document.querySelector('.map-tools');if(tools&&globalThis.ResizeObserver){const measureTools=()=>{const area=tools.parentElement.getBoundingClientRect(),rect=tools.getBoundingClientRect();tools.parentElement.style.setProperty('--toolbar-end',`${Math.ceil(rect.bottom-area.top+8)}px`);};new ResizeObserver(measureTools).observe(tools);measureTools();}
  // The native opaque mask remains a fallback. The overlay uses camera-space
  // clipping so vertices behind the camera cannot obscure the whole viewport.
- const mask=$('city-screen-mask'),path=mask.querySelector('path');let rings=[],terrainRevision=-1,lastSignature='';
+ const mask=$('city-screen-mask'),path=mask.querySelector('path');let rings=[],ringsPending=null,lastSignature='';
+ const prepareRings=()=>{if(ringsPending)return;ringsPending=(async()=>{const source=cityBoundary.geometry.coordinates.flatMap(polygon=>polygon),points=source.flat(),heights=await terrainHeightfield.sampleMany(points);let index=0;rings=source.map(ring=>ring.map(point=>{const p=maplibregl.MercatorCoordinate.fromLngLat(point,heights[index++]);return [p.x,p.y,p.z];}));map.triggerRepaint();})().catch(error=>{ringsPending=null;console.warn('Boundary terrain not ready:',error);});};
  if(cityBoundary)map.addLayer({id:'boundary-projector',type:'custom',renderingMode:'3d',render(gl,args){
   if(!is3D||viewSwitching){mask.setAttribute('hidden','');lastSignature='';return;}const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16){mask.setAttribute('hidden','');return;}
-  const canvas=map.getCanvas(),width=canvas.clientWidth,height=canvas.clientHeight,revision=treeSphereLayer?.terrainRevision||0;
-  if(!rings.length||terrainRevision!==revision){rings=cityBoundary.geometry.coordinates.flatMap(polygon=>polygon.map(ring=>ring.map(point=>{const ground=map.queryTerrainElevation(point)||0,p=maplibregl.MercatorCoordinate.fromLngLat(point,ground);return [p.x,p.y,p.z];})));terrainRevision=revision;}
-  const signature=width+'|'+height+'|'+revision+'|'+Array.from(matrix).join(',');if(signature===lastSignature)return;lastSignature=signature;
+  if(!rings.length){prepareRings();mask.setAttribute('hidden','');return;}
+  const canvas=map.getCanvas(),width=canvas.clientWidth,height=canvas.clientHeight;
+  const signature=width+'|'+height+'|'+Array.from(matrix).join(',');if(signature===lastSignature)return;lastSignature=signature;
   const inside=projectBoundaryPath(rings,matrix,width,height),centre=map.getCenter(),screenCentre=map.project(centre),projectedRings=inside.split('Z').filter(Boolean).map(part=>[...part.matchAll(/[ML]([\d.-]+) ([\d.-]+)/g)].map(match=>[+match[1],+match[2]]));
   // Fail open to the native GPU-clipped mask if an inconsistent matrix/terrain
   // state would cover the actual city centre. A map must never go all-grey here.

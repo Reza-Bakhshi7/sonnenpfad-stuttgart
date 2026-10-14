@@ -14,10 +14,10 @@ const poiDetails=JSON.parse(fs.readFileSync(path.join(root,'dist/city',manifest.
 assert.equal([...steps].filter(Boolean).length,7893,'stairs must follow the atlas display class, not the broad historic/current union');
 assert(pipeline.includes('"steps": display_class == "steps" and not escalator'),'stairs must use the authoritative display class');
 assert(!pipeline.includes('highway == "steps" or row["fclass"] == "steps"'),'the broad historic/current staircase union must stay removed');
-assert(source.includes("fill-extrusion-opacity':.74"),'3D trees must remain see-through');
+const cityScene=fs.readFileSync(path.join(root,'scripts/city-scene.mjs'),'utf8');assert(cityScene.includes('transparent:true,opacity:.82,depthWrite:true'),'crowns must stay slightly translucent with a stable depth buffer');
 assert(source.includes('tree.r*.7')&&source.includes('tree.h*.7'),'fallback tree dimensions must be 30% smaller');
-assert(source.includes('treeSphereLayer?.setTrees(selection.trees)'),'tree crowns must use the sphere layer');
-const spheres=fs.readFileSync(path.join(root,'scripts/sphere-trees.mjs'),'utf8');assert(spheres.includes('sphereMesh')&&spheres.includes('drawElementsInstanced'),'crowns share a smooth sphere mesh in one instanced draw');
+assert(source.includes('citySceneLayer?.setObjects'),'trees and buildings must share a cached scene');
+const scene=fs.readFileSync(path.join(root,'scripts/city-scene.mjs'),'utf8');assert(scene.includes('THREE.InstancedMesh')&&scene.includes('THREE.SphereGeometry'),'crowns share smooth sphere geometry and instances');
 assert(source.includes('function installFeatureCards'),'desktop feature cards must be installed');
 assert(source.includes('poiDetails[key]||{}'),'compact POI details must enrich existing visual tiles');
 assert(source.includes("innerWidth<=800||!matchMedia('(hover:hover) and (pointer:fine)').matches"),'feature cards must stay disabled on mobile/coarse pointers');

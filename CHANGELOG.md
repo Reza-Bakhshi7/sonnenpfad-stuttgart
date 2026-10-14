@@ -4,16 +4,15 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
-- Keep tree populations and known terrain heights stable during camera/zoom updates; avoid identical GPU uploads and hide crowns in 2D without resetting caches.
-- Serialize 2D/3D switches, change terrain once before the camera animation, discard stale viewport data and avoid the second camera jump.
-- Remove the destination confirmation toast, restore small single-column controls and collapsible map attribution.
-
-
-- Exploration mode separates map gestures from route endpoint picking; explicit endpoint tools retain routing.
-- New 3D route playback and elevation-chart hover/keyboard position marker.
-- Current Stuttgart time on entry; translated, consistently sourced basemap names; compact custom settings and weather details; measured attribution clearance.
-- Stair tread styling only on the slope theme. 3D viewport coverage replaces arbitrary tile/building caps, with a bounded minimum 3D zoom.
-- Shared smooth sphere meshes replace stacked canopy slices. Camera-clipped screen boundary masks terrain/imagery outside Stuttgart, with a centre-visibility guard.
+- Move city buildings, spherical tree crowns/trunks and the 3D route into one cached Three.js scene using local metre coordinates. Crowns remain 30% smaller and slightly translucent, with a shared smooth sphere mesh and depth writes.
+- Read object and route heights directly from immutable Terrain-RGB assets. Failed tile loads retain existing geometry and retry; the renderer's temporary elevation value 0 is never used for object placement.
+- Upgrade self-hosted MapLibre to 6.12.0 with matching ESM modules, worker and stylesheet. Pin Three.js 0.169.0; lazy-load it on first 3D entry. Vendor chunks are checked against SHA-256 at build time.
+- Keep terrain alive across 2D/3D switches, freeze automatic grounding during transitions, preserve the map centre and remove redundant camera writers. Replay uses an animated introduction and explicit sampled elevations at 12 m intervals.
+- Build building geometry in short batches and reuse spatial GPU batches and cached tree instances. Preserve building courtyards and extend walls correctly on sloping terrain.
+- Place the time/weather toolbar closer to the lower edge with a measured 10 px gap above collapsible map credits.
+- Exploration mode separates map gestures from route endpoint picking; explicit endpoint tools retain routing. Elevation-chart hover/keyboard markers follow the corresponding route position.
+- Current Stuttgart time on entry; translated, consistently sourced basemap names; compact custom settings and weather details; small single-column map controls; destination confirmation toast removed.
+- Stair tread styling only on the slope theme. Camera-clipped city boundary uses stable asset-derived heights, not transient rendered DEM queries.
 - Browser graph loading deferred until needed. Pending tile fetches deduplicated and concurrency bounded.
 - Shared directed profile costs and API 0.3 request/capability contract prepared; API 0.2 remains standard Direct only. Server installation and real-browser WebGL acceptance remain outstanding.
 
