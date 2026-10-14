@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="./style.css?v=20261002-step6-review3">
 <script defer src="./vendor/maplibre-v3.js">
 </script>
-<script type="module" src="./app-v7.mjs?v=20261013-oracle-routing-0100">
+<script type="module" src="./app-v7.mjs?v=20261014-exploration-3d-0110">
 </script>
 </head>
 <body>
@@ -214,6 +214,7 @@
 </span>
 </div>
 <div id="route-assessment" class="route-assessment" aria-live="polite"></div>
+<button id="route-preview" class="route-preview" type="button" disabled>▶ 3D-Routenvorschau</button>
 <div id="elevation-profile" class="elevation-profile" hidden>
 <div class="elevation-profile-head">
 <span data-i="elevationProfile">Höhenprofil</span>
@@ -230,6 +231,7 @@
 <path class="profile-grid" d="M0 24H300 M0 48H300 M0 72H300"/>
 <path id="elevation-area" fill="url(#elevation-gradient)"/>
 <path id="elevation-line"/>
+<path id="elevation-cursor" d="M0 0V86" hidden/>
 </svg>
 <div class="elevation-axis">
 <span id="elevation-start">
@@ -251,15 +253,17 @@
 </footer>
 </aside>
 <main class="map-area">
+<svg id="city-screen-mask" class="city-screen-mask" aria-hidden="true"><path fill="#edf1f2" fill-rule="evenodd"/></svg>
 <div id="map" aria-label="Karte von Stuttgart">
 </div>
 <div class="map-tools">
 <select id="basemap" aria-label="Hintergrundkarte">
 <option value="openfree">OpenFreeMap</option>
 <option value="osm">OSM Standard</option>
-<option value="topo">Topografisch</option>
+<option value="topo">Topografisch · OpenTopoMap</option>
 <option value="aerial">Luftbild · LGL BW</option>
 </select>
+<button id="explore-mode" class="explore-mode" aria-pressed="true">Entdecken</button>
 <button id="view" aria-pressed="false">3D</button>
 <button id="layers-toggle" aria-expanded="false" aria-controls="layers-panel" aria-label="Kartenebenen" title="Kartenebenen">◫</button>
 <button id="locate" aria-label="Mein Standort" title="Mein Standort">⌖</button>
@@ -350,3 +354,4 @@
 <noscript>Für diese interaktive Karte ist JavaScript erforderlich. / This interactive map requires JavaScript.</noscript>
 </body>
 </html>
+

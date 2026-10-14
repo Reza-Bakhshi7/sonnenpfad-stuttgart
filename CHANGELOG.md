@@ -4,6 +4,15 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
+- Exploration mode separates map gestures from route endpoint picking; explicit endpoint tools retain routing.
+- New 3D route playback and elevation-chart hover/keyboard position marker.
+- Current Stuttgart time on entry; translated, consistently sourced basemap names; compact custom settings and weather details; measured attribution clearance.
+- Stair tread styling only on the slope theme. 3D viewport coverage replaces arbitrary tile/building caps, with a bounded minimum 3D zoom.
+- Analytic instanced sphere crowns replace stacked canopy slices. Opaque screen boundary masks terrain/imagery outside Stuttgart.
+- Browser graph loading deferred until needed. Pending tile fetches deduplicated and concurrency bounded.
+- Shared directed profile costs and API 0.3 request/capability contract prepared; API 0.2 remains standard Direct only. Server installation and real-browser WebGL acceptance remain outstanding.
+
+
 ## [0.10.0] - 2026-10-13
 
 - Standard Direct walking routes use the Oracle-hosted PostGIS/pgRouting API 0.2 over HTTPS, with audited OSM node topology and pedestrian access rules.
