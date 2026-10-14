@@ -7,11 +7,9 @@
 <meta name="description" content="Sonnen-, Schatten- und barrierebewusste Fußwegerouten im gesamten Stadtgebiet Stuttgart.">
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="./vendor/maplibre-v3.css">
-<link rel="stylesheet" href="./style.css?v=20261002-step6-review3">
-<script defer src="./vendor/maplibre-v3.js">
-</script>
-<script type="module" src="./app-v7.mjs?v=20261013-oracle-routing-0100">
+<link rel="stylesheet" href="./vendor/maplibre-gl.css">
+<link rel="stylesheet" href="./style.css?v=ee73f117f51416ba">
+<script type="module" src="./app-v7.mjs?v=de5fbeeebecc7157">
 </script>
 </head>
 <body>
@@ -214,6 +212,7 @@
 </span>
 </div>
 <div id="route-assessment" class="route-assessment" aria-live="polite"></div>
+<button id="route-preview" class="route-preview" type="button" disabled>▶ 3D-Routenvorschau</button>
 <div id="elevation-profile" class="elevation-profile" hidden>
 <div class="elevation-profile-head">
 <span data-i="elevationProfile">Höhenprofil</span>
@@ -230,6 +229,7 @@
 <path class="profile-grid" d="M0 24H300 M0 48H300 M0 72H300"/>
 <path id="elevation-area" fill="url(#elevation-gradient)"/>
 <path id="elevation-line"/>
+<path id="elevation-cursor" d="M0 0V86" hidden/>
 </svg>
 <div class="elevation-axis">
 <span id="elevation-start">
@@ -243,6 +243,13 @@
 <button id="share" class="text-button" data-i="share">Route als Link teilen ↗</button>
 </section>
 </div>
+<section id="explore-panel" class="explore-panel" hidden>
+<span class="explore-eyebrow">STUTTGART</span>
+<h2 id="explore-title">Stuttgart entdecken</h2>
+<p id="explore-description">Klicke auf einen Weg, einen Baum oder ein Gebäude, um mehr zu erfahren. Wähle zusätzliche Ebenen nach Interesse.</p>
+<button id="explore-layers" type="button">Kartenebenen wählen</button>
+<button id="explore-3d" type="button">Stadt in 3D ansehen</button>
+</section>
 <button type="button" id="about-mobile" class="mobile-about" data-i="about">Über den Pilot</button>
 </div>
 <footer>
@@ -251,15 +258,22 @@
 </footer>
 </aside>
 <main class="map-area">
+<svg id="city-screen-mask" class="city-screen-mask" aria-hidden="true"><path fill="#edf1f2" fill-rule="evenodd"/></svg>
 <div id="map" aria-label="Karte von Stuttgart">
 </div>
+<div class="mode-switch" role="group" aria-label="Kartenmodus">
+<button id="mode-route" type="button" class="selected" aria-pressed="true">Route</button>
+<button id="mode-explore" type="button" aria-pressed="false">Entdecken</button>
+</div>
+<div id="map-credits" class="map-credits" role="contentinfo" aria-label="Kartenquellen"><div id="credits-content" hidden></div><button id="credits-toggle" type="button" aria-controls="credits-content" aria-expanded="false" aria-label="Kartenquellen einblenden" title="Kartenquellen einblenden">i</button></div>
 <div class="map-tools">
 <select id="basemap" aria-label="Hintergrundkarte">
 <option value="openfree">OpenFreeMap</option>
 <option value="osm">OSM Standard</option>
-<option value="topo">Topografisch</option>
+<option value="topo">Topografisch · OpenTopoMap</option>
 <option value="aerial">Luftbild · LGL BW</option>
 </select>
+<button id="explore-mode" class="explore-mode" aria-pressed="false" hidden>Entdecken</button>
 <button id="view" aria-pressed="false">3D</button>
 <button id="layers-toggle" aria-expanded="false" aria-controls="layers-panel" aria-label="Kartenebenen" title="Kartenebenen">◫</button>
 <button id="locate" aria-label="Mein Standort" title="Mein Standort">⌖</button>
@@ -276,6 +290,8 @@
 </select>
 <div id="theme-options" class="theme-options" role="radiogroup" aria-label="Linienthema"></div>
 <p id="theme-description" class="theme-description"></p>
+<label class="shadow-view-control"><input id="shadow-view" type="checkbox" disabled><span id="shadow-view-label">Modellierten Schatten anzeigen</span></label>
+<small id="shadow-view-note">In 3D · wird erst beim Einschalten berechnet</small>
 <fieldset>
 <legend data-i="poiLabel">Barrierefreiheit &amp; Komfort</legend>
 <div id="poi-options" class="poi-options"></div>
@@ -341,7 +357,7 @@
 </div>
 <dialog id="about-dialog">
 <button id="close-about" class="dialog-close" aria-label="Schließen">×</button>
-<span class="eyebrow">SONNENPFAD · 0.10</span>
+<span class="eyebrow">SONNENPFAD · 0.11</span>
 <h2 data-i="aboutTitle">Ein erster Schritt.</h2>
 <div id="about-content">
 </div>
@@ -350,3 +366,4 @@
 <noscript>Für diese interaktive Karte ist JavaScript erforderlich. / This interactive map requires JavaScript.</noscript>
 </body>
 </html>
+

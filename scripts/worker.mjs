@@ -2,7 +2,9 @@ import {sunPosition,makeShadows,edgeShades,buildAdj,buildComponents,bestAvailabl
 import {adaptServerRoute} from './server-routing.mjs';
 let network,obstacles={buildings:[],trees:[]},activeEdgeIds=null,meta,adj,componentCache=new Map(),shades=[];
 
-function finishNetwork(){adj=buildAdj(network);componentCache=new Map();shades=new Float32Array(network.edges.length);self.postMessage({type:'ready'});}
+let cityLoadPromise=null,cityInit=null;
+async function ensureNetwork(){if(!cityInit)return;if(!cityLoadPromise)cityLoadPromise=loadCity(cityInit.manifest,cityInit.base).catch(error=>{cityLoadPromise=null;throw error;});await cityLoadPromise;}
+function finishNetwork(){adj=buildAdj(network);componentCache=new Map();shades=new Float32Array(network.edges.length);if(!cityInit)self.postMessage({type:'ready'});}
 
 async function fetchBinary(files,base,label){
  const names=Array.isArray(files)?files:[files],buffers=await Promise.all(names.map(name=>fetch(new URL(name,base)).then(r=>{if(!r.ok)throw Error(label);return r.arrayBuffer();})));
@@ -32,9 +34,9 @@ async function loadCity(manifest,base){
 
 self.onmessage=async({data:d})=>{try{
  if(d.type==='init'){({network,obstacles,meta}=d);finishNetwork();return;}
- if(d.type==='initCity'){await loadCity(d.manifest,d.base);return;}
+ if(d.type==='initCity'){cityInit=d;meta=d.manifest;network={nodes:[],edges:[]};self.postMessage({type:'ready'});return;}
  if(d.type==='obstacles'){obstacles=d.obstacles;activeEdgeIds=d.edgeIds||null;return;}
- if(d.type==='shade'){
+ if(d.type==='shade'){if(d.routeAware)await ensureNetwork();
  const center=d.center||[meta.origin[0],meta.origin[1]],sun=sunPosition(new Date(d.iso),center[1],center[0]),polys=makeShadows(obstacles,sun,d.leafOn,d.preview?{preview:true,treeSteps:8}:undefined);
  if(d.routeAware){if(activeEdgeIds){const visibleEdges=activeEdgeIds.map(i=>network.edges[i]),visibleShades=edgeShades(visibleEdges,polys,sun.altitude<=0),next=new Float32Array(network.edges.length);activeEdgeIds.forEach((edgeId,index)=>{next[edgeId]=visibleShades[index];});shades=next;}else shades=edgeShades(network.edges,polys,sun.altitude<=0);}
  const bounds=d.bounds||meta.bounds,maxRaster=d.preview?384:1024,aspect=(bounds[3]-bounds[1])*meta.scale[1]/((bounds[2]-bounds[0])*meta.scale[0]);let width=maxRaster,height=Math.max(1,Math.round(width*aspect));if(height>maxRaster){height=maxRaster;width=Math.max(1,Math.round(height/aspect));}
@@ -53,5 +55,6 @@ self.onmessage=async({data:d})=>{try{
   } catch(error){self.postMessage({type:'route',id:d.id,result:{error:'serverUnavailable'}});}
   return;
  }
- if(d.type==='route'){const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=best.result,shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
- }catch(e){self.postMessage({type:'error',message:e.message,id:d.id});}};
+ if(d.type==='route'){await ensureNetwork();const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=best.result,shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
+ }catch(e){if(d.type==='route')self.postMessage({type:'route',id:d.id,result:{error:'modelFailed'}});else self.postMessage({type:'error',message:e.message,id:d.id});}};
+

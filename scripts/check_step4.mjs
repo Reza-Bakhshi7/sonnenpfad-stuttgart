@@ -12,8 +12,8 @@ const workerSource = fs.readFileSync(path.join(root, 'scripts', 'worker.mjs'), '
 const expectedThemes = ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'];
 
 assert(!appSource.includes("getAttribute('aria-label')=t('layersTitle')"), 'Layer language setup must not assign to getAttribute().');
-assert(appSource.includes('function easeCamera')&&appSource.includes('Math.min(camera.zoom,16.4)'), '2D/3D switching must preserve the centre and cap only excessively expensive 3D zoom levels.');
-assert(appSource.includes("await loadVisibleCityTiles();if(is3D){map.setTerrain"), '3D data must load before terrain and extrusion layers become visible.');
+assert(appSource.includes('function easeCamera')&&appSource.includes('Math.max(14,map.getZoom())'), '2D/3D switching must preserve the centre and enter the city detail view without moving the selected centre.');
+assert(appSource.includes('loadVisibleCityTiles({force:true}).catch')&&appSource.includes('async function setMapViewMode'), '3D camera switching must not wait for optional tree files.');
 assert(appSource.includes('prepareRouteShade'), 'Long routes must load a complete shade corridor before routing.');
 assert(appSource.includes('outsideLocation'), 'Out-of-city geolocation must use a dismissible message.');
 assert(appSource.includes('function addPoiMapImage'), 'POIs must be normalized into fixed-size map markers.');
@@ -29,7 +29,7 @@ assert(appSource.includes("'symbol-placement':'line-center'"), 'Each eligible at
 assert(appSource.includes('length<24'), 'Very short atlas segments must not receive slope arrows.');
 assert(appSource.includes("'icon-allow-overlap':false"), 'Slope arrows must respect collision detection to avoid visual clutter.');
 assert(!appSource.includes("'text-field':'➤'"), 'Slope arrows must not depend on an unavailable map font glyph.');
-assert(appSource.includes("14.5,4.4,17,7.2,19,8.8"), 'Thematic lines must use the thicker review widths.');
+assert(appSource.includes("14.5,2,17,3.2,19,4.5"), 'Thematic lines must use compact readable widths in exploration.');
 assert(!appSource.includes('function toggleTimePlayer'), 'Time animation must remain removed.');
 assert(!appHtml.includes('time-play'), 'Time animation controls must remain removed.');
 assert(appSource.includes('function updateImmediateSun'), 'Sun direction must update immediately while time changes.');

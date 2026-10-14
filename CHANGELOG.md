@@ -1,8 +1,37 @@
 # Changelog
 
+## 0.12.0 — preview, 2026-10-14
+
+- Separate lean Routing from click-only Explore, with on-demand theme, POI and detail data.
+- Render Direct server responses immediately; skip shadow loading for Balanced routing.
+- Replace display DEM and custom building geometry with flat native vector buildings; retain Atlas calculation inputs.
+- Use warm beige buildings, lighter optional shadows and opaque coloured sphere crowns with corrected scene handedness.
+- Generate minimal tree files and revisioned detail shards at build time; retain nearby trees during progressive loads.
+- Make repeated view switches and trip replay independent of optional data/elevation requests.
+- Add a centrally cached weather endpoint with Open-Meteo/MET Norway fallback and retained client cache.
+- Add style validation and regression coverage for modes, stale responses, physical tree bounds, replay, cache and weather.
+
+
 All notable product changes are documented here. The project follows semantic versioning while it remains an experimental prototype.
 
 ## [Unreleased]
+
+- Correct instanced trunk lengths to use crown height relative to the ground, preventing hundreds-of-metres vertical spikes. Test the transformed cylinder bounds.
+
+- Fix the ESM startup guard: an imported MapLibre namespace no longer requires a window global. Only actual GPUInitializationError failures show the WebGL notice; module/configuration errors no longer misidentify the device.
+
+- Move city buildings, spherical tree crowns/trunks and the 3D route into one cached Three.js scene using local metre coordinates. Crowns remain 30% smaller and slightly translucent, with a shared smooth sphere mesh and depth writes.
+- Read object and route heights directly from immutable Terrain-RGB assets. Failed tile loads retain existing geometry and retry; the renderer's temporary elevation value 0 is never used for object placement.
+- Upgrade self-hosted MapLibre to 6.12.0 with matching ESM modules, worker and stylesheet. Pin Three.js 0.169.0; lazy-load it on first 3D entry. Vendor chunks are checked against SHA-256 at build time.
+- Keep terrain alive across 2D/3D switches, freeze automatic grounding during transitions, preserve the map centre and remove redundant camera writers. Replay uses an animated introduction and explicit sampled elevations at 12 m intervals.
+- Build building geometry in short batches and reuse spatial GPU batches and cached tree instances. Preserve building courtyards and extend walls correctly on sloping terrain.
+- Place the time/weather toolbar closer to the lower edge with a measured 10 px gap above collapsible map credits.
+- Exploration mode separates map gestures from route endpoint picking; explicit endpoint tools retain routing. Elevation-chart hover/keyboard markers follow the corresponding route position.
+- Current Stuttgart time on entry; translated, consistently sourced basemap names; compact custom settings and weather details; small single-column map controls; destination confirmation toast removed.
+- Stair tread styling only on the slope theme. Camera-clipped city boundary uses stable asset-derived heights, not transient rendered DEM queries.
+- Browser graph loading deferred until needed. Pending tile fetches deduplicated and concurrency bounded.
+- Shared directed profile costs and API 0.3 request/capability contract prepared; API 0.2 remains standard Direct only. Server installation and real-browser WebGL acceptance remain outstanding.
+
 
 ## [0.10.0] - 2026-10-13
 
