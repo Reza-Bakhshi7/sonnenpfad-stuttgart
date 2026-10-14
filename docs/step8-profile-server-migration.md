@@ -33,79 +33,29 @@ Before enabling this adapter on Ubuntu:
    relaxed criteria and distance-weighted assessment. Update `adaptServerRoute`
    to read these fields when the server implementation exists.
 
-## Performance changes prepared in the browser
+## Version 0.12 browser and display boundary
 
-The old graph is downloaded/decoded only on the first browser routing or route-shade
-job. It is not needed for map exploration or standard server Direct. Visible tile
-fetches deduplicate pending requests, with six parallel tile tasks. 3D loads its full
-viewport tile selection instead of nine tiles and retains buildings in the selected tiles instead of keeping the first
-1,800–4,500 arbitrary buildings. Geometry stays stable during camera movement
-inside the same tile/zoom-band selection. 3D has a
-14.5 minimum zoom to keep the building view bounded. Sphere crowns share a smooth triangulated
-WebGL2 mesh and one instanced draw; trunks retain compact extrusion geometry.
+The preview no longer fetches original obstacles for city display, constructs
+Atlas building meshes or loads DEM for the camera. Native OpenFreeMap buildings
+and separately generated minimal tree files replace that path. Standard Direct
+renders the Oracle response immediately. Balanced browser profiles no longer
+wait for shade tiles/calculation. Atlas obstacles still drive Shade/Sun costs and
+explicit Explore shadow display; their inputs and calculation heights are intact.
 
-Route preview uses the already computed route at 18 m/s, with eased bearings and
-manual stop. It throttles tile refreshes and suppresses shadow recalculation during
-playback. It is a visual preview, not live navigation.
+The remaining expensive first-load path is the city graph for nonstandard
+profiles. The correct next Oracle installation is the profile API described at
+the top of this document, not hosting JavaScript or another copy of the basemap.
+Before that installation, obtain the current API service source/service name,
+PostgreSQL/PostGIS connection configuration and routing graph schema on the VM.
+Keep credentials there. Then implement and validate `/capabilities` and the
+versioned profile POST endpoint against the existing engine contract. Require
+known barrier, directed partial-edge, relaxation and shadow-time fixture parity
+before enabling frontend capability negotiation. No profile capability has been
+advertised or enabled without that server implementation.
 
-Longer term, prepare clipped building vector tiles/meshes and DEM tiles offline,
-then serve them through a CDN. Moving raw JSON to the Oracle VM would not remove
-browser parsing or drawing costs. No new subscription or storage service is required
-by this change.
-
-## Verification limits
-
-Automated checks cover graph loading, profile costs, map-pick mode and route-point
-interpolation. Actual desktop/mobile WebGL rendering, sphere depth and terrain-boundary
-projection must still be verified in a real browser. Local historical asset copies
-do not match all current repository data counts; full data checks must use CI's
-current checkout. This change is a review/preview candidate until those checks pass.
-
-## Correction after the 14 October user recordings
-
-The user recording shows a completely grey map in 3D, exploration and route
-playback while the same data is visible in 2D. The new SVG city mask projected
-behind-camera boundary vertices before clipping, which could invert the polygon.
-`boundary-projection.mjs` clips against camera/near/viewport planes before the
-perspective divide. A central-city consistency guard hides an inconsistent overlay
-and retains the native GPU-clipped city mask. A regression fixture includes boundary
-vertices behind a tilted camera and requires the city centre to remain visible.
-
-Camera-facing analytic crowns were replaced with a shared smooth sphere mesh,
-with verified outward-facing triangles. Tile keys are sorted and geometry is
-refreshed only when tile selection, mode or zoom band changes. Buildings are opaque
-(no unnecessary translucent offscreen composition). Route playback retains its
-throttled tile loading.
-
-Map credits now sit in a separate measured DOM slot above the viewport edge.
-The toolbar uses one grid and its measured height places native zoom/compass
-controls below it. Mobile map height uses the remaining flex space instead of a
-100%-height child underneath its header.
-
-ShadeKA was identified from the previously shared public URL http://92.5.24.223/.
-Inspection of its publicly served bundle `/assets/index-DzZfkXso.js` confirms a
-MapLibre custom 3D layer with Three.js, sphere tree geometry, a directional shadow
-light and nearby-building/tree HTTP requests (radius parameter). This is an
-observation of the published client, not proof of the server dataset's provenance.
-No ShadeKA application code or data was copied into Sonnenpfad.
-
-## Tree stability and view-switch correction after the next recording
-
-Tree selection now retains the current population across camera and zoom-band
-updates, with a fixed cap of 1,200 deduplicated instances. Known DEM elevations
-are retained when a later query temporarily returns null; an initially unknown
-elevation defers that crown until its terrain tile arrives. Identical populations
-do not upload new instance buffers. Crowns are hidden in 2D without destroying
-these caches. Terrain refreshes react to content updates rather than visibility
-changes. Tests exercise missing DEM heights and stable population selection.
-
-The view switch is a guarded transaction: ordinary viewport loads are suspended,
-older replies invalidated, old shadow jobs superseded, and terrain changed once
-before the camera animation. There is no second jumpTo after animation. Forced
-view data refreshes complete before layers are shown. The screen mask is disabled
-in 2D and during transitions. Tests run both directions and reject interleaved
-switches and second camera jumps.
-
-The destination confirmation toast is removed in both languages. Controls use
-small buttons in one column. Map credits remain available behind the round info
-button and can be collapsed, with the measured footer clearance preserved.
+Optional server attribute endpoints should be keyed by immutable Atlas element
+ID or visible tile; return only a requested object's attributes. Current static
+click shards already remove the eager full-detail transfer, so this endpoint is
+not a prerequisite for the new preview. Immutable elevations belong beside the
+routing graph, with prepared public display files at the CDN. Raw high-resolution
+DEM does not belong in the navigation rendering critical path.

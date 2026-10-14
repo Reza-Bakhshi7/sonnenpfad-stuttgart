@@ -1,27 +1,62 @@
-# 3D rendering architecture
+# Fast 3D display, version 0.12
 
-The 0.11 preview replaces the former direct WebGL sphere renderer with a single Three.js custom layer for Atlas buildings, spherical tree crowns/trunks and the 3D route. MapLibre continues to draw basemaps, terrain, themes, POIs and the existing modelled shadow raster. Shadow metrics still use the documented flat-ground model; this change does not introduce terrain-aware shadow calculations.
+The display and calculation datasets have different jobs. The 3D view is a flat
+map with streamed OpenFreeMap/OpenStreetMap buildings and Atlas tree crowns.
+There is no `setTerrain`, DEM decoding, camera grounding or per-building geometry
+construction in the display path. Atlas elevations, routing arrays and original
+shadow obstacles remain unchanged. Visible building heights are approximate
+OpenMapTiles display heights; they never replace Atlas calculation heights.
 
-## Coordinates and heights
+## Rendering
 
-All scene vertices use local metres around the Atlas origin. The Mercator origin and scale are composed with MapLibre's camera matrix in double precision before GPU upload. This avoids metre-sized Float32 quantisation of global Mercator positions.
+MapLibre 6.12 renders native `fill-extrusion` buildings from the basemap's existing
+vector source. Beige colour, low light contrast and no vertical gradient keep
+walls readable. `hide_3d` outlines are excluded to avoid overlapping building
+parts. Buildings remain visible from zoom 13, independently of Atlas theme tiles
+and tree detail thresholds. Zooming out no longer removes all city geometry at
+14.45. OSM source gaps are still possible; this is not a guarantee of measured
+building completeness.
 
-`terrain-heightfield.mjs` decodes the same self-hosted zoom-14 Terrain-RGB PNGs used by MapLibre. Heights are bilinearly interpolated, use the same 1.3 exaggeration and are cached independently of MapLibre's visible tile cache. Missing/failed tiles reject the request; they do not return sea-level elevation or overwrite existing object positions. Failed object loads retry with bounded exponential delays while 3D is visible. Requests are deduplicated with at most six active PNG loads and 96 decoded tiles cached.
+Three.js 0.169 renders only sphere crowns and trunks. North-positive local metre
+coordinates and one Y reflection in the model matrix preserve Three's handedness
+and Float32 precision. Opaque front-facing spheres write depth; transparent
+instanced crowns cannot be sorted reliably per tree and caused the hollow,
+angle-dependent surfaces in the user recording. Nearby tile arrival merges into
+a persistent cache. No transient terrain value can put an object underground.
+The shared WebGL renderer resets state before and after each draw.
 
-Spheres share a 24 by 16 mesh through instancing. Both radius and height retain the Atlas 0.7 scale; crown radius is constrained to fit the height. Slight crown translucency uses depth writes. Building roofs preserve courtyard holes and remain above the highest sampled footprint; foundations extend to the lowest sample. Building geometry is prepared in short main-thread batches, merged by spatial bucket and reused. Loaded objects are retained around the current centre (trees 2.6 km, buildings 3.2 km); the nearest 5,000 crowns share two instanced draws including trunks.
+There are at most 4,000 nearby tree instances and a bounded retained cache. The
+sphere mesh has 24 by 16 segments. Crowns have a deterministic green palette.
+Tree display files contain only position, crown radius, height and evergreen flag.
+They are built from the authoritative checkout by `build-display-assets.mjs`;
+original obstacles are not edited. The checked local dataset drops from 16.33 MB
+of shadow obstacles to 0.91 MB of display trees (94% fewer uncompressed bytes).
+This is a data-volume measurement, not a frame-rate or network-time benchmark.
 
-## Camera lifecycle
+## Camera and city boundary
 
-Terrain is initialized on first 3D entry and retained after returning to a top-down 2D view. A guarded mode transaction invalidates stale viewport responses, disables automatic centre grounding during the camera animation, then restores normal gestures. Normal gestures use MapLibre 6.12.0's corrected terrain handling. No mode switch destroys/reloads the terrain.
+A 2D/3D transaction owns only a 450 ms camera animation. It does not await Three,
+tree files or a DEM. The centre is retained, and interleaving transactions are
+blocked. Returning to 2D hides native extrusions and crowns without destroying the
+map. The route uses MapLibre's ordinary line source in both views.
 
-Replay prepares DEM samples at at most 12 m spacing, disables automatic grounding, owns one animation-frame loop, animates camera entry and follows the route at 18 m/s with eased bearings. Every camera update supplies centre elevation explicitly. Completion, cancellation and user gestures release that camera owner and restore ordinary grounding. The route profile continues to use original Atlas/API elevations; these rendering samples do not change routing costs or profile metrics.
+Trip preview follows the computed route at 18 m/s with eased entry and bearings.
+It uses visual elevation zero. The elevation chart continues to show actual
+Atlas heights and to move a marker on pointer hover. User gestures, Escape,
+visibility changes and explicit stop cancel the one camera owner.
 
-The city boundary overlay also prepares immutable DEM heights once and clips in camera space. It falls back to MapLibre's native city mask if its projected centre is inconsistent.
+A native city mask and camera-clipped SVG boundary mask keep outside areas grey.
+The SVG uses flat ground and requires no elevation fetch; behind-camera vertices
+are clipped before constructing the screen polygon.
 
-## Distribution and validation
+## Verification
 
-MapLibre 6.12.0 is shipped as matched ESM main/shared/worker modules with its stylesheet. Three.js 0.169.0 loads only on first 3D entry. Source chunks are self-hosted, version-pinned and verified by SHA-256 during the build. No external CDN or new server endpoint is required.
+Tests exercise actual geometry/materials, transformed trunk bounds, local frame
+precision, 24 repeated switches with a permanently stalled optional data request,
+preview completion/cancellation, camera clipping, display request isolation and
+click-only cards. The local style and building filters pass the matching MapLibre
+style validator. Cloudflare packaging is checked with Wrangler dry-run.
 
-Regression checks cover missing height tiles/retries, stable known object heights without `queryTerrainElevation`, centimetre precision, building courtyard roof area, 24 mode transitions with one terrain initialization, camera entry/replay completion/cancellation, boundary clipping and existing routing/profile behavior.
-
-Automated geometry and controller checks do not establish GPU pixel correctness. Browser-control infrastructure is unavailable in this environment. Acceptance still requires the deployed preview on actual devices: repeated 2D/3D changes, camera rotation/panning/zoom, exploration, profile hover and route playback. No SSH or Oracle configuration change is involved.
+The managed environment has no supported browser-control plugin. Live WebGL
+pixels and desktop/mobile interactions still need a browser smoke test; automated
+checks do not substitute for that visual acceptance step. This remains a preview.

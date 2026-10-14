@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {buildDisplayAssets} from './build-display-assets.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
@@ -14,8 +15,9 @@ const serverRouting = read('scripts/server-routing.mjs').replaceAll('export cons
 const appData = read('scripts/app-data.mjs').replaceAll('export function ', 'function ');
 const weather = read('scripts/weather.mjs')
   .replaceAll('export const ', 'const ')
-  .replaceAll('export function ', 'function ');
-const experience = ['route-experience.mjs','terrain-heightfield.mjs','city-scene.mjs','boundary-projection.mjs'].map(name=>read('scripts/'+name).replace(/^import .*$/gm,'').replaceAll('export function ', 'function ').replaceAll('export async function ', 'async function ')).join('\n');
+  .replaceAll('export function ', 'function ')
+  .replaceAll('export async function ', 'async function ');
+const experience = ['route-experience.mjs','display-data.mjs','basemap-style.mjs','city-scene.mjs','boundary-projection.mjs'].map(name=>read('scripts/'+name).replace(/^import .*$/gm,'').replaceAll('export const ', 'const ').replaceAll('export function ', 'function ').replaceAll('export async function ', 'async function ')).join('\n');
 const application = `${experience}\n${serverRouting}\n${read('scripts/app.source.mjs')}\n${read('scripts/map-experience.mjs')}`;
 const workerSource = `${core}\n${serverRouting}\n${worker}`;
 
@@ -24,6 +26,11 @@ fs.writeFileSync(
   path.join(root, 'dist/app-v7.mjs'),
   `import * as maplibregl from './vendor/maplibre-gl.mjs';\nlet THREE;\nmaplibregl.setWorkerUrl(new URL('./vendor/maplibre-gl-worker.mjs',import.meta.url).href);\n${appData}\n${weather}\nconst BUNDLED_WORKER=${JSON.stringify(workerSource)};\n${application}`,
 );
+// A new source revision must not reuse a cached app/style URL on the branch
+// preview alias. The index itself is always revalidated.
+const assetHash=filename=>crypto.createHash('sha256').update(fs.readFileSync(path.join(root,filename))).digest('hex').slice(0,16);
+const index=read('dist/index.html').replace(/app-v7\.mjs\?v=[^"\s]+/g,`app-v7.mjs?v=${assetHash('dist/app-v7.mjs')}`).replace(/style\.css\?v=[^"\s]+/g,`style.css?v=${assetHash('dist/style.css')}`);
+fs.writeFileSync(path.join(root,'dist/index.html'),index);
 
 const vendors=JSON.parse(read('assets/vendor/versions.json'));
 for(const [name,definition] of Object.entries(vendors.files)){
@@ -44,3 +51,5 @@ for (const required of [
 }
 
 console.log(`Cloudflare bundle ready (MapLibre ${vendors.maplibre}, Three.js ${vendors.three}).`);
+const display=buildDisplayAssets(path.join(root,'dist/city'));
+console.log(`Display assets ${display.revision}: tree tiles ${(display.stats.sceneBytes/1e6).toFixed(2)} MB instead of ${(display.stats.oldSceneBytes/1e6).toFixed(2)} MB of shadow obstacles; details are click-only.`);
