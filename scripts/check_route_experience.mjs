@@ -3,6 +3,18 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {routeMeasure,pointAlongRoute,smoothBearing} from './route-experience.mjs';
 import {buildProfileRequest,supportsProfileContract,directedProfileCosts} from './server-profile-contract.mjs';
+import {projectBoundaryPath,clipCameraPolygon} from './boundary-projection.mjs';
+import {sphereMesh} from './sphere-trees.mjs';
+// Regression for the user's all-grey 3D recording: half of the city polygon is
+// behind the camera. Clipping must preserve the centre of the visible city.
+const ring=[[-10,-10,0],[10,-10,0],[10,10,0],[-10,10,0]],cameraMatrix=[1,0,0,0,0,.6,0,.8,0,-.8,0,-.6,0,-.2,.1,.5];
+const projected=projectBoundaryPath([ring],cameraMatrix,800,600),screenRing=[...projected.matchAll(/[ML]([\d.-]+) ([\d.-]+)/g)].map(match=>[+match[1],+match[2]]);
+assert(screenRing.length>=3);assert(screenRing.every(p=>p[0]>=0&&p[0]<=800&&p[1]>=0&&p[1]<=600));
+const inside=(point,polygon)=>{let hit=false;for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){const a=polygon[i],b=polygon[j];if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])hit=!hit;}return hit;};
+assert(inside([400,300],screenRing),'city centre must remain visible with boundary vertices behind the camera');
+assert.equal(clipCameraPolygon([[0,0,0,-1],[1,0,0,-1],[0,1,0,-1]]).length,0);
+const mesh=sphereMesh();for(let i=0;i<mesh.vertices.length;i+=3)assert(Math.abs(Math.hypot(...mesh.vertices.slice(i,i+3))-1)<1e-6);
+for(let i=0;i<mesh.indices.length;i+=3){const a=[...mesh.vertices.slice(mesh.indices[i]*3,mesh.indices[i]*3+3)],b=[...mesh.vertices.slice(mesh.indices[i+1]*3,mesh.indices[i+1]*3+3)],c=[...mesh.vertices.slice(mesh.indices[i+2]*3,mesh.indices[i+2]*3+3)],u=b.map((v,j)=>v-a[j]),v=c.map((q,j)=>q-a[j]),normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];assert(normal.reduce((sum,q,j)=>sum+q*a[j],0)>0,'sphere faces must point outward');}
 const measure=routeMeasure([[0,0],[30,0],[30,40]]);
 assert.equal(measure.total,70);assert.deepEqual(pointAlongRoute(measure,0),[0,0]);assert.deepEqual(pointAlongRoute(measure,1),[30,40]);assert.deepEqual(pointAlongRoute(measure,.5),[30,5]);assert.deepEqual(pointAlongRoute(measure,-1),[0,0]);assert.equal(smoothBearing(359,1,.5),360);
 const edge={l:100,dir:0,sf:8,s:8,dz:8,surface:1,way:1,wheelchair:1,steps:false};
