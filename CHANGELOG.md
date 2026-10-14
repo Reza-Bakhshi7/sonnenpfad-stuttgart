@@ -4,6 +4,11 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
+- Keep tree populations and known terrain heights stable during camera/zoom updates; avoid identical GPU uploads and hide crowns in 2D without resetting caches.
+- Serialize 2D/3D switches, change terrain once before the camera animation, discard stale viewport data and avoid the second camera jump.
+- Remove the destination confirmation toast, restore small single-column controls and collapsible map attribution.
+
+
 - Exploration mode separates map gestures from route endpoint picking; explicit endpoint tools retain routing.
 - New 3D route playback and elevation-chart hover/keyboard position marker.
 - Current Stuttgart time on entry; translated, consistently sourced basemap names; compact custom settings and weather details; measured attribution clearance.

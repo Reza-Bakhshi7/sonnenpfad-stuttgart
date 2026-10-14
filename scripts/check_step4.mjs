@@ -13,7 +13,7 @@ const expectedThemes = ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciS
 
 assert(!appSource.includes("getAttribute('aria-label')=t('layersTitle')"), 'Layer language setup must not assign to getAttribute().');
 assert(appSource.includes('function easeCamera')&&appSource.includes('Math.min(camera.zoom,16.4)'), '2D/3D switching must preserve the centre and cap only excessively expensive 3D zoom levels.');
-assert(appSource.includes("await loadVisibleCityTiles();if(is3D){map.setTerrain"), '3D data must load before terrain and extrusion layers become visible.');
+assert(appSource.includes('await loadVisibleCityTiles({force:true})')&&appSource.includes('async function setMapViewMode'), '3D data must load before terrain and extrusion layers become visible.');
 assert(appSource.includes('prepareRouteShade'), 'Long routes must load a complete shade corridor before routing.');
 assert(appSource.includes('outsideLocation'), 'Out-of-city geolocation must use a dismissible message.');
 assert(appSource.includes('function addPoiMapImage'), 'POIs must be normalized into fixed-size map markers.');

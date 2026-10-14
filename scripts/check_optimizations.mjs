@@ -16,7 +16,7 @@ assert(pipeline.includes('"steps": display_class == "steps" and not escalator'),
 assert(!pipeline.includes('highway == "steps" or row["fclass"] == "steps"'),'the broad historic/current staircase union must stay removed');
 assert(source.includes("fill-extrusion-opacity':.74"),'3D trees must remain see-through');
 assert(source.includes('tree.r*.7')&&source.includes('tree.h*.7'),'fallback tree dimensions must be 30% smaller');
-assert(source.includes('treeSphereLayer?.setTrees(nearTrees)'),'tree crowns must use the sphere layer');
+assert(source.includes('treeSphereLayer?.setTrees(selection.trees)'),'tree crowns must use the sphere layer');
 const spheres=fs.readFileSync(path.join(root,'scripts/sphere-trees.mjs'),'utf8');assert(spheres.includes('sphereMesh')&&spheres.includes('drawElementsInstanced'),'crowns share a smooth sphere mesh in one instanced draw');
 assert(source.includes('function installFeatureCards'),'desktop feature cards must be installed');
 assert(source.includes('poiDetails[key]||{}'),'compact POI details must enrich existing visual tiles');
