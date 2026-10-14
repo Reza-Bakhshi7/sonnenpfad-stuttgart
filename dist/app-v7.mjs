@@ -117,54 +117,71 @@ function smoothBearing(previous,next,weight) {
  return previous+(((next-previous+540)%360)-180)*Math.max(0,Math.min(1,weight));
 }
 
-// One instanced draw: analytic, smooth spheres instead of extruded polygon slices.
-// The camera-facing disk is shaded as a sphere; depth is written at its surface.
-function createSphereTreeLayer({toLngLat,dimensions}) {
- let map,program,vao,buffer,glContext,instances=[],dirty=true,lastTerrain=-1;
+// A shared smooth sphere mesh, drawn once with instances. No sliced extrusions,
+// camera-facing impostors, per-frame GeoJSON or third-party renderer is needed.
+function sphereMesh(longitudes=16,latitudes=10){
+ const vertices=[],indices=[];
+ for(let y=0;y<=latitudes;y++){const phi=y*Math.PI/latitudes;for(let x=0;x<=longitudes;x++){const theta=x*2*Math.PI/longitudes;vertices.push(Math.sin(phi)*Math.cos(theta),Math.sin(phi)*Math.sin(theta),Math.cos(phi));}}
+ for(let y=0;y<latitudes;y++)for(let x=0;x<longitudes;x++){const a=y*(longitudes+1)+x,b=a+longitudes+1;if(y>0)indices.push(a,b,a+1);if(y<latitudes-1)indices.push(a+1,b,b+1);}
+ return {vertices:new Float32Array(vertices),indices:new Uint16Array(indices)};
+}
+function createSphereTreeLayer({toLngLat,dimensions}){
+ let map,glContext,program,vao,vertexBuffer,indexBuffer,instanceBuffer,indexCount=0,instances=[],dirty=true,lastTerrain=-1;
  const vertex=`#version 300 es
  precision highp float;
- layout(location=0) in vec4 tree;
- layout(location=1) in vec3 tint;
+ layout(location=0) in vec3 unitSphere;
+ layout(location=1) in vec4 tree;
+ layout(location=2) in vec3 tint;
  uniform mat4 matrix;
- uniform vec3 rightVector,upVector;
- out vec2 disk;out vec3 colour;out vec3 centre;out float radius;
- const vec2 corners[6]=vec2[6](vec2(-1,-1),vec2(1,-1),vec2(-1,1),vec2(-1,1),vec2(1,-1),vec2(1,1));
- void main(){disk=corners[gl_VertexID];colour=tint;centre=tree.xyz;radius=tree.w;
- gl_Position=matrix*vec4(tree.xyz+tree.w*(rightVector*disk.x+upVector*disk.y),1.0);}`;
+ out vec3 normal;out vec3 colour;
+ void main(){normal=unitSphere;colour=tint;gl_Position=matrix*vec4(tree.xyz+tree.w*unitSphere,1.0);}`;
  const fragment=`#version 300 es
  precision highp float;
- in vec2 disk;in vec3 colour;in vec3 centre;in float radius;
- uniform mat4 matrix;uniform vec3 rightVector,upVector,eyeVector;
- out vec4 outputColour;
- void main(){float rr=dot(disk,disk);if(rr>1.0)discard;float z=sqrt(1.0-rr);
- vec3 normal=normalize(rightVector*disk.x+upVector*disk.y+eyeVector*z);
- vec4 clip=matrix*vec4(centre+radius*normal,1.0);gl_FragDepth=(clip.z/clip.w)*0.5+0.5;
- float light=.62+.38*max(0.0,dot(normal,normalize(vec3(-.4,-.5,1.0))));
- outputColour=vec4(colour*light*.74,.74);}`;
- const compile=(gl,type,source)=>{const shader=gl.createShader(type);gl.shaderSource(shader,source);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(shader));return shader;};
- const layer={id:'tree-spheres',type:'custom',renderingMode:'3d',
+ in vec3 normal;in vec3 colour;out vec4 outputColour;
+ void main(){vec3 n=normalize(normal);float light=.60+.40*max(0.0,dot(n,normalize(vec3(-.4,-.5,1.0))));outputColour=vec4(colour*light*.74,.74);}`;
+ const compile=(gl,type,source)=>{const shader=gl.createShader(type);gl.shaderSource(shader,source);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){const error=gl.getShaderInfoLog(shader);gl.deleteShader(shader);throw Error(error);}return shader;};
+ const layer={id:'tree-spheres',type:'custom',renderingMode:'3d',terrainRevision:0,
   setTrees(trees){instances=trees;dirty=true;map?.triggerRepaint();},
-  onAdd(current,gl){map=current;glContext=gl;if(!gl.drawArraysInstanced)throw Error('Sphere crowns require WebGL2');
+  onAdd(current,gl){map=current;glContext=gl;if(!gl.drawElementsInstanced)throw Error('Sphere crowns require WebGL2');
    const vs=compile(gl,gl.VERTEX_SHADER,vertex),fs=compile(gl,gl.FRAGMENT_SHADER,fragment);program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
-   vao=gl.createVertexArray();buffer=gl.createBuffer();gl.bindVertexArray(vao);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
-   for(const [index,size,offset] of [[0,4,0],[1,3,16]]){gl.enableVertexAttribArray(index);gl.vertexAttribPointer(index,size,gl.FLOAT,false,28,offset);gl.vertexAttribDivisor(index,1);}gl.bindVertexArray(null);
+   const mesh=sphereMesh();indexCount=mesh.indices.length;vao=gl.createVertexArray();vertexBuffer=gl.createBuffer();indexBuffer=gl.createBuffer();instanceBuffer=gl.createBuffer();gl.bindVertexArray(vao);
+   gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer);gl.bufferData(gl.ARRAY_BUFFER,mesh.vertices,gl.STATIC_DRAW);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,3,gl.FLOAT,false,12,0);
+   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indexBuffer);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,mesh.indices,gl.STATIC_DRAW);
+   gl.bindBuffer(gl.ARRAY_BUFFER,instanceBuffer);for(const [index,size,offset]of [[1,4,0],[2,3,16]]){gl.enableVertexAttribArray(index);gl.vertexAttribPointer(index,size,gl.FLOAT,false,28,offset);gl.vertexAttribDivisor(index,1);}gl.bindVertexArray(null);
   },
-  render(gl,args){if(!instances.length)return;
-   // Re-anchor when DEM tiles arrive. queryTerrainElevation returns exaggerated height.
-   if(dirty||lastTerrain!==layer.terrainRevision){const values=[];for(const tree of instances.slice().reverse()){const ll=toLngLat(tree.p),{r,h}=dimensions(tree),ground=map.queryTerrainElevation(ll)||0,altitude=ground+Math.max(r+.5,h-r),point=maplibregl.MercatorCoordinate.fromLngLat(ll,altitude),scale=point.meterInMercatorCoordinateUnits();values.push(point.x,point.y,point.z,r*scale,...(tree.evergreen?[.16,.40,.27]:[.28,.53,.35]));}gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(values),gl.DYNAMIC_DRAW);dirty=false;lastTerrain=layer.terrainRevision;}
-   const matrix=args.defaultProjectionData?.mainMatrix||args.defaultProjectionData?.fallbackMatrix||args;
-   const bearing=map.getBearing()*Math.PI/180,pitch=map.getPitch()*Math.PI/180,right=[Math.cos(bearing),Math.sin(bearing),0],up=[Math.sin(bearing)*Math.cos(pitch),-Math.cos(bearing)*Math.cos(pitch),Math.sin(pitch)],eye=[-Math.sin(bearing)*Math.sin(pitch),Math.cos(bearing)*Math.sin(pitch),Math.cos(pitch)];
-   // Mercator's z points up; camera is above the ground.
-   eye[2]=Math.cos(pitch);up[2]=Math.sin(pitch);
-   gl.useProgram(program);gl.bindVertexArray(vao);gl.uniformMatrix4fv(gl.getUniformLocation(program,'matrix'),false,matrix);
-   for(const [name,value]of [['rightVector',right],['upVector',up],['eyeVector',eye]])gl.uniform3fv(gl.getUniformLocation(program,name),value);
-   const depthMask=gl.getParameter(gl.DEPTH_WRITEMASK),blend=gl.isEnabled(gl.BLEND),cull=gl.isEnabled(gl.CULL_FACE);
-   gl.enable(gl.DEPTH_TEST);gl.depthMask(false);gl.disable(gl.CULL_FACE);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.drawArraysInstanced(gl.TRIANGLES,0,6,instances.length);
-   gl.depthMask(depthMask);if(!blend)gl.disable(gl.BLEND);if(cull)gl.enable(gl.CULL_FACE);gl.bindVertexArray(null);
-  },terrainRevision:0,
-  onRemove(){const gl=glContext;if(gl){gl.deleteBuffer(buffer);gl.deleteVertexArray(vao);gl.deleteProgram(program);}map=null;}
+  render(gl,args){if(!instances.length)return;const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16)return;
+   if(dirty||lastTerrain!==layer.terrainRevision){const values=[];for(const tree of instances.slice().reverse()){const ll=toLngLat(tree.p),{r,h}=dimensions(tree),ground=map.queryTerrainElevation(ll)||0,altitude=ground+Math.max(r+.5,h-r),point=maplibregl.MercatorCoordinate.fromLngLat(ll,altitude),scale=point.meterInMercatorCoordinateUnits();values.push(point.x,point.y,point.z,r*scale,...(tree.evergreen?[.16,.40,.27]:[.28,.53,.35]));}gl.bindBuffer(gl.ARRAY_BUFFER,instanceBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(values),gl.DYNAMIC_DRAW);dirty=false;lastTerrain=layer.terrainRevision;}
+   const depthMask=gl.getParameter(gl.DEPTH_WRITEMASK),blend=gl.isEnabled(gl.BLEND),cull=gl.isEnabled(gl.CULL_FACE),frontFace=gl.getParameter(gl.FRONT_FACE),cullMode=gl.getParameter(gl.CULL_FACE_MODE);
+   gl.useProgram(program);gl.bindVertexArray(vao);gl.uniformMatrix4fv(gl.getUniformLocation(program,'matrix'),false,matrix);gl.enable(gl.DEPTH_TEST);gl.depthMask(false);gl.enable(gl.CULL_FACE);gl.frontFace(gl.CCW);gl.cullFace(gl.BACK);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+   gl.drawElementsInstanced(gl.TRIANGLES,indexCount,gl.UNSIGNED_SHORT,0,instances.length);
+   gl.depthMask(depthMask);gl.frontFace(frontFace);gl.cullFace(cullMode);if(!blend)gl.disable(gl.BLEND);if(!cull)gl.disable(gl.CULL_FACE);gl.bindVertexArray(null);
+  },
+  onRemove(){const gl=glContext;if(gl){for(const buffer of [vertexBuffer,indexBuffer,instanceBuffer])gl.deleteBuffer(buffer);gl.deleteVertexArray(vao);gl.deleteProgram(program);}map=null;}
  };
  return layer;
+}
+
+// Clip in homogeneous camera space BEFORE dividing by w. Projecting vertices
+// behind a tilted camera first turns the city polygon inside out.
+function multiplyPoint(matrix,point){
+ const [x,y,z=0]=point;
+ return [matrix[0]*x+matrix[4]*y+matrix[8]*z+matrix[12],matrix[1]*x+matrix[5]*y+matrix[9]*z+matrix[13],matrix[2]*x+matrix[6]*y+matrix[10]*z+matrix[14],matrix[3]*x+matrix[7]*y+matrix[11]*z+matrix[15]];
+}
+function clipCameraPolygon(points){
+ let polygon=points;
+ // Include the near plane and all viewport edges. The far plane intentionally
+ // does not clip a ground boundary; map terrain controls its own visibility.
+ for(const distance of [p=>p[3]-1e-8,p=>p[2]+p[3],p=>p[0]+p[3],p=>p[3]-p[0],p=>p[1]+p[3],p=>p[3]-p[1]]){
+  if(!polygon.length)break;const next=[];
+  for(let i=0;i<polygon.length;i++){const a=polygon[i],b=polygon[(i+1)%polygon.length],da=distance(a),db=distance(b),insideA=da>=0,insideB=db>=0;if(insideA)next.push(a);if(insideA!==insideB){const f=da/(da-db);next.push(a.map((v,j)=>v+(b[j]-v)*f));}}
+  polygon=next;
+ }
+ return polygon;
+}
+function projectBoundaryPath(rings,matrix,width,height){
+ let path='';
+ for(const ring of rings){const clipped=clipCameraPolygon(ring.map(point=>multiplyPoint(matrix,point)));if(clipped.length<3)continue;path+=clipped.map((p,i)=>`${i?'L':'M'}${((p[0]/p[3]+1)*width/2).toFixed(2)} ${((1-p[1]/p[3])*height/2).toFixed(2)}`).join('')+'Z';}
+ return path;
 }
 
 // API 0.2 metadata describes oriented route pieces. Atlas heights are interpolated,
@@ -392,10 +409,9 @@ function updateVisibleCitySources(selected,visualOnly=false){
  obstacles={buildings:selected.flatMap(t=>t.buildings),trees:selected.flatMap(t=>t.trees)};
  const lines=selected.flatMap(t=>t.lines),themes=selected.flatMap(t=>t.themes||[]),pois=selected.flatMap(t=>t.pois||[]);activeCityEdgeIds=selected.flatMap(t=>t.edgeIds||[]);
  if(!visualOnly){map.getSource('network')?.setData(fc(lines.map((coordinates,index)=>{const edgeId=activeCityEdgeIds[index];return feature('LineString',coordinates.map(ll),themeProperties(themes[index],structureFlags[edgeId]||0,edgeId));})));map.getSource('stairs-lines')?.setData(fc(lines.flatMap((coordinates,index)=>stepFlags[activeCityEdgeIds[index]]?[feature('LineString',coordinates.map(ll),{edgeId:activeCityEdgeIds[index]})]:[])));map.getSource('slope-direction')?.setData(fc(slopeArrowFeatures(lines,themes,activeCityEdgeIds)));map.getSource('pois')?.setData(fc(pois.map(({p,k,...properties})=>{const key=`${k}:${p[0].toFixed(2)}:${p[1].toFixed(2)}`,details=poiDetails[key]||{};delete properties.n;return feature('Point',ll(p),{k,...properties,...details});})));}
- const zoom=map.getZoom(),bounds=map.getBounds(),insideView=point=>{const p=ll(point);return p[0]>=bounds.getWest()-.002&&p[0]<=bounds.getEast()+.002&&p[1]>=bounds.getSouth()-.002&&p[1]<=bounds.getNorth()+.002;};
- const visibleBuildings=is3D?obstacles.buildings.filter(building=>{const ring=building.r[0],lngs=ring.map(p=>ll(p)[0]),lats=ring.map(p=>ll(p)[1]);return Math.max(...lngs)>=bounds.getWest()&&Math.min(...lngs)<=bounds.getEast()&&Math.max(...lats)>=bounds.getSouth()&&Math.min(...lats)<=bounds.getNorth();}):[];
+ const zoom=map.getZoom(),visibleBuildings=is3D?obstacles.buildings:[];
  map.getSource('buildings')?.setData(fc(visibleBuildings.map(building=>feature('Polygon',building.r.map(ring=>ring.map(ll)),{height:building.h}))));
- const center=local([map.getCenter().lng,map.getCenter().lat]),treeCap=zoom<15.6?250:zoom<16.4?500:800,nearTrees=is3D?obstacles.trees.filter(tree=>insideView(tree.p)&&inPilot(ll(tree.p))).sort((a,b)=>Math.hypot(a.p[0]-center[0],a.p[1]-center[1])-Math.hypot(b.p[0]-center[0],b.p[1]-center[1])).slice(0,treeCap):[];
+ const center=local([map.getCenter().lng,map.getCenter().lat]),treeCap=zoom<15.6?400:zoom<16.4?700:1200,nearTrees=is3D?obstacles.trees.filter(tree=>inPilot(ll(tree.p))).sort((a,b)=>Math.hypot(a.p[0]-center[0],a.p[1]-center[1])-Math.hypot(b.p[0]-center[0],b.p[1]-center[1])).slice(0,treeCap):[];
  map.getSource('trees-3d')?.setData(fc(treePartsFor(nearTrees)));treeSphereLayer?.setTrees(nearTrees);
 
 }
@@ -412,7 +428,7 @@ async function loadVisibleCityTiles(){if(previewState){if(Date.now()-lastPreview
  const loadId=++tileLoadId,zoom=map.getZoom(),grid=cityManifest.obstacles.grid,b=map.getBounds(),toCell=(lon,lat)=>[Math.floor((lon-meta.origin[0])*meta.scale[0]/grid),Math.floor((lat-meta.origin[1])*meta.scale[1]/grid)],a=toCell(b.getWest(),b.getSouth()),z=toCell(b.getEast(),b.getNorth()),center=toCell(map.getCenter().lng,map.getCenter().lat),available=cityManifest.obstacles.tiles,candidates=[],bearing=(map.getBearing()||0)*Math.PI/180,forward=[Math.sin(bearing),Math.cos(bearing)];
  for(let x=a[0]-1;x<=z[0]+1;x++)for(let y=a[1]-1;y<=z[1]+1;y++){const key=`${x}_${y}`;if(available[key])candidates.push(key);}
  const score=key=>{const cell=key.split('_').map(Number),dx=cell[0]-center[0],dy=cell[1]-center[1],distance=Math.hypot(dx,dy),ahead=dx*forward[0]+dy*forward[1];return distance-(is3D?Math.max(-1,ahead)*.42:0);};candidates.sort((x,y)=>score(x)-score(y));
- const keys=is3D?candidates:candidates.slice(0,18),zoomBand=zoom<15.6?0:zoom<16.4?1:2,nextSignature=`${is3D?'3':'2'}|${zoomBand}|${center.join('_')}|${map.getCenter().lng.toFixed(4)},${map.getCenter().lat.toFixed(4)}|${map.getBearing().toFixed(0)}|${keys.join(',')}`;
+ const keys=(is3D?candidates:candidates.slice(0,18)).sort(),zoomBand=zoom<15.6?0:zoom<16.4?1:2,nextSignature=`${is3D?'3':'2'}|${zoomBand}|${keys.join(',')}`;
  if(nextSignature===activeCityViewSignature)return;
  const selected=await fetchCityTiles(keys,{includeShade:is3D});
  if(loadId!==tileLoadId)return;for(const cache of [cityTileCache,cityShadeTileCache])while(cache.size>Math.max(64,keys.length+12)){const old=[...cache.keys()].find(key=>!keys.includes(key));if(!old)break;cache.delete(old);}
@@ -428,7 +444,7 @@ async function init(){
  map=new maplibregl.Map({container:'map',style,center:[9.1779,48.7775],zoom:cityManifest?12.2:15.2,minZoom:cityManifest?11.7:12,maxZoom:18,maxBounds:cityManifest?[[meta.bounds[0],meta.bounds[1]],[meta.bounds[2],meta.bounds[3]]]:undefined,maxPitch:0,attributionControl:false,pitch:0,canvasContextAttributes:{antialias:true}});
  map.touchPitch.disable();
  map.addControl(new maplibregl.NavigationControl({showCompass:true}),'top-right');
- map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'Atlas: M. Bakhshi'}),'bottom-right');
+ map.addControl(new maplibregl.AttributionControl({compact:false,customAttribution:'Atlas: M. Bakhshi'}),'bottom-right');
  map.on('load',()=>{setupLayers();updateMarkers();installDirectMapPicking();$('loading-cover').hidden=true;worker=new Worker(URL.createObjectURL(new Blob([BUNDLED_WORKER],{type:'text/javascript'})));worker.onerror=()=>{status('modelFailed');$('calculate').disabled=true;};worker.onmessage=onWorker;if(cityManifest){worker.postMessage({type:'initCity',manifest:cityManifest,base:cityBaseURL.href});loadVisibleCityTiles();map.on('moveend',()=>{loadVisibleCityTiles().catch(error=>console.warn('Viewport data unavailable',error));});}else worker.postMessage({type:'init',meta,network,obstacles});map.on('rotate',updateSunDirection);map.on('click',e=>{if(pick===null)return;chooseMapPoint([e.lngLat.lng,e.lngLat.lat],{forcedIndex:pick});});});
  }catch(e){const key=/WebGL|MapLibre|context/i.test(e?.message||'')?'mapUnsupported':'loadFail';status(key);$('loading-cover').querySelector('span').textContent=t(key);$('loading-cover').querySelector('.spinner').hidden=true;console.error(e);}
 }
@@ -440,7 +456,7 @@ function setupLayers(){
  map.addSource('shade',{type:'image',url:emptyCanvas.toDataURL(),coordinates:[[meta.bounds[0],meta.bounds[3]],[meta.bounds[2],meta.bounds[3]],[meta.bounds[2],meta.bounds[1]],[meta.bounds[0],meta.bounds[1]]]});map.addLayer({id:'shade-fill',type:'raster',source:'shade',layout:{visibility:'none'},paint:{'raster-opacity':.34,'raster-fade-duration':0}});
  map.addSource('buildings',{type:'geojson',data:fc(obstacles.buildings.map(b=>feature('Polygon',toPoly(b),{height:b.h})))});
  map.addLayer({id:'buildings-flat',type:'fill',source:'buildings',layout:{visibility:'none'},paint:{'fill-color':'#d8dedf','fill-outline-color':'#c1cbce'}});
- map.addLayer({id:'buildings-3d',type:'fill-extrusion',source:'buildings',layout:{visibility:'none'},paint:{'fill-extrusion-color':'#e2e7e7','fill-extrusion-height':['get','height'],'fill-extrusion-opacity':.95}});
+ map.addLayer({id:'buildings-3d',type:'fill-extrusion',source:'buildings',layout:{visibility:'none'},paint:{'fill-extrusion-color':'#e2e7e7','fill-extrusion-height':['get','height'],'fill-extrusion-opacity':1}});
  map.addSource('boundary',{type:'geojson',data:cityBoundary?fc([cityBoundary]):fc([feature('Polygon',[[[meta.bounds[0],meta.bounds[1]],[meta.bounds[2],meta.bounds[1]],[meta.bounds[2],meta.bounds[3]],[meta.bounds[0],meta.bounds[3]],[meta.bounds[0],meta.bounds[1]]]])])});map.addLayer({id:'pilot-boundary',type:'line',source:'boundary',paint:{'line-color':'#f4c542','line-width':['interpolate',['linear'],['zoom'],11.5,2,16,4],'line-opacity':1}});
  map.addSource('route',{type:'geojson',data:fc([])});map.addLayer({id:'route-halo',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],14.5,15,17,18,19,20]}});map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#d7191c','line-width':['interpolate',['linear'],['zoom'],14.5,10,17,12.5,19,14],'line-opacity':1}});
 }
@@ -514,7 +530,7 @@ if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContex
 function updateExperienceLanguage(){
  const de=lang==='de',labels={openfree:'OpenFreeMap',osm:'Standard · OpenStreetMap',topo:(de?'Topografisch':'Topographic')+' · OpenTopoMap',aerial:(de?'Luftbild':'Aerial')+' · LGL BW'};
  for(const option of $('basemap')?.options||[])option.textContent=labels[option.value]||option.textContent;
- $('basemap')?.setAttribute('aria-label',de?'Hintergrundkarte':'Basemap');
+ $('basemap')?.setAttribute('aria-label',de?'Hintergrundkarte':'Basemap');$('map-credits')?.setAttribute('aria-label',de?'Kartenquellen':'Map credits');
  const button=$('explore-mode');if(button){button.textContent=exploreMode?(de?'Entdecken':'Explore'):(de?'Route planen':'Plan route');button.title=exploreMode?(de?'Karte frei erkunden. Zur Routenplanung wechseln.':'Explore freely. Switch to route planning.'):(de?'Routenplanung aktiv. Frei erkunden einschalten.':'Route planning active. Switch to free exploration.');button.setAttribute('aria-label',button.title);}
  if($('route-preview'))$('route-preview').textContent=previewState?(de?'■ Vorschau beenden':'■ Stop preview'):(de?'▶ 3D-Routenvorschau':'▶ 3D route preview');
  $('elevation-chart')?.setAttribute('aria-label',de?'Höhenprofil: Zeiger bewegen, um die Position auf der Karte zu sehen':'Elevation profile: move the pointer to see the location on the map');
@@ -544,8 +560,24 @@ function installMapExperience(){
  treeSphereLayer=createSphereTreeLayer({toLngLat:ll,dimensions:treeDimensions});map.addLayer(treeSphereLayer);
  map.on('sourcedata',event=>{if(event.sourceId==='terrain-dem'){treeSphereLayer.terrainRevision++;map.triggerRepaint();}});
  for(const event of ['dragstart','zoomstart','rotatestart','pitchstart'])map.on(event,e=>{if(e.originalEvent)stopRoutePreview(false);});
- const attribution=document.querySelector('.maplibregl-ctrl-attrib');if(attribution&&globalThis.ResizeObserver)new ResizeObserver(()=>{const height=attribution.getBoundingClientRect().height;$('map').parentElement.style.setProperty('--attribution-height',`${Math.ceil(height)}px`);}).observe(attribution);
- // Screen-space opaque boundary also covers terrain, raster textures and 3D meshes.
- const mask=$('city-screen-mask'),path=mask.querySelector('path');let signature='';
- const updateMask=()=>{if(!cityBoundary){mask.hidden=true;return;}const c=map.getCenter(),canvas=map.getCanvas(),next=[c.lng,c.lat,map.getZoom(),map.getPitch(),map.getBearing(),canvas.clientWidth,canvas.clientHeight,treeSphereLayer.terrainRevision].join('|');if(next===signature)return;signature=next;mask.setAttribute('viewBox',`0 0 ${canvas.clientWidth} ${canvas.clientHeight}`);let d=`M0 0H${canvas.clientWidth}V${canvas.clientHeight}H0Z`;for(const polygon of cityBoundary.geometry.coordinates)for(const ring of polygon){d+=ring.map((point,i)=>{const p=map.project(point);return `${i?'L':'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`;}).join('')+'Z';}path.setAttribute('d',d);};map.on('render',updateMask);updateMask();
+ // Credits live in a reserved DOM slot, outside the map's control corners.
+ const attribution=document.querySelector('.maplibregl-ctrl-attrib'),host=$('map-credits');
+ if(attribution&&host){host.append(attribution);const measure=()=>{const height=host.getBoundingClientRect().height;map.getContainer().parentElement.style.setProperty('--attribution-height',`${Math.ceil(height)}px`);};if(globalThis.ResizeObserver)new ResizeObserver(measure).observe(host);measure();}
+ const tools=document.querySelector('.map-tools');if(tools&&globalThis.ResizeObserver){const measureTools=()=>{const area=tools.parentElement.getBoundingClientRect(),rect=tools.getBoundingClientRect();tools.parentElement.style.setProperty('--toolbar-end',`${Math.ceil(rect.bottom-area.top+8)}px`);};new ResizeObserver(measureTools).observe(tools);measureTools();}
+ // The native opaque mask remains a fallback. The overlay uses camera-space
+ // clipping so vertices behind the camera cannot obscure the whole viewport.
+ const mask=$('city-screen-mask'),path=mask.querySelector('path');let rings=[],terrainRevision=-1,lastSignature='';
+ if(cityBoundary)map.addLayer({id:'boundary-projector',type:'custom',renderingMode:'3d',render(gl,args){
+  const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16){mask.setAttribute('hidden','');return;}
+  const canvas=map.getCanvas(),width=canvas.clientWidth,height=canvas.clientHeight,revision=treeSphereLayer?.terrainRevision||0;
+  if(!rings.length||terrainRevision!==revision){rings=cityBoundary.geometry.coordinates.flatMap(polygon=>polygon.map(ring=>ring.map(point=>{const ground=map.queryTerrainElevation(point)||0,p=maplibregl.MercatorCoordinate.fromLngLat(point,ground);return [p.x,p.y,p.z];})));terrainRevision=revision;}
+  const signature=width+'|'+height+'|'+revision+'|'+Array.from(matrix).join(',');if(signature===lastSignature)return;lastSignature=signature;
+  const inside=projectBoundaryPath(rings,matrix,width,height),centre=map.getCenter(),screenCentre=map.project(centre),projectedRings=inside.split('Z').filter(Boolean).map(part=>[...part.matchAll(/[ML]([\d.-]+) ([\d.-]+)/g)].map(match=>[+match[1],+match[2]]));
+  // Fail open to the native GPU-clipped mask if an inconsistent matrix/terrain
+  // state would cover the actual city centre. A map must never go all-grey here.
+  const centreVisible=projectedRings.reduce((hit,ring)=>hit!==pointInRing([screenCentre.x,screenCentre.y],ring),false);
+  if(inPilot([centre.lng,centre.lat])&&!centreVisible){mask.setAttribute('hidden','');return;}
+  mask.setAttribute('viewBox',`0 0 ${width} ${height}`);path.setAttribute('d',`M0 0H${width}V${height}H0Z`+inside);mask.removeAttribute('hidden');
+ }});
+ else mask.setAttribute('hidden','');
 }

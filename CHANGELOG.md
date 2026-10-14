@@ -8,7 +8,7 @@ All notable product changes are documented here. The project follows semantic ve
 - New 3D route playback and elevation-chart hover/keyboard position marker.
 - Current Stuttgart time on entry; translated, consistently sourced basemap names; compact custom settings and weather details; measured attribution clearance.
 - Stair tread styling only on the slope theme. 3D viewport coverage replaces arbitrary tile/building caps, with a bounded minimum 3D zoom.
-- Analytic instanced sphere crowns replace stacked canopy slices. Opaque screen boundary masks terrain/imagery outside Stuttgart.
+- Shared smooth sphere meshes replace stacked canopy slices. Camera-clipped screen boundary masks terrain/imagery outside Stuttgart, with a centre-visibility guard.
 - Browser graph loading deferred until needed. Pending tile fetches deduplicated and concurrency bounded.
 - Shared directed profile costs and API 0.3 request/capability contract prepared; API 0.2 remains standard Direct only. Server installation and real-browser WebGL acceptance remain outstanding.
 
