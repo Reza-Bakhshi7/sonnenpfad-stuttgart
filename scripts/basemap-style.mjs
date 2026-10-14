@@ -3,7 +3,7 @@
 export function createBasemapStyle() {
  const source='openmaptiles',name=['coalesce',['get','name'],['get','name:en'],''];
  const line=(id,color,width,filter,minzoom=0)=>({id,type:'line',source,'source-layer':'transportation',minzoom,filter,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':color,'line-width':width}});
- return {version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',light:{anchor:'viewport',color:'#fff8e8',intensity:.28,position:[1.15,210,45]},sources:{[source]:{type:'vector',url:'https://tiles.openfreemap.org/planet/latest',attribution:'<a href="https://openfreemap.org/">OpenFreeMap</a> · <a href="https://www.openmaptiles.org/">© OpenMapTiles</a> · <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>'}},layers:[
+ return {version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',light:{anchor:'viewport',color:'#ffffff',intensity:.28,position:[1.15,210,45]},sources:{[source]:{type:'vector',url:'https://tiles.openfreemap.org/planet/latest',attribution:'<a href="https://openfreemap.org/">OpenFreeMap</a> · <a href="https://www.openmaptiles.org/">© OpenMapTiles</a> · <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>'}},layers:[
   {id:'background',type:'background',paint:{'background-color':'#f5f3ed'}},
   {id:'landcover',type:'fill',source,'source-layer':'landcover',paint:{'fill-color':['match',['get','class'],'wood','#dce7cf','grass','#e5eddc','farmland','#ecebd7','#eeeae1'],'fill-opacity':.8}},
   {id:'landuse',type:'fill',source,'source-layer':'landuse',paint:{'fill-color':['match',['get','class'],'park','#dce9d1','cemetery','#e0e8d9','industrial','#eae7df','residential','#f0eee7','#f3f0e8'],'fill-opacity':.7}},
@@ -22,5 +22,5 @@ export function createBasemapStyle() {
 }
 
 export function buildingDisplayLayer() {
- return {id:'city-buildings-3d',type:'fill-extrusion',source:'openmaptiles','source-layer':'building',minzoom:13,filter:['!=',['get','hide_3d'],true],layout:{visibility:'none'},paint:{'fill-extrusion-color':'#e7cc97','fill-extrusion-height':['max',2,['coalesce',['get','render_height'],8]],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}};
+ return {id:'city-buildings-3d',type:'fill-extrusion',source:'openmaptiles','source-layer':'building',minzoom:13,filter:['!=',['get','hide_3d'],true],layout:{visibility:'none'},paint:{'fill-extrusion-color':'#efefeb','fill-extrusion-height':['max',2,['coalesce',['get','render_height'],8]],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}};
 }

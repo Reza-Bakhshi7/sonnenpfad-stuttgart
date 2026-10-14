@@ -24,7 +24,7 @@ const workerSource = `${core}\n${serverRouting}\n${worker}`;
 fs.mkdirSync(path.join(root, 'dist/vendor'), { recursive: true });
 fs.writeFileSync(
   path.join(root, 'dist/app-v7.mjs'),
-  `import * as maplibregl from './vendor/maplibre-gl.mjs';\nlet THREE;\nmaplibregl.setWorkerUrl(new URL('./vendor/maplibre-gl-worker.mjs',import.meta.url).href);\n${appData}\n${weather}\nconst BUNDLED_WORKER=${JSON.stringify(workerSource)};\n${application}`,
+  `import * as maplibregl from './vendor/maplibre-gl.mjs';\nlet THREE;\nmaplibregl.setWorkerUrl(new URL('./vendor/maplibre-gl-worker.mjs',import.meta.url).href);\n${appData}\n${weather}\nconst BUNDLED_WORKER=${JSON.stringify(workerSource)};\nconst BUNDLED_POI_ICONS=${read('dist/poi-icons.json')};\n${application}`,
 );
 // A new source revision must not reuse a cached app/style URL on the branch
 // preview alias. The index itself is always revalidated.
