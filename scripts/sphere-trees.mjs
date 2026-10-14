@@ -7,7 +7,8 @@ export function sphereMesh(longitudes=16,latitudes=10){
  return {vertices:new Float32Array(vertices),indices:new Uint16Array(indices)};
 }
 export function createSphereTreeLayer({toLngLat,dimensions}){
- let map,glContext,program,vao,vertexBuffer,indexBuffer,instanceBuffer,indexCount=0,instances=[],dirty=true,lastTerrain=-1;
+ let map,glContext,program,vao,vertexBuffer,indexBuffer,instanceBuffer,indexCount=0,instanceCount=0,instances=[],dirty=true,lastTerrain=-1,visible=false,instanceSignature='',pendingGround=false,lastGroundRetry=-Infinity;
+ const groundHeights=new Map();
  const vertex=`#version 300 es
  precision highp float;
  layout(location=0) in vec3 unitSphere;
@@ -22,7 +23,8 @@ export function createSphereTreeLayer({toLngLat,dimensions}){
  void main(){vec3 n=normalize(normal);float light=.60+.40*max(0.0,dot(n,normalize(vec3(-.4,-.5,1.0))));outputColour=vec4(colour*light*.74,.74);}`;
  const compile=(gl,type,source)=>{const shader=gl.createShader(type);gl.shaderSource(shader,source);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){const error=gl.getShaderInfoLog(shader);gl.deleteShader(shader);throw Error(error);}return shader;};
  const layer={id:'tree-spheres',type:'custom',renderingMode:'3d',terrainRevision:0,
-  setTrees(trees){instances=trees;dirty=true;map?.triggerRepaint();},
+  setVisible(value){visible=Boolean(value);map?.triggerRepaint();},
+  setTrees(trees){const signature=trees.map(tree=>`${tree.p.join(':')}:${tree.r}:${tree.h}:${tree.evergreen}`).join('|');if(signature===instanceSignature)return;instanceSignature=signature;instances=trees;dirty=true;map?.triggerRepaint();},
   onAdd(current,gl){map=current;glContext=gl;if(!gl.drawElementsInstanced)throw Error('Sphere crowns require WebGL2');
    const vs=compile(gl,gl.VERTEX_SHADER,vertex),fs=compile(gl,gl.FRAGMENT_SHADER,fragment);program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
    const mesh=sphereMesh();indexCount=mesh.indices.length;vao=gl.createVertexArray();vertexBuffer=gl.createBuffer();indexBuffer=gl.createBuffer();instanceBuffer=gl.createBuffer();gl.bindVertexArray(vao);
@@ -30,11 +32,17 @@ export function createSphereTreeLayer({toLngLat,dimensions}){
    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indexBuffer);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,mesh.indices,gl.STATIC_DRAW);
    gl.bindBuffer(gl.ARRAY_BUFFER,instanceBuffer);for(const [index,size,offset]of [[1,4,0],[2,3,16]]){gl.enableVertexAttribArray(index);gl.vertexAttribPointer(index,size,gl.FLOAT,false,28,offset);gl.vertexAttribDivisor(index,1);}gl.bindVertexArray(null);
   },
-  render(gl,args){if(!instances.length)return;const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16)return;
-   if(dirty||lastTerrain!==layer.terrainRevision){const values=[];for(const tree of instances.slice().reverse()){const ll=toLngLat(tree.p),{r,h}=dimensions(tree),ground=map.queryTerrainElevation(ll)||0,altitude=ground+Math.max(r+.5,h-r),point=maplibregl.MercatorCoordinate.fromLngLat(ll,altitude),scale=point.meterInMercatorCoordinateUnits();values.push(point.x,point.y,point.z,r*scale,...(tree.evergreen?[.16,.40,.27]:[.28,.53,.35]));}gl.bindBuffer(gl.ARRAY_BUFFER,instanceBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(values),gl.DYNAMIC_DRAW);dirty=false;lastTerrain=layer.terrainRevision;}
+  render(gl,args){if(!visible||!instances.length)return;const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16)return;
+   if(dirty||lastTerrain!==layer.terrainRevision||pendingGround&&performance.now()-lastGroundRetry>250){const values=[];pendingGround=false;lastGroundRetry=performance.now();for(const tree of instances.slice().reverse()){const ll=toLngLat(tree.p),key=tree.p.join(':'),{r,h}=dimensions(tree),sample=map.queryTerrainElevation(ll);let ground;
+    if(Number.isFinite(sample)){ground=sample;groundHeights.set(key,ground);}else if(groundHeights.has(key))ground=groundHeights.get(key);else if(!map.getTerrain())ground=0;else{pendingGround=true;continue;}
+    const altitude=ground+Math.max(r+.5,h-r),point=maplibregl.MercatorCoordinate.fromLngLat(ll,altitude),scale=point.meterInMercatorCoordinateUnits();values.push(point.x,point.y,point.z,r*scale,...(tree.evergreen?[.16,.40,.27]:[.28,.53,.35]));}
+    instanceCount=values.length/7;gl.bindBuffer(gl.ARRAY_BUFFER,instanceBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(values),gl.DYNAMIC_DRAW);dirty=false;lastTerrain=layer.terrainRevision;
+    if(groundHeights.size>8000){const active=new Set(instances.map(tree=>tree.p.join(':')));for(const key of groundHeights.keys()){if(!active.has(key))groundHeights.delete(key);if(groundHeights.size<=8000)break;}}
+   }
+   if(!instanceCount)return;
    const depthMask=gl.getParameter(gl.DEPTH_WRITEMASK),blend=gl.isEnabled(gl.BLEND),cull=gl.isEnabled(gl.CULL_FACE),frontFace=gl.getParameter(gl.FRONT_FACE),cullMode=gl.getParameter(gl.CULL_FACE_MODE);
    gl.useProgram(program);gl.bindVertexArray(vao);gl.uniformMatrix4fv(gl.getUniformLocation(program,'matrix'),false,matrix);gl.enable(gl.DEPTH_TEST);gl.depthMask(false);gl.enable(gl.CULL_FACE);gl.frontFace(gl.CCW);gl.cullFace(gl.BACK);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
-   gl.drawElementsInstanced(gl.TRIANGLES,indexCount,gl.UNSIGNED_SHORT,0,instances.length);
+   gl.drawElementsInstanced(gl.TRIANGLES,indexCount,gl.UNSIGNED_SHORT,0,instanceCount);
    gl.depthMask(depthMask);gl.frontFace(frontFace);gl.cullFace(cullMode);if(!blend)gl.disable(gl.BLEND);if(!cull)gl.disable(gl.CULL_FACE);gl.bindVertexArray(null);
   },
   onRemove(){const gl=glContext;if(gl){for(const buffer of [vertexBuffer,indexBuffer,instanceBuffer])gl.deleteBuffer(buffer);gl.deleteVertexArray(vao);gl.deleteProgram(program);}map=null;}

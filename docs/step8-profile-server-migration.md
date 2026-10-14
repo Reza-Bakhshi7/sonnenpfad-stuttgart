@@ -88,3 +88,24 @@ MapLibre custom 3D layer with Three.js, sphere tree geometry, a directional shad
 light and nearby-building/tree HTTP requests (radius parameter). This is an
 observation of the published client, not proof of the server dataset's provenance.
 No ShadeKA application code or data was copied into Sonnenpfad.
+
+## Tree stability and view-switch correction after the next recording
+
+Tree selection now retains the current population across camera and zoom-band
+updates, with a fixed cap of 1,200 deduplicated instances. Known DEM elevations
+are retained when a later query temporarily returns null; an initially unknown
+elevation defers that crown until its terrain tile arrives. Identical populations
+do not upload new instance buffers. Crowns are hidden in 2D without destroying
+these caches. Terrain refreshes react to content updates rather than visibility
+changes. Tests exercise missing DEM heights and stable population selection.
+
+The view switch is a guarded transaction: ordinary viewport loads are suspended,
+older replies invalidated, old shadow jobs superseded, and terrain changed once
+before the camera animation. There is no second jumpTo after animation. Forced
+view data refreshes complete before layers are shown. The screen mask is disabled
+in 2D and during transitions. Tests run both directions and reject interleaved
+switches and second camera jumps.
+
+The destination confirmation toast is removed in both languages. Controls use
+small buttons in one column. Map credits remain available behind the round info
+button and can be collapsed, with the measured footer clearance preserved.

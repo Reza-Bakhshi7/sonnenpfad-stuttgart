@@ -2,8 +2,8 @@
 function updateExperienceLanguage(){
  const de=lang==='de',labels={openfree:'OpenFreeMap',osm:'Standard · OpenStreetMap',topo:(de?'Topografisch':'Topographic')+' · OpenTopoMap',aerial:(de?'Luftbild':'Aerial')+' · LGL BW'};
  for(const option of $('basemap')?.options||[])option.textContent=labels[option.value]||option.textContent;
- $('basemap')?.setAttribute('aria-label',de?'Hintergrundkarte':'Basemap');$('map-credits')?.setAttribute('aria-label',de?'Kartenquellen':'Map credits');
- const button=$('explore-mode');if(button){button.textContent=exploreMode?(de?'Entdecken':'Explore'):(de?'Route planen':'Plan route');button.title=exploreMode?(de?'Karte frei erkunden. Zur Routenplanung wechseln.':'Explore freely. Switch to route planning.'):(de?'Routenplanung aktiv. Frei erkunden einschalten.':'Route planning active. Switch to free exploration.');button.setAttribute('aria-label',button.title);}
+ $('basemap')?.setAttribute('aria-label',de?'Hintergrundkarte':'Basemap');$('map-credits')?.setAttribute('aria-label',de?'Kartenquellen':'Map credits');const credits=$('credits-toggle');if(credits){const open=credits.getAttribute('aria-expanded')==='true',label=de?(open?'Kartenquellen ausblenden':'Kartenquellen einblenden'):(open?'Hide map credits':'Show map credits');credits.title=label;credits.setAttribute('aria-label',label);}
+ const button=$('explore-mode');if(button){button.textContent=exploreMode?'◎':'↦';button.title=exploreMode?(de?'Karte frei erkunden. Zur Routenplanung wechseln.':'Explore freely. Switch to route planning.'):(de?'Routenplanung aktiv. Frei erkunden einschalten.':'Route planning active. Switch to free exploration.');button.setAttribute('aria-label',button.title);}
  if($('route-preview'))$('route-preview').textContent=previewState?(de?'■ Vorschau beenden':'■ Stop preview'):(de?'▶ 3D-Routenvorschau':'▶ 3D route preview');
  $('elevation-chart')?.setAttribute('aria-label',de?'Höhenprofil: Zeiger bewegen, um die Position auf der Karte zu sehen':'Elevation profile: move the pointer to see the location on the map');
 }
@@ -30,17 +30,17 @@ function setupRouteExperience(){
 }
 function installMapExperience(){
  treeSphereLayer=createSphereTreeLayer({toLngLat:ll,dimensions:treeDimensions});map.addLayer(treeSphereLayer);
- map.on('sourcedata',event=>{if(event.sourceId==='terrain-dem'){treeSphereLayer.terrainRevision++;map.triggerRepaint();}});
+ map.on('sourcedata',event=>{if(event.sourceId==='terrain-dem'&&event.sourceDataType==='content'){treeSphereLayer.terrainRevision++;map.triggerRepaint();}});
  for(const event of ['dragstart','zoomstart','rotatestart','pitchstart'])map.on(event,e=>{if(e.originalEvent)stopRoutePreview(false);});
  // Credits live in a reserved DOM slot, outside the map's control corners.
  const attribution=document.querySelector('.maplibregl-ctrl-attrib'),host=$('map-credits');
- if(attribution&&host){host.append(attribution);const measure=()=>{const height=host.getBoundingClientRect().height;map.getContainer().parentElement.style.setProperty('--attribution-height',`${Math.ceil(height)}px`);};if(globalThis.ResizeObserver)new ResizeObserver(measure).observe(host);measure();}
+ if(attribution&&host){$('credits-content').append(attribution);$('credits-toggle').onclick=()=>{const content=$('credits-content'),open=content.hidden;content.hidden=!open;$('credits-toggle').setAttribute('aria-expanded',String(open));host.classList.toggle('is-open',open);updateExperienceLanguage();};const measure=()=>{const height=host.getBoundingClientRect().height;map.getContainer().parentElement.style.setProperty('--attribution-height',`${Math.ceil(height)}px`);};if(globalThis.ResizeObserver)new ResizeObserver(measure).observe(host);measure();}
  const tools=document.querySelector('.map-tools');if(tools&&globalThis.ResizeObserver){const measureTools=()=>{const area=tools.parentElement.getBoundingClientRect(),rect=tools.getBoundingClientRect();tools.parentElement.style.setProperty('--toolbar-end',`${Math.ceil(rect.bottom-area.top+8)}px`);};new ResizeObserver(measureTools).observe(tools);measureTools();}
  // The native opaque mask remains a fallback. The overlay uses camera-space
  // clipping so vertices behind the camera cannot obscure the whole viewport.
  const mask=$('city-screen-mask'),path=mask.querySelector('path');let rings=[],terrainRevision=-1,lastSignature='';
  if(cityBoundary)map.addLayer({id:'boundary-projector',type:'custom',renderingMode:'3d',render(gl,args){
-  const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16){mask.setAttribute('hidden','');return;}
+  if(!is3D||viewSwitching){mask.setAttribute('hidden','');lastSignature='';return;}const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16){mask.setAttribute('hidden','');return;}
   const canvas=map.getCanvas(),width=canvas.clientWidth,height=canvas.clientHeight,revision=treeSphereLayer?.terrainRevision||0;
   if(!rings.length||terrainRevision!==revision){rings=cityBoundary.geometry.coordinates.flatMap(polygon=>polygon.map(ring=>ring.map(point=>{const ground=map.queryTerrainElevation(point)||0,p=maplibregl.MercatorCoordinate.fromLngLat(point,ground);return [p.x,p.y,p.z];})));terrainRevision=revision;}
   const signature=width+'|'+height+'|'+revision+'|'+Array.from(matrix).join(',');if(signature===lastSignature)return;lastSignature=signature;
