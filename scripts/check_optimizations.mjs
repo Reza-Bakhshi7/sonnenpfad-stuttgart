@@ -14,12 +14,13 @@ const poiDetails=JSON.parse(fs.readFileSync(path.join(root,'dist/city',manifest.
 assert.equal([...steps].filter(Boolean).length,7893,'stairs must follow the atlas display class, not the broad historic/current union');
 assert(pipeline.includes('"steps": display_class == "steps" and not escalator'),'stairs must use the authoritative display class');
 assert(!pipeline.includes('highway == "steps" or row["fclass"] == "steps"'),'the broad historic/current staircase union must stay removed');
-assert(source.includes("fill-extrusion-opacity':.74"),'3D trees must remain see-through');
-assert(source.includes('tree.r*.7')&&source.includes('tree.h*.7'),'fallback tree dimensions must be 30% smaller');
-assert(source.includes("slices=zoom<15.6?8:zoom<16.4?10:12"),'tree crowns must use rounded multi-slice geometry');
+const cityScene=fs.readFileSync(path.join(root,'scripts/city-scene.mjs'),'utf8');assert(cityScene.includes('transparent:false,opacity:1,depthWrite:true'),'opaque crowns must not expose unsortable rear surfaces');
+assert(source.includes('Math.min(8,tree.r)')&&source.includes('Math.min(30,tree.h)'),'display tree dimensions must be bounded independently of model dimensions');
+assert(source.includes('layer.setTrees'),'trees must use their own cached, compact scene');
+const scene=fs.readFileSync(path.join(root,'scripts/city-scene.mjs'),'utf8');assert(scene.includes('THREE.InstancedMesh')&&scene.includes('THREE.SphereGeometry'),'crowns share smooth sphere geometry and instances');
 assert(source.includes('function installFeatureCards'),'desktop feature cards must be installed');
-assert(source.includes('poiDetails[key]||{}'),'compact POI details must enrich existing visual tiles');
-assert(source.includes("innerWidth<=800||!matchMedia('(hover:hover) and (pointer:fine)').matches"),'feature cards must stay disabled on mobile/coarse pointers');
+assert(source.includes('visual.tiles[item.properties._tile]?.detailFile'),'feature details must load from a clicked tile shard');
+assert(!source.includes("map.on('mousemove','poi-points'")&&!source.includes("map.on('mousemove','network-line'"),'feature information must be click-only on all pointer types');
 assert(source.includes('Quelle: Fußgängeratlas Stuttgart')&&source.includes('Source: Stuttgart Pedestrian Atlas'),'detail cards must expose provenance');
 assert(styles.includes('.feature-card')&&styles.includes('.feature-hover'),'feature card styling is required');
 
@@ -37,4 +38,4 @@ const adj=buildAdj(network);
 assert.equal(route(network,adj,[0],[50,31],[80,0]).error,'outside','default snapping must reject invented access links beyond 30 m');
 assert(!route(network,adj,[0],[50,30],[80,0]).error,'the documented 30 m access limit must remain inclusive');
 
-console.log(`Optimisation verification passed: ${steps.filter(Boolean).length} stair subedges, ${Object.keys(poiDetails).length} sourced POI locations, 30% smaller transparent trees.`);
+console.log(`Optimisation verification passed: ${steps.filter(Boolean).length} stair subedges, ${Object.keys(poiDetails).length} sourced POI locations, opaque crowns, compact click-only detail shards.`);

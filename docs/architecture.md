@@ -1,30 +1,70 @@
-# Architecture
+# Architecture — version 0.12
 
-Sonnenpfad Stuttgart is currently a static, browser-computed prototype.
+## Two application modes
 
-## Runtime
+Routing starts with a quiet basemap, endpoint selection and route controls. It
+loads no Atlas paths, POIs, object attributes, DEM or shadow geometry merely to
+open or pan the map. Standard Direct requests the existing audited Oracle API and
+adapts its response immediately, including its oriented elevation/profile data.
+It no longer downloads shadow tiles or queues a shadow job before displaying the
+answer. Direct does not report an invented shade percentage.
 
-- Cloudflare Workers Static Assets serves the application and terrain tiles.
-- MapLibre GL JS renders the 2D/3D map, terrain, buildings and routes. Tree crowns are deliberately 3D-only; 2D never builds or transfers tree polygons.
-- Routing and exact shadow calculation run locally in a Web Worker. A matching lightweight solar-position function runs in the UI thread so the clock and compass respond immediately during interaction.
-- Prepared atlas data is split into immutable binary network arrays and two families of 1 km JSON tiles. Lightweight display tiles contain paths, parallel theme arrays and compact POIs; separate 3D tiles contain only buildings and trees. The 2D map therefore never downloads shadow obstacles. A one-byte-per-edge direction asset drives uphill arrows without duplicating geometry.
-- A 500 m spatial index restricts endpoint snapping to nearby network edges.
-- Mobility profiles use a three-state safety model: explicit known barriers are removed from the graph, less suitable known attributes receive costs, and missing attributes remain routable with an uncertainty penalty. Profile constraints apply consistently to connectivity, snapping, partial edges and directional expansion; the result reports relevant attribute coverage instead of claiming certified accessibility.
-- Both map modes stay within Stuttgart; outside areas are masked. In 3D, a bounded level-of-detail window prioritises nine tiles around and ahead of the camera. Zoom-dependent budgets cap extruded buildings and rounded tree crowns, invariant sources are retained where possible, and a view signature prevents rebuilding unchanged tile sets.
-- The 2D map keeps the shadow raster hidden and does not trigger map-wide shadow work. In 3D, panning and zooming schedule one exact refresh 650 ms after the camera settles; superseded work is ignored. A requested sun/shade route uses only a buffered corridor of tiles and maintains its edge shading independently from the display raster. Manual time changes update the solar UI immediately and trigger one debounced calculation; automatic time playback is intentionally absent.
-- A replaceable Open-Meteo browser adapter requests an hourly model forecast for one fixed Stuttgart coordinate. A 10-minute local cache avoids repeated calls; a marked cached fallback may be used for six hours. Direct radiation scales only the sun/shade cost and raster opacity. The adapter never receives route endpoints or device location, and failure leaves the clear-sky routing model available.
-- No route, selected location or device position is persisted by the application.
+Other mobility profiles retain the established browser routing engine until the
+server profile contract is actually installed. Balanced profiles load the binary
+graph on first calculation but do not run unnecessary shadow work. Shade/Sun load
+the original Atlas obstacles for their calculation corridor. Their accessibility
+rules, partial-edge handling and relaxation warnings remain unchanged.
 
-## Build and deployment
+Explore retains camera/route state while exposing the Atlas themes and optional
+POIs. There is one selected theme, and only that theme's values are requested.
+Details are fetched from a tile shard after a click, on desktop or touch devices.
+Pointer movement never opens cards or fetches attributes. Leaving Explore closes
+cards, hides data layers, stops optional shadow work and discards stale display
+responses. No routing action is triggered by ordinary exploration clicks.
 
-GitHub is the source of truth. Pull requests and pushes to `main` run the same engine verification used locally. Cloudflare Builds executes `npm run build` and deploys the generated `dist/` directory through Wrangler.
+## Data and display
 
-The source GeoPackage is never committed. The Python pipeline reads it locally and exports only the fields and geometries needed by the application. Contract version 5 retains the fixed 48-byte routing edge record and the eight visual themes plus ten POI types. It adds compact signal-crossing accessibility fields without duplicating geometry.
+`build-display-assets.mjs` creates independent immutable data families during the
+build: path geometry and flags, one value array per theme, minimal POI points,
+minimal 3D tree points, and full detail shards. A revision digest controls browser
+cache invalidation. Request deduplication and a bounded LRU retain recent files.
+The original city manifest, graph, elevation assets and shadow obstacles are not
+modified by this build step.
 
-Signal crossings use the historical four-class atlas rule based only on `traffic_signals_sound`, `traffic_signals_vibration` and `tactile_paving`: at least two `yes` values are good support, exactly one is partial support, three explicit `no` values are no documented support, and every other combination is unknown/incomplete. Wheelchair suitability and kerb form remain separate attributes and do not silently alter the historical colour class.
+The base style is local application code rather than a blocking external style
+JSON request. OpenFreeMap serves the vector tiles and glyphs. Native extruded OSM
+buildings share that source in both modes and all basemaps. Three loads on first
+3D display and draws only cached opaque tree instances. Visible ground is flat;
+DEM is excluded from the display bundle. Actual elevation remains in the routing
+metadata and chart. Building display estimates do not alter calculation heights.
 
-## Service boundary
+Atlas-wide modelled shadows are an explicit Explore checkbox in 3D. This loads
+original obstacle tiles on demand into a separate worker, without loading a graph
+or changing routing weights. The raster has lighter opacity (maximum 0.24) and
+updates after the camera settles. Route shadow analysis stays in its own worker.
 
-The recommended free-tier layout keeps the HTML, CSS, JavaScript and small manifests in Cloudflare Workers Static Assets. Large immutable city and terrain tiles belong in Cloudflare R2 under the same public hostname or a dedicated asset hostname. Route calculation remains in the browser, so tile requests do not invoke dynamic Worker compute. Photon is used only as a replaceable geocoding service for place search; its public demo has no availability guarantee and must be replaced by a contracted or self-hosted provider when traffic becomes material.
+The city boundary has an opaque native mask and a camera-clipped screen mask in
+3D. Outside Stuttgart remains grey. Camera transitions and trip replay have a
+single owner and never query elevation or await optional display data.
 
-If traffic outgrows the non-commercial free weather endpoint, Cloudflare Workers can provide a centrally cached, institutionally approved or paid weather adapter. D1 is reserved for lightweight metadata and release manifests; it is not the spatial routing engine. A second generic compute host is avoided until measurements demonstrate a real bottleneck.
+## Weather and hosting
+
+Cloudflare serves HTML, JavaScript and immutable data as static assets. Only
+`/api/weather` runs the weather Worker. This endpoint centrally caches a fixed
+Stuttgart forecast, returns valid cached data immediately during refresh, and
+uses Open-Meteo with independent MET Norway fallback. It does not receive route
+endpoints or device location. The client retains valid cached values while
+refreshing, retries after failures and refreshes on reconnect/return to the app.
+Sources, retrieval time and stale state stay explicit. Missing provider radiation
+is not fabricated; MET sun influence uses a labelled cloud-cover estimate.
+
+## Oracle role and next installation
+
+Oracle/PostGIS remains the home of the audited routing graph, Atlas attributes,
+elevation metadata and server routing calculations. Keep static application code
+and small display assets at the CDN. Moving raw JSON to Oracle would not remove
+browser parsing/drawing costs. Install the prepared profile/shadow contract there
+before moving the remaining browser profiles off devices. See
+`step8-profile-server-migration.md` for the explicit installation and acceptance
+requirements. No SSH, database migration or production merge was performed for
+this preview.
