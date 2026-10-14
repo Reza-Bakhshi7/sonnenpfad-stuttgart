@@ -4,6 +4,8 @@ All notable product changes are documented here. The project follows semantic ve
 
 ## [Unreleased]
 
+- Fix the ESM startup guard: an imported MapLibre namespace no longer requires a window global. Only actual GPUInitializationError failures show the WebGL notice; module/configuration errors no longer misidentify the device.
+
 - Move city buildings, spherical tree crowns/trunks and the 3D route into one cached Three.js scene using local metre coordinates. Crowns remain 30% smaller and slightly translucent, with a shared smooth sphere mesh and depth writes.
 - Read object and route heights directly from immutable Terrain-RGB assets. Failed tile loads retain existing geometry and retry; the renderer's temporary elevation value 0 is never used for object placement.
 - Upgrade self-hosted MapLibre to 6.12.0 with matching ESM modules, worker and stylesheet. Pin Three.js 0.169.0; lazy-load it on first 3D entry. Vendor chunks are checked against SHA-256 at build time.
