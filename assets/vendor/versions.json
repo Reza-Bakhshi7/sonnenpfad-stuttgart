@@ -1,0 +1,61 @@
+{
+  "maplibre": "6.12.0",
+  "three": "0.169.0",
+  "files": {
+    "maplibre-gl.mjs": {
+      "parts": [
+        "maplibre-gl.mjs.part-000",
+        "maplibre-gl.mjs.part-001",
+        "maplibre-gl.mjs.part-002",
+        "maplibre-gl.mjs.part-003",
+        "maplibre-gl.mjs.part-004",
+        "maplibre-gl.mjs.part-005",
+        "maplibre-gl.mjs.part-006",
+        "maplibre-gl.mjs.part-007",
+        "maplibre-gl.mjs.part-008",
+        "maplibre-gl.mjs.part-009",
+        "maplibre-gl.mjs.part-010"
+      ],
+      "sha256": "10ee59931f53fecbf56883c62660f35fce31704e0313a2ac5d4ef87baeed2a44"
+    },
+    "maplibre-gl-shared.mjs": {
+      "parts": [
+        "maplibre-gl-shared.mjs.part-000",
+        "maplibre-gl-shared.mjs.part-001",
+        "maplibre-gl-shared.mjs.part-002",
+        "maplibre-gl-shared.mjs.part-003",
+        "maplibre-gl-shared.mjs.part-004",
+        "maplibre-gl-shared.mjs.part-005",
+        "maplibre-gl-shared.mjs.part-006",
+        "maplibre-gl-shared.mjs.part-007",
+        "maplibre-gl-shared.mjs.part-008",
+        "maplibre-gl-shared.mjs.part-009"
+      ],
+      "sha256": "fddd991c9f181391e6b63d3408a3f094bfdb9c4d8439a64e423978bcb17a4596"
+    },
+    "maplibre-gl-worker.mjs": {
+      "parts": [
+        "maplibre-gl-worker.mjs.part-000"
+      ],
+      "sha256": "8f3a78a74257aefe7892dc39f02d7b6a1e8a127e4bcc5c7f0d6cc19451cf7e2b"
+    },
+    "three.mjs": {
+      "parts": [
+        "three.mjs.part-000",
+        "three.mjs.part-001",
+        "three.mjs.part-002",
+        "three.mjs.part-003",
+        "three.mjs.part-004",
+        "three.mjs.part-005",
+        "three.mjs.part-006",
+        "three.mjs.part-007",
+        "three.mjs.part-008",
+        "three.mjs.part-009",
+        "three.mjs.part-010",
+        "three.mjs.part-011",
+        "three.mjs.part-012"
+      ],
+      "sha256": "f7cee3c7533449a1505cc12cb5128b89e3d4fd3d7ea62b05f9f5464a217472ee"
+    }
+  }
+}

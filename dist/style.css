@@ -156,3 +156,11 @@ html,body{height:100%;margin:0;overflow:hidden}
 #credits-toggle[aria-expanded=true]{background:#143959;color:#fff}
 @media(max-width:800px){.map-tools{width:112px!important;gap:4px!important}.map-tools #basemap{width:112px!important}.map-tools button,.map-tools #explore-mode,.maplibregl-ctrl-top-right button{width:30px!important;min-width:30px!important;height:30px!important}.map-credits{max-width:calc(100% - 16px)}}
 @media(max-height:540px){.map-tools button,.map-tools #explore-mode,.maplibregl-ctrl-top-right button{width:26px!important;min-width:26px!important;height:26px!important}.map-tools{gap:3px!important}}
+
+/* Reserve the measured credits area, then a small consistent gap. */
+.map-area{--credits-clearance:28px}
+.map-credits{bottom:max(4px,env(safe-area-inset-bottom))}
+.time-panel{bottom:calc(var(--credits-clearance) + 10px)!important}
+@media(max-width:800px){.map-area{--credits-clearance:90px}.map-credits{bottom:calc(66px + env(safe-area-inset-bottom))}.time-panel{bottom:calc(var(--credits-clearance) + 10px)!important}}
+
+.map-area.is-view-switching #map,.map-area.is-view-switching .maplibregl-ctrl{pointer-events:none}.map-area.is-view-switching{cursor:progress}
