@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.0 — preview, 2026-10-14
+
+- Separate lean Routing from click-only Explore, with on-demand theme, POI and detail data.
+- Render Direct server responses immediately; skip shadow loading for Balanced routing.
+- Replace display DEM and custom building geometry with flat native vector buildings; retain Atlas calculation inputs.
+- Use warm beige buildings, lighter optional shadows and opaque coloured sphere crowns with corrected scene handedness.
+- Generate minimal tree files and revisioned detail shards at build time; retain nearby trees during progressive loads.
+- Make repeated view switches and trip replay independent of optional data/elevation requests.
+- Add a centrally cached weather endpoint with Open-Meteo/MET Norway fallback and retained client cache.
+- Add style validation and regression coverage for modes, stale responses, physical tree bounds, replay, cache and weather.
+
+
 All notable product changes are documented here. The project follows semantic versioning while it remains an experimental prototype.
 
 ## [Unreleased]

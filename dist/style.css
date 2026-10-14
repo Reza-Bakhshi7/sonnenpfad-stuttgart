@@ -164,3 +164,26 @@ html,body{height:100%;margin:0;overflow:hidden}
 @media(max-width:800px){.map-area{--credits-clearance:90px}.map-credits{bottom:calc(66px + env(safe-area-inset-bottom))}.time-panel{bottom:calc(var(--credits-clearance) + 10px)!important}}
 
 .map-area.is-view-switching #map,.map-area.is-view-switching .maplibregl-ctrl{pointer-events:none}.map-area.is-view-switching{cursor:progress}
+
+/* Two focused modes share the same map and retain camera/route state. */
+[hidden]{display:none!important}
+.mode-switch{position:absolute;z-index:7;top:14px;left:16px;display:flex;gap:3px;padding:3px;background:#fffffff5;border:1px solid #d9e2df;border-radius:10px;box-shadow:0 2px 8px #14395912}
+.mode-switch button{height:30px;padding:0 13px;border:0;border-radius:7px;background:transparent;color:#52675c;font:650 11px/1 Manrope,sans-serif;cursor:pointer}
+.mode-switch button.selected{background:#143959;color:white}
+.mode-switch button:focus-visible{outline:2px solid #d3a71a;outline-offset:2px}
+.theme-legend{top:59px!important;left:16px!important}
+.explore-panel{padding:8px 0 20px}
+.explore-eyebrow{font-size:10px;letter-spacing:2px;color:#8b967c;font-weight:700}
+.explore-panel h2{margin:11px 0 14px;font-size:22px;line-height:1.25;white-space:normal}
+.explore-panel p{font-size:13px;line-height:1.65;color:#65776d;margin:0 0 24px}
+.explore-panel>button{display:block;width:100%;height:38px;border:1px solid #d8e3dd;background:#f4f7f3;border-radius:8px;color:#234839;font-size:12px;font-weight:650;margin:8px 0;cursor:pointer}
+.explore-panel>#explore-layers{background:#143959;border-color:#143959;color:white}
+.is-routing #theme-legend,.is-routing #layers-panel,.is-routing #layers-toggle{display:none!important}
+.shadow-view-control{display:flex;align-items:center;gap:8px;margin:14px 0 3px!important;font-size:11px!important;font-weight:600!important}
+.shadow-view-control input{width:14px;height:14px;accent-color:#143959}
+#shadow-view-note{display:block;color:#718278;font-size:9px;margin:0 0 12px 22px}
+.feature-detail .maplibregl-popup-content{max-height:min(380px,60dvh);overflow-y:auto}
+.weather-main>#weather-condition{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.weather-strip[data-state=retry]{background:#f8fafb;border-color:#dce5ea}
+.is-exploring .sidebar-body .explore-panel h2{display:block}
+@media(max-width:800px){.mode-switch{top:8px;left:8px}.mode-switch button{height:28px;padding:0 11px;font-size:10px}.theme-legend{top:52px!important;left:8px!important}.explore-panel{padding-top:15px}.explore-panel h2{font-size:20px}.weather-main>#weather-condition{max-width:94px}.time-panel{max-width:calc(100% - 16px)}}

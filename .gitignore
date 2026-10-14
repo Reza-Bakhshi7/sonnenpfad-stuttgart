@@ -6,6 +6,7 @@ __pycache__/
 node_modules/
 build_data/*.json
 dist/app-v7.mjs
+dist/city/visual/
 dist/vendor/maplibre-v3.js
 dist/vendor/maplibre-gl*.mjs
 dist/vendor/three.mjs
