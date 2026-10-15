@@ -4,7 +4,7 @@ function updateExperienceLanguage(){
  const de=lang==='de',labels={openfree:'OpenFreeMap',osm:'Standard · OpenStreetMap',topo:(de?'Topografisch':'Topographic')+' · OpenTopoMap',aerial:(de?'Luftbild':'Aerial')+' · LGL BW'};
  for(const option of $('basemap')?.options||[])option.textContent=labels[option.value]||option.textContent;
  $('basemap')?.setAttribute('aria-label',de?'Hintergrundkarte':'Basemap');$('map-credits')?.setAttribute('aria-label',de?'Kartenquellen':'Map credits');const credits=$('credits-toggle');if(credits){const open=credits.getAttribute('aria-expanded')==='true',label=de?(open?'Kartenquellen ausblenden':'Kartenquellen einblenden'):(open?'Hide map credits':'Show map credits');credits.title=label;credits.setAttribute('aria-label',label);}
- for(const [id,label] of [['mode-route','Routing'],['mode-explore',de?'Entdecken':'Explore'],['explore-title',de?'Stuttgart entdecken':'Explore Stuttgart'],['explore-description',de?'Klicke auf einen Weg, einen Baum oder ein Gebäude, um mehr zu erfahren. Wähle zusätzliche Ebenen nach Interesse.':'Click a path, tree or building to learn more. Choose additional layers as you explore.'],['explore-layers',de?'Kartenebenen wählen':'Choose map layers'],['explore-3d',is3D?(de?'Zur 2D-Karte':'Switch to 2D'):(de?'Stadt in 3D ansehen':'View the city in 3D')],['shadow-view-label',de?'Modellierten Schatten anzeigen':'Show modelled shadows'],['shadow-view-note',de?'3D · ab Zoom 14':'3D · from zoom 14']])if($(id))$(id).textContent=label;
+ for(const [id,label] of [['mode-route','Routing'],['mode-explore',de?'Entdecken':'Explore'],['explore-title',de?'Stuttgart entdecken':'Explore Stuttgart'],['explore-description',de?'Klicke auf einen Weg, einen Baum oder ein Gebäude, um mehr zu erfahren. Wähle zusätzliche Ebenen nach Interesse.':'Click a path, tree or building to learn more. Choose additional layers as you explore.'],['explore-layers',de?'Kartenebenen wählen':'Choose map layers'],['explore-3d',is3D?(de?'Zur 2D-Karte':'Switch to 2D'):(de?'Stadt in 3D ansehen':'View the city in 3D')]])if($(id))$(id).textContent=label;
  const button=$('explore-mode');if(button){button.textContent=exploreMode?'◎':'↦';button.title=exploreMode?(de?'Karte frei erkunden. Zur Routenplanung wechseln.':'Explore freely. Switch to route planning.'):(de?'Routenplanung aktiv. Frei erkunden einschalten.':'Route planning active. Switch to free exploration.');button.setAttribute('aria-label',button.title);}
  if($('route-preview'))$('route-preview').textContent=previewState?(de?'■ Vorschau beenden':'■ Stop preview'):(de?'▶ 3D-Routenvorschau':'▶ 3D route preview');
  $('elevation-chart')?.setAttribute('aria-label',de?'Höhenprofil: Zeiger bewegen, um die Position auf der Karte zu sehen':'Elevation profile: move the pointer to see the location on the map');
@@ -14,7 +14,6 @@ function updateModeUI(){
  for(const [id,active] of [['mode-route',!exploreMode],['mode-explore',exploreMode]]){$(id)?.classList.toggle('selected',active);$(id)?.setAttribute('aria-pressed',String(active));}
  $('explore-panel').hidden=!exploreMode;$('journey-panel').hidden=exploreMode;$('layers-toggle').hidden=!exploreMode;if(!exploreMode){$('layers-panel').hidden=true;$('layers-toggle').setAttribute('aria-expanded','false');}
  if(map){applyTheme({reload:false});applyPoiFilter({reload:false});if(map.getLayer('shade-fill'))map.setLayoutProperty('shade-fill','visibility',shadowDisplayEnabled&&is3D&&Boolean(displayShadeFrame)?'visible':'none');}
- $('shadow-view').disabled=!is3D;$('shadow-view').checked=shadowDisplayEnabled;
  const heading=$('panel-toggle')?.lastElementChild;if(heading&&exploreMode)heading.textContent=lang==='de'?'Stuttgart entdecken':'Explore Stuttgart';else if(heading)heading.textContent=t('planRoute');
  updateExperienceLanguage();
 }
@@ -51,7 +50,6 @@ function setupRouteExperience(){
  setupCompactTools();
  $('explore-mode').onclick=()=>setExploreMode(!exploreMode);$('mode-route').onclick=()=>setExploreMode(false);$('mode-explore').onclick=()=>setExploreMode(true);$('route-preview').onclick=startRoutePreview;
  $('explore-layers').onclick=()=>{if(!exploreMode)setExploreMode(true);$('layers-panel').hidden=false;$('layers-toggle').setAttribute('aria-expanded','true');};$('explore-3d').onclick=()=>setMapViewMode(!is3D);
- $('shadow-view').onchange=()=>{shadowDisplayEnabled=$('shadow-view').checked;displayShadeId++;displayShadeSignature='';if(!shadowDisplayEnabled){stopDisplayShadows();map?.setLayoutProperty('shade-fill','visibility','none');}else requestShade(false,{silent:true});};
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadWeather();});window.addEventListener('online',()=>loadWeather());
 
  const chart=$('elevation-chart');let hoverFrame=0,lastFraction=0;
