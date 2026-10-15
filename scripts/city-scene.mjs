@@ -33,10 +33,10 @@ export function createCitySceneLayer({origin,toLngLat,dimensions,rendererFactory
    const next=[...trees.values()].filter(record=>distance(record.tree.p)<2200).sort((a,b)=>distance(a.tree.p)-distance(b.tree.p)||a.key.localeCompare(b.key)).slice(0,treeCap),signature=next.map(record=>record.key).sort().join('|');
    if(signature===selectionKey)return;selectionKey=signature;selected=next;
    for(const [index,record] of selected.entries()){
-    const {r,h}=dimensions(record.tree),radius=frame.radius(record.ll,Math.max(.5,Math.min(r,h*.46))),height=frame.radius(record.ll,Math.max(2,h)),[x,y]=frame.point(record.ll),canopyCentre=Math.max(radius+.35,height-radius),trunkHeight=Math.max(.6,canopyCentre-radius*.65),trunkRadius=Math.max(.12,Math.min(.28,r*.13));
-    instance.position.set(x,y,canopyCentre);instance.scale.setScalar(radius);instance.updateMatrix();crowns.setMatrixAt(index,instance.matrix);
+    const {r,h}=dimensions(record.tree),radius=frame.radius(record.ll,Math.max(.5,Math.min(r,h*.46))),height=frame.radius(record.ll,Math.max(2,h)),[x,y,ground]=frame.point(record.ll,record.tree.ground??0),canopyCentre=Math.max(radius+.35,height-radius),trunkHeight=Math.max(.6,canopyCentre-radius*.65),trunkRadius=Math.max(.12,Math.min(.28,r*.13));
+    instance.position.set(x,y,ground+canopyCentre);instance.scale.setScalar(radius);instance.updateMatrix();crowns.setMatrixAt(index,instance.matrix);
     const variation=((Math.round(record.tree.p[0]*10)*31+Math.round(record.tree.p[1]*10))>>>0)%4,palette=record.tree.evergreen?[0x3f8057,0x4c8854,0x528c60,0x458653]:[0x79a34c,0x69a255,0x86aa57,0x76a85b];colour.set(palette[variation]);crowns.setColorAt(index,colour);
-    instance.position.set(x,y,trunkHeight/2);instance.scale.set(trunkRadius,trunkRadius,trunkHeight);instance.updateMatrix();trunks.setMatrixAt(index,instance.matrix);
+    instance.position.set(x,y,ground+trunkHeight/2);instance.scale.set(trunkRadius,trunkRadius,trunkHeight);instance.updateMatrix();trunks.setMatrixAt(index,instance.matrix);
    }
    crowns.count=trunks.count=selected.length;crowns.boundingSphere=trunks.boundingSphere=null;crowns.instanceMatrix.needsUpdate=trunks.instanceMatrix.needsUpdate=true;if(crowns.instanceColor)crowns.instanceColor.needsUpdate=true;map?.triggerRepaint();
   },
@@ -45,7 +45,7 @@ export function createCitySceneLayer({origin,toLngLat,dimensions,rendererFactory
    raycaster.set(near,far.sub(near).normalize());scene.updateMatrixWorld(true);const hit=raycaster.intersectObject(crowns,false)[0];return hit?selected[hit.instanceId]:null;
   },
   render(gl,args){if(!visible||!renderer)return;const matrix=args.defaultProjectionData?.mainMatrix;if(!matrix||matrix.length!==16)return;lastMatrix=matrix;camera.projectionMatrix.copy(projection.fromArray(matrix).multiply(localMatrix));camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();renderer.resetState();renderer.render(scene,camera);renderer.resetState();},
-  snapshot(){return {trees:selected.map(record=>({p:record.tree.p,ground:0})),instances:crowns.count,visible,cached:trees.size};},
+  snapshot(){return {trees:selected.map(record=>({p:record.tree.p,ground:record.tree.ground??0})),instances:crowns.count,visible,cached:trees.size};},
   onRemove(){disposed=true;for(const value of [crownGeometry,trunkGeometry,crownMaterial,trunkMaterial])value.dispose();renderer?.dispose();trees.clear();selected=[];map=null;}
  };return layer;
 }
