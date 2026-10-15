@@ -1,15 +1,15 @@
 {
   "name": "sonnenpfad-stuttgart",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "node scripts/build-cloudflare.mjs",
-    "test": "npm run build && node scripts/check_city_manifest.mjs && node scripts/check_step4.mjs && node scripts/check_crossing_accessibility.mjs && node scripts/check_slope_modes.mjs && node scripts/check_mobility_profiles.mjs && node scripts/check_step5.mjs && node scripts/check_engine.mjs && node scripts/check_optimizations.mjs && node scripts/check_server_routing.mjs && node scripts/check_route_experience.mjs && node scripts/check_display_pipeline.mjs && node scripts/check_step6.mjs && node scripts/check_weather_service.mjs && node scripts/check_governance.mjs",
+    "test": "npm run build && node scripts/check_city_manifest.mjs && node scripts/check_step4.mjs && node scripts/check_crossing_accessibility.mjs && node scripts/check_slope_modes.mjs && node scripts/check_mobility_profiles.mjs && node scripts/check_step5.mjs && node scripts/check_engine.mjs && node scripts/check_optimizations.mjs && node scripts/check_server_routing.mjs && node scripts/check_route_experience.mjs && node scripts/check_display_pipeline.mjs && node scripts/check_step6.mjs && node scripts/check_weather_service.mjs && node scripts/check_governance.mjs && node scripts/check_next_release.mjs && node scripts/check_public_assets.mjs",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
     "@maplibre/maplibre-gl-style-spec": "26.4.4",
-    "wrangler": "4.134.0"
+    "wrangler": "4.151.0"
   }
 }

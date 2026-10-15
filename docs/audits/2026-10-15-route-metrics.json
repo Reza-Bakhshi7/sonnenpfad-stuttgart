@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-15",
+  "method": "independent source-geometry and UTM32 length audit",
+  "source": {
+    "sha256": "4c41fb6626386fe1a749419a5310cb137a3ee910175c9fcce6a539c82d5a706e",
+    "crs": "EPSG:25832",
+    "geometry_total_m": 4831773.278704821,
+    "stored_total_m": 4831772.829999947,
+    "missing_lengths": 0,
+    "absolute_error_m": {
+      "count": 69769,
+      "median": 0.00230223459577239,
+      "p95": 0.0047329544153598135,
+      "max": 0.010452210275204266
+    },
+    "relative_error_percent": {
+      "count": 69769,
+      "median": 0.005307158763388832,
+      "p95": 0.07230015060300524,
+      "max": 9.93466522295102
+    },
+    "over_1cm": 1,
+    "largest_differences": [
+      {
+        "fid": 73252,
+        "stored_m": 36.03,
+        "geometry_m": 36.040452210275205,
+        "error_m": 0.010452210275204266
+      }
+    ]
+  },
+  "live_route": {
+    "sha256": "408e9bcaa5316e2e53add048d9b491eacde5b0d8369d0cb60ed7d9f5ec0a6182",
+    "parts": 36,
+    "reported_m": 784.17,
+    "sum_parts_m": 784.1697616587264,
+    "independent_utm32_m": 784.1697617304554,
+    "reported_minus_independent_m": 0.0002382695445248828,
+    "part_errors_m": {
+      "count": 36,
+      "median": 8.695302256001014e-10,
+      "p95": 2.388121345120453e-08,
+      "max": 3.717633035194012e-05
+    },
+    "heights_complete": true,
+    "ascent_m": 16.947821516344046,
+    "descent_m": 0.23961297763876663,
+    "estimated_minutes_at_75mpm_plus_1min_per_10m_ascent": 13,
+    "access_links_included": false
+  }
+}

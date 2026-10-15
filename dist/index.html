@@ -8,8 +8,8 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./style.css?v=ee73f117f51416ba">
-<script type="module" src="./app-v7.mjs?v=de5fbeeebecc7157">
+<link rel="stylesheet" href="./style.css?v=88a50ea01ee02139">
+<script type="module" src="./app-v7.mjs?v=925d292ba659a823">
 </script>
 </head>
 <body>
@@ -259,10 +259,11 @@
 </aside>
 <main class="map-area">
 <svg id="city-screen-mask" class="city-screen-mask" aria-hidden="true"><path fill="#edf1f2" fill-rule="evenodd"/></svg>
+<canvas id="shadow-canvas" width="1" height="1" hidden aria-hidden="true"></canvas>
 <div id="map" aria-label="Karte von Stuttgart">
 </div>
 <div class="mode-switch" role="group" aria-label="Kartenmodus">
-<button id="mode-route" type="button" class="selected" aria-pressed="true">Route</button>
+<button id="mode-route" type="button" class="selected" aria-pressed="true">Routing</button>
 <button id="mode-explore" type="button" aria-pressed="false">Entdecken</button>
 </div>
 <div id="map-credits" class="map-credits" role="contentinfo" aria-label="Kartenquellen"><div id="credits-content" hidden></div><button id="credits-toggle" type="button" aria-controls="credits-content" aria-expanded="false" aria-label="Kartenquellen einblenden" title="Kartenquellen einblenden">i</button></div>
@@ -290,8 +291,7 @@
 </select>
 <div id="theme-options" class="theme-options" role="radiogroup" aria-label="Linienthema"></div>
 <p id="theme-description" class="theme-description"></p>
-<label class="shadow-view-control"><input id="shadow-view" type="checkbox" disabled><span id="shadow-view-label">Modellierten Schatten anzeigen</span></label>
-<small id="shadow-view-note">In 3D · wird erst beim Einschalten berechnet</small>
+
 <fieldset>
 <legend data-i="poiLabel">Barrierefreiheit &amp; Komfort</legend>
 <div id="poi-options" class="poi-options"></div>
@@ -345,7 +345,7 @@
 <span>18:00</span>
 <span>23:59</span>
 </div>
-<div class="time-bottom"><span class="micro" data-i="timezone">Ortszeit Stuttgart</span></div>
+
 </section>
 <div class="loading-cover" id="loading-cover">
 <div class="spinner">

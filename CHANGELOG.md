@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.0 — terrain, direct shadow frames and metric audit, 2026-10-15
+
+- Restore static coarse terrain in 3D; place tree trunks at immutable sampled ground heights.
+- Use one compact right-hand icon dock and remove the duplicate Explore sidebar.
+- Transfer shadow bitmaps directly with latest-frame backpressure, retaining visible contrast under clouds.
+- Fix same-edge weighted-route shortcuts and zero-length one-way endpoint connections.
+- Do not invent missing elevations or report complete travel times from partial heights; label time as estimated.
+- Add restrictive public-asset headers, credential-signature checks and reproducible independent metric audit.
+
+
 ## 0.12.0 — preview, 2026-10-14
 
 - Separate lean Routing from click-only Explore, with on-demand theme, POI and detail data.
