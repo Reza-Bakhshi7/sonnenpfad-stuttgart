@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-15",
+  "wrangler_before": "4.134.0",
+  "wrangler_after": "4.151.0",
+  "before_known_vulnerability_entries": 4,
+  "after": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "dependencies": {
+      "prod": 1,
+      "dev": 98,
+      "optional": 60,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 98
+    }
+  }
+}
