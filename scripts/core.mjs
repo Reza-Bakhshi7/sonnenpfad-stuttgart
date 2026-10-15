@@ -117,30 +117,30 @@ export function route(network,adj,shades,start,end,options={}){
  for(const [component,sa] of starts){const sb=ends.get(component);if(!sb||sa.distance>maxSnap||sb.distance>maxSnap)continue;const score=sa.distance+sb.distance;if(score<bestSnap){bestSnap=score;a=sa;b=sb;}}
  if(!a||!b)return {error:hasRestrictions(options)&&sharedSnapExists(network,start,end,maxSnap)?'profileBlocked':'outside'};
  const penalty=(i,forward=true)=>edgeCostMultiplier(network.edges[i],options,Number.isFinite(shades[i])?shades[i]:0,forward);
- const ae=network.edges[a.i],be=network.edges[b.i];
+ const ae=network.edges[a.i],be=network.edges[b.i];let directCandidate=null;
  if(a.i===b.i){
   const forward=b.t>=a.t,allowed=(forward?ae.dir!==-1:ae.dir!==1)&&edgeAllowed(ae,options,forward),frac=Math.abs(b.t-a.t);
-  if(allowed){if(frac*ae.l<.01)return {error:'same'};return finish([{i:a.i,forward,frac,t0:a.t,t1:b.t,coords:[a.p,b.p]}],a,b);}
+  if(allowed){if(frac*ae.l<.01)return {error:'same'};directCandidate={parts:[{i:a.i,forward,frac,t0:a.t,t1:b.t,coords:[a.p,b.p]}],cost:ae.l*frac*penalty(a.i,forward)};}
  }
  const d=new Float64Array(network.nodes.length).fill(Infinity),prev=new Int32Array(d.length).fill(-1),pe=new Int32Array(d.length).fill(-1),heap=new Heap(),seedPart=new Map(),finalPart=new Map();
  const seed=(node,part)=>{const cost=network.edges[part.i].l*part.frac*penalty(part.i,part.forward);if(cost<d[node]){d[node]=cost;seedPart.set(node,part);heap.push([cost,node]);}};
- if(ae.dir!==1&&edgeAllowed(ae,options,false))seed(ae.a,{i:a.i,forward:false,frac:a.t,t0:a.t,t1:0,coords:[a.p,network.nodes[ae.a]]});
- if(ae.dir!==-1&&edgeAllowed(ae,options,true))seed(ae.b,{i:a.i,forward:true,frac:1-a.t,t0:a.t,t1:1,coords:[a.p,network.nodes[ae.b]]});
+ if(a.t<1e-12||(ae.dir!==1&&edgeAllowed(ae,options,false)))seed(ae.a,{i:a.i,forward:false,frac:a.t,t0:a.t,t1:0,coords:[a.p,network.nodes[ae.a]]});
+ if(1-a.t<1e-12||(ae.dir!==-1&&edgeAllowed(ae,options,true)))seed(ae.b,{i:a.i,forward:true,frac:1-a.t,t0:a.t,t1:1,coords:[a.p,network.nodes[ae.b]]});
  const addFinal=(node,part)=>{const cost=network.edges[part.i].l*part.frac*penalty(part.i,part.forward),old=finalPart.get(node);if(!old||cost<old.cost)finalPart.set(node,{cost,part});};
- if(be.dir!==-1&&edgeAllowed(be,options,true))addFinal(be.a,{i:b.i,forward:true,frac:b.t,t0:0,t1:b.t,coords:[network.nodes[be.a],b.p]});
- if(be.dir!==1&&edgeAllowed(be,options,false))addFinal(be.b,{i:b.i,forward:false,frac:1-b.t,t0:1,t1:b.t,coords:[network.nodes[be.b],b.p]});
- let best=Infinity,target=-1,targetPart=null;
+ if(b.t<1e-12||(be.dir!==-1&&edgeAllowed(be,options,true)))addFinal(be.a,{i:b.i,forward:true,frac:b.t,t0:0,t1:b.t,coords:[network.nodes[be.a],b.p]});
+ if(1-b.t<1e-12||(be.dir!==1&&edgeAllowed(be,options,false)))addFinal(be.b,{i:b.i,forward:false,frac:1-b.t,t0:1,t1:b.t,coords:[network.nodes[be.b],b.p]});
+ let best=directCandidate?.cost??Infinity,target=-1,targetPart=null;
  while(heap.length){const [cost,u]=heap.pop();if(cost!==d[u])continue;if(cost>=best)break;const fin=finalPart.get(u);if(fin&&cost+fin.cost<best){best=cost+fin.cost;target=u;targetPart=fin.part;}for(const [v,i,direction] of adj[u]){const e=network.edges[i],forward=direction===1;if(!edgeAllowed(e,options,forward))continue;const nd=cost+e.l*penalty(i,forward);if(nd<d[v]){d[v]=nd;prev[v]=u;pe[v]=i;heap.push([nd,v]);}}}
- if(target<0)return {error:hasRestrictions(options)?'profileBlocked':'disconnected'};
+ if(target<0)return directCandidate?finish(directCandidate.parts,a,b):{error:hasRestrictions(options)?'profileBlocked':'disconnected'};
  const full=[];let u=target;while(prev[u]>=0){const i=pe[u],forward=network.edges[i].b===u;full.push({i,forward,frac:1,t0:forward?0:1,t1:forward?1:0,coords:null});u=prev[u];}full.reverse();
  const parts=[seedPart.get(u),...full,targetPart].filter(Boolean);
  return finish(parts,a,b);
  function finish(parts,a,b){
-  let length=0,shaded=0,ascent=0,descent=0,steps=0,escalators=0,currentZ=null;const coords=[],profile=[],quality={surfaceKnown:0,slopeKnown:0,widthKnown:0,wheelchairKnown:0,poorSurface:0,limitedWheelchair:0,maxUphill:0,maxDownhill:0,minWidth:null};
-  for(const part of parts){const e=network.edges[part.i],len=e.l*part.frac,t0=part.t0??(part.forward?0:1),t1=part.t1??(part.forward?1:0),raw0=Number.isFinite(e.z0)?e.z0:0,raw1=Number.isFinite(e.z1)?e.z1:raw0+e.dz,dz=(raw1-raw0)*(t1-t0),segment=part.coords||(part.forward?e.c:e.c.slice().reverse()),directed=signedEdgeSlope(e,part.forward);if(currentZ===null){currentZ=raw0+(raw1-raw0)*t0;profile.push([0,currentZ]);}length+=len;currentZ+=dz;profile.push([length,currentZ]);shaded+=len*shades[part.i];ascent+=Math.max(0,dz);descent+=Math.max(0,-dz);if(e.steps&&len>.01)steps++;if(e.escalator&&len>.01)escalators++;if(e.surface){quality.surfaceKnown+=len;if(e.surface===3)quality.poorSurface+=len;}if(directed!==null){quality.slopeKnown+=len;quality.maxUphill=Math.max(quality.maxUphill,directed);quality.maxDownhill=Math.max(quality.maxDownhill,-directed);}if(e.width>0){quality.widthKnown+=len;quality.minWidth=quality.minWidth===null?e.width:Math.min(quality.minWidth,e.width);}if(e.wheelchair){quality.wheelchairKnown+=len;if(e.wheelchair>=2)quality.limitedWheelchair+=len;}for(const p of segment)if(!coords.length||Math.hypot(coords.at(-1)[0]-p[0],coords.at(-1)[1]-p[1])>.001)coords.push(p);}
+  let length=0,shaded=0,ascent=0,descent=0,steps=0,escalators=0,currentZ=null,heightsComplete=true;const coords=[],profile=[],quality={surfaceKnown:0,slopeKnown:0,widthKnown:0,wheelchairKnown:0,poorSurface:0,limitedWheelchair:0,maxUphill:0,maxDownhill:0,minWidth:null};
+  for(const part of parts){const e=network.edges[part.i],len=e.l*part.frac,t0=part.t0??(part.forward?0:1),t1=part.t1??(part.forward?1:0),raw0=e.z0,raw1=e.z1,known=Number.isFinite(raw0)&&Number.isFinite(raw1),dz=known?(raw1-raw0)*(t1-t0):0,segment=part.coords||(part.forward?e.c:e.c.slice().reverse()),directed=signedEdgeSlope(e,part.forward);if(known){profile.push([length,raw0+(raw1-raw0)*t0],[length+len,raw0+(raw1-raw0)*t1]);}else heightsComplete=false;length+=len;shaded+=len*shades[part.i];ascent+=Math.max(0,dz);descent+=Math.max(0,-dz);if(e.steps&&len>.01)steps++;if(e.escalator&&len>.01)escalators++;if(e.surface){quality.surfaceKnown+=len;if(e.surface===3)quality.poorSurface+=len;}if(directed!==null){quality.slopeKnown+=len;quality.maxUphill=Math.max(quality.maxUphill,directed);quality.maxDownhill=Math.max(quality.maxDownhill,-directed);}if(e.width>0){quality.widthKnown+=len;quality.minWidth=quality.minWidth===null?e.width:Math.min(quality.minWidth,e.width);}if(e.wheelchair){quality.wheelchairKnown+=len;if(e.wheelchair>=2)quality.limitedWheelchair+=len;}for(const p of segment)if(!coords.length||Math.hypot(coords.at(-1)[0]-p[0],coords.at(-1)[1]-p[1])>.001)coords.push(p);}
   const speed=Math.max(1,options.speedMpm||75),ascentMinutes=options.ascentMinutesPer10m??1;
   for(const key of ['surfaceKnown','slopeKnown','widthKnown','wheelchairKnown','poorSurface','limitedWheelchair'])quality[key]=length?quality[key]/length:0;
-  return {path:parts,coords,profile,length,shade:length?shaded/length:0,ascent,descent,steps,escalators,quality,criteria:{maxSlope:options.maxSlope||0,avoidPoorSurface:Boolean(options.avoidPoorSurface),avoidWheelchairNo:Boolean(options.avoidWheelchairNo),avoidSteps:Boolean(options.avoidSteps),avoidEscalators:Boolean(options.avoidEscalators)},minutes:Math.ceil(length/speed+ascent/10*ascentMinutes),snaps:[a.p,b.p],snapDistances:[a.distance,b.distance]};
+  return {path:parts,coords,profile:heightsComplete?profile:[],length,shade:length?shaded/length:0,ascent:heightsComplete?ascent:null,descent:heightsComplete?descent:null,steps,escalators,quality,criteria:{maxSlope:options.maxSlope||0,avoidPoorSurface:Boolean(options.avoidPoorSurface),avoidWheelchairNo:Boolean(options.avoidWheelchairNo),avoidSteps:Boolean(options.avoidSteps),avoidEscalators:Boolean(options.avoidEscalators)},minutes:heightsComplete?Math.ceil(length/speed+ascent/10*ascentMinutes):null,timeModel:{speedMpm:speed,ascentMinutesPer10m:ascentMinutes,estimated:true},snaps:[a.p,b.p],snapDistances:[a.distance,b.distance]};
  }
 }
 function hasRestrictions(options){return Boolean(options.avoidSteps||options.avoidEscalators||options.avoidPoorSurface||options.avoidWheelchairNo||options.maxSlope);}
