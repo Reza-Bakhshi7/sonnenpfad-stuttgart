@@ -12,7 +12,7 @@ const workerSource = fs.readFileSync(path.join(root, 'scripts', 'worker.mjs'), '
 const expectedThemes = ['slope', 'surface', 'shadeSummer', 'shadeWinter', 'utciSummer', 'utciWinter', 'noise', 'wind'];
 
 assert(!appSource.includes("getAttribute('aria-label')=t('layersTitle')"), 'Layer language setup must not assign to getAttribute().');
-assert(appSource.includes('function easeCamera')&&appSource.includes('Math.max(14,map.getZoom())'), '2D/3D switching must preserve the centre and enter the city detail view without moving the selected centre.');
+assert(appSource.includes('function easeCamera')&&appSource.includes('zoom:map.getZoom()')&&!appSource.includes('zoom:entering?Math.max(14'), '2D/3D switching must preserve the selected centre and zoom without forcing a city-detail jump.');
 assert(appSource.includes('loadVisibleCityTiles({force:true}).catch')&&appSource.includes('async function setMapViewMode'), '3D camera switching must not wait for optional tree files.');
 assert(appSource.includes('prepareRouteShade'), 'Long routes must load a complete shade corridor before routing.');
 assert(appSource.includes('outsideLocation'), 'Out-of-city geolocation must use a dismissible message.');
