@@ -17,14 +17,14 @@ const weather = read('scripts/weather.mjs')
   .replaceAll('export const ', 'const ')
   .replaceAll('export function ', 'function ')
   .replaceAll('export async function ', 'async function ');
-const experience = ['route-experience.mjs','display-data.mjs','basemap-style.mjs','city-scene.mjs','boundary-projection.mjs'].map(name=>read('scripts/'+name).replace(/^import .*$/gm,'').replaceAll('export const ', 'const ').replaceAll('export function ', 'function ').replaceAll('export async function ', 'async function ')).join('\n');
+const experience = ['shadow-display.mjs','terrain-heightfield.mjs','route-experience.mjs','display-data.mjs','basemap-style.mjs','city-scene.mjs','boundary-projection.mjs'].map(name=>read('scripts/'+name).replace(/^import .*$/gm,'').replaceAll('export const ', 'const ').replaceAll('export function ', 'function ').replaceAll('export async function ', 'async function ')).join('\n');
 const application = `${experience}\n${serverRouting}\n${read('scripts/app.source.mjs')}\n${read('scripts/map-experience.mjs')}`;
 const workerSource = `${core}\n${serverRouting}\n${worker}`;
 
 fs.mkdirSync(path.join(root, 'dist/vendor'), { recursive: true });
 fs.writeFileSync(
   path.join(root, 'dist/app-v7.mjs'),
-  `import * as maplibregl from './vendor/maplibre-gl.mjs';\nlet THREE;\nmaplibregl.setWorkerUrl(new URL('./vendor/maplibre-gl-worker.mjs',import.meta.url).href);\n${appData}\n${weather}\nconst BUNDLED_WORKER=${JSON.stringify(workerSource)};\nconst BUNDLED_POI_ICONS=${read('dist/poi-icons.json')};\n${application}`,
+  `import * as maplibregl from './vendor/maplibre-gl.mjs';\nlet THREE;\nmaplibregl.setWorkerUrl(new URL('./vendor/maplibre-gl-worker.mjs',import.meta.url).href);\n${appData}\n${weather}\nconst BUNDLED_DISPLAY_WORKER=${JSON.stringify(core+'\n'+read('scripts/shadow-display.mjs').replaceAll('export function ','function ')+'\n'+read('scripts/shadow-worker.mjs').replace(/^import .*$/gm,''))};\nconst BUNDLED_WORKER=${JSON.stringify(workerSource)};\nconst BUNDLED_POI_ICONS=${read('dist/poi-icons.json')};\n${application}`,
 );
 // A new source revision must not reuse a cached app/style URL on the branch
 // preview alias. The index itself is always revalidated.
