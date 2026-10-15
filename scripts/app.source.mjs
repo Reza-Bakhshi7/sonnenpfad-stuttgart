@@ -3,7 +3,8 @@ let exploreMode=false,citySceneLayer=null,profileMarker=null,routeMeasureCache=n
 const cityFetchPending=new Map();
 let displayManifest=null,displayManifestPending=null,displayStore=null,featurePopup=null,featureRequestId=0,poiImagesPending=null,cityScenePending=null;
 let displayShadeFrame=null,displayShadeQueue=null,displayShadeEpoch=0,displayObstacleKey='',displayTerrain=null;
-let shadowDisplayEnabled=false,displayShadeWorker=null,displayShadeId=0,displayShadeSignature='',weatherRefreshTimer=null,weatherLoadingPromise=null;
+const shadowDisplayEnabled=true;
+let displayShadeWorker=null,displayShadeId=0,displayShadeSignature='',weatherRefreshTimer=null,weatherLoadingPromise=null;
 const displayBaseURL=new URL('./city/',location.href);
 let viewTransitionId=0;
 const $=id=>document.getElementById(id);
