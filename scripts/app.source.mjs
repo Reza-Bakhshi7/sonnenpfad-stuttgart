@@ -163,7 +163,7 @@ function ensureDisplayShadeWorker(){
   if(d.epoch===displayShadeEpoch&&is3D&&exploreMode&&shadowDisplayEnabled){
    const canvas=$('shadow-canvas');canvas.width=d.bitmap.width;canvas.height=d.bitmap.height;canvas.getContext('2d').drawImage(d.bitmap,0,0);
    map.getSource('shade').setCoordinates([[d.bounds[0],d.bounds[3]],[d.bounds[2],d.bounds[3]],[d.bounds[2],d.bounds[1]],[d.bounds[0],d.bounds[1]]]);
-   displayShadeFrame={iso:d.iso,renderMs:d.renderMs};map.setLayoutProperty('shade-fill','visibility','visible');updateWeatherOpacity();const source=map.getSource('shade');source.play();map.once('render',()=>source.pause());map.triggerRepaint();
+   if(d.iso===selectedISO()){currentSun=d.sun;updateClock();}displayShadeFrame={iso:d.iso,renderMs:d.renderMs};map.setLayoutProperty('shade-fill','visibility','visible');updateWeatherOpacity();const source=map.getSource('shade');source.play();map.once('render',()=>source.pause());map.triggerRepaint();
   }
   d.bitmap.close();displayShadeQueue?.complete();
  };
@@ -364,7 +364,7 @@ async function setMapViewMode(entering){
 $('view').onclick=()=>setMapViewMode(!is3D);
 
 $('basemap').onchange=()=>{if(!map?.getLayer('osm-raster'))return;const value=$('basemap').value;for(const [layer,selected]of [['osm-raster','osm'],['topo-raster','topo'],['aerial-raster','aerial']])map.setLayoutProperty(layer,'visibility',value===selected?'visible':'none');};
-setupRouteExperience();language();loadWeather();init();
+setupRouteExperience();updateImmediateSun();language();loadWeather();init();
 // Optional read-only WebMCP integration.
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_walking_route',description:'Read the visible walking route and forecast context.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({mode:exploreMode?'explore':'route',date:$('date').value,time:$('clock').textContent,weather:selectedWeather(),route:result&&!result.error?{metres:result.length,minutes:result.minutes,source:result.source}:null})})).catch(()=>{});}catch{}}
 
