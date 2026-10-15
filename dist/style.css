@@ -188,27 +188,9 @@ html,body{height:100%;margin:0;overflow:hidden}
 .is-exploring .sidebar-body .explore-panel h2{display:block}
 @media(max-width:800px){.mode-switch{top:8px;left:8px}.mode-switch button{height:28px;padding:0 11px;font-size:10px}.theme-legend{top:52px!important;left:8px!important}.explore-panel{padding-top:15px}.explore-panel h2{font-size:20px}.weather-main>#weather-condition{max-width:94px}.time-panel{max-width:calc(100% - 16px)}}
 
-/* One compact dock, with accessible native inputs and named tooltips. */
-.map-tools{top:16px;right:14px;gap:5px;align-items:center;background:#fffffff2;padding:6px;border:1px solid #dce3e6;border-radius:14px;box-shadow:0 4px 20px #14395912}
-.map-tools button{width:36px;height:36px;box-shadow:none;border:0;background:transparent;border-radius:8px}
-.map-tools .mode-switch{position:static!important;display:flex;flex-direction:column;padding:0;box-shadow:none;background:none;border:0;gap:3px}
-.map-tools .mode-switch button{font-size:0;padding:0;width:36px;min-width:0;height:36px}
-.map-tools .mode-switch button::before{font-size:22px;content:'↦'}
-.map-tools .mode-switch #mode-explore::before{content:'◎'}
-.map-tools .mode-switch button.selected{background:var(--navy);color:white}
-.is-exploring .sidebar{display:none!important}.is-exploring #panel-toggle{display:none!important}
-.explore-panel{display:none!important}
-.layers-panel{position:absolute;top:16px;right:66px;left:auto!important;width:248px!important;max-height:calc(100% - 180px);overflow:auto;padding:12px;border-radius:13px;box-shadow:0 6px 30px #14395922}
-.basemap-choice{display:block;margin:8px 0 12px}.basemap-choice select{width:100%;height:34px;font-size:12px}
-.theme-options,.poi-options{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:7px!important}
-.theme-option,.poi-toggle{position:relative!important;display:flex!important;align-items:center;justify-content:center;min-height:40px!important;min-width:0;padding:5px!important;border:1px solid #dde5e9;border-radius:8px;background:white}
-.theme-option:has(input:checked),.poi-toggle:has(input:checked){background:#e7eff6;border-color:#426b8c;box-shadow:inset 0 0 0 1px #426b8c}
+/* Keep the established labelled layer controls; Explore has no left sidebar. */
+.is-exploring .sidebar,.is-exploring #panel-toggle,.explore-panel{display:none!important}
 .theme-option:has(input:focus-visible),.poi-toggle:has(input:focus-visible){outline:3px solid #c99c18;outline-offset:2px}
-.theme-option input,.poi-toggle input{position:absolute!important;inset:0;width:100%!important;height:100%!important;margin:0;opacity:0;cursor:pointer;z-index:1}
-.theme-name,.poi-name{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
-.theme-option i{width:25px!important;height:25px!important;background:transparent!important;color:var(--navy);border-radius:0!important;transform:none!important}
-.theme-option svg{width:25px;height:25px;display:block}.poi-symbol{width:26px!important;height:26px!important}
-.theme-description{display:none!important}.layers-panel fieldset{margin-top:12px}.layers-panel legend,.layers-panel>label,.layers-panel small{font-size:11px}
-.is-routing #theme-options,.is-routing #theme,.is-routing #layers-panel>label[for=theme],.is-routing .shadow-view-control,.is-routing #shadow-view-note,.is-routing #layers-panel fieldset{display:none!important}
-#layers-toggle[aria-expanded=true]{background:var(--navy);color:white}
-@media(max-width:800px){.map-tools{top:10px;right:8px;padding:4px}.map-tools button,.map-tools .mode-switch button{width:34px;height:34px}.layers-panel{top:10px;right:56px;width:min(248px,calc(100% - 68px))!important;max-height:calc(100% - 160px)}.is-exploring .map-area{height:100dvh!important}.is-exploring .sidebar{display:none!important}}
+.time-bottom .shadow-view-control{margin:0!important;font-size:11px!important;color:var(--navy);letter-spacing:0;font-weight:600}
+.time-panel .time-bottom{display:flex;gap:12px;flex-wrap:wrap}.time-bottom .shadow-view-control input{width:16px;height:16px}
+@media(max-width:800px){.is-exploring .map-area{height:100dvh!important}.time-bottom .shadow-view-control{font-size:10px!important}}

@@ -4,7 +4,7 @@ function updateExperienceLanguage(){
  const de=lang==='de',labels={openfree:'OpenFreeMap',osm:'Standard · OpenStreetMap',topo:(de?'Topografisch':'Topographic')+' · OpenTopoMap',aerial:(de?'Luftbild':'Aerial')+' · LGL BW'};
  for(const option of $('basemap')?.options||[])option.textContent=labels[option.value]||option.textContent;
  $('basemap')?.setAttribute('aria-label',de?'Hintergrundkarte':'Basemap');$('map-credits')?.setAttribute('aria-label',de?'Kartenquellen':'Map credits');const credits=$('credits-toggle');if(credits){const open=credits.getAttribute('aria-expanded')==='true',label=de?(open?'Kartenquellen ausblenden':'Kartenquellen einblenden'):(open?'Hide map credits':'Show map credits');credits.title=label;credits.setAttribute('aria-label',label);}
- for(const [id,label] of [['mode-route',de?'Route':'Route'],['mode-explore',de?'Entdecken':'Explore'],['explore-title',de?'Stuttgart entdecken':'Explore Stuttgart'],['explore-description',de?'Klicke auf einen Weg, einen Baum oder ein Gebäude, um mehr zu erfahren. Wähle zusätzliche Ebenen nach Interesse.':'Click a path, tree or building to learn more. Choose additional layers as you explore.'],['explore-layers',de?'Kartenebenen wählen':'Choose map layers'],['explore-3d',is3D?(de?'Zur 2D-Karte':'Switch to 2D'):(de?'Stadt in 3D ansehen':'View the city in 3D')],['shadow-view-label',de?'Modellierten Schatten anzeigen':'Show modelled shadows'],['shadow-view-note',de?'In 3D · wird erst beim Einschalten berechnet':'In 3D · calculated when enabled']])if($(id))$(id).textContent=label;
+ for(const [id,label] of [['mode-route','Routing'],['mode-explore',de?'Entdecken':'Explore'],['explore-title',de?'Stuttgart entdecken':'Explore Stuttgart'],['explore-description',de?'Klicke auf einen Weg, einen Baum oder ein Gebäude, um mehr zu erfahren. Wähle zusätzliche Ebenen nach Interesse.':'Click a path, tree or building to learn more. Choose additional layers as you explore.'],['explore-layers',de?'Kartenebenen wählen':'Choose map layers'],['explore-3d',is3D?(de?'Zur 2D-Karte':'Switch to 2D'):(de?'Stadt in 3D ansehen':'View the city in 3D')],['shadow-view-label',de?'Modellierten Schatten anzeigen':'Show modelled shadows'],['shadow-view-note',de?'3D · ab Zoom 14':'3D · from zoom 14']])if($(id))$(id).textContent=label;
  const button=$('explore-mode');if(button){button.textContent=exploreMode?'◎':'↦';button.title=exploreMode?(de?'Karte frei erkunden. Zur Routenplanung wechseln.':'Explore freely. Switch to route planning.'):(de?'Routenplanung aktiv. Frei erkunden einschalten.':'Route planning active. Switch to free exploration.');button.setAttribute('aria-label',button.title);}
  if($('route-preview'))$('route-preview').textContent=previewState?(de?'■ Vorschau beenden':'■ Stop preview'):(de?'▶ 3D-Routenvorschau':'▶ 3D route preview');
  $('elevation-chart')?.setAttribute('aria-label',de?'Höhenprofil: Zeiger bewegen, um die Position auf der Karte zu sehen':'Elevation profile: move the pointer to see the location on the map');
@@ -12,8 +12,8 @@ function updateExperienceLanguage(){
 function updateModeUI(){
  document.body.classList.toggle('is-exploring',exploreMode);document.body.classList.toggle('is-routing',!exploreMode);
  for(const [id,active] of [['mode-route',!exploreMode],['mode-explore',exploreMode]]){$(id)?.classList.toggle('selected',active);$(id)?.setAttribute('aria-pressed',String(active));}
- $('explore-panel').hidden=!exploreMode;$('journey-panel').hidden=exploreMode;$('layers-toggle').hidden=false;if(!exploreMode){$('layers-panel').hidden=true;$('layers-toggle').setAttribute('aria-expanded','false');}
- if(map){applyTheme({reload:false});applyPoiFilter({reload:false});if(map.getLayer('shade-fill'))map.setLayoutProperty('shade-fill','visibility',exploreMode&&shadowDisplayEnabled&&is3D&&Boolean(displayShadeFrame)?'visible':'none');}
+ $('explore-panel').hidden=!exploreMode;$('journey-panel').hidden=exploreMode;$('layers-toggle').hidden=!exploreMode;if(!exploreMode){$('layers-panel').hidden=true;$('layers-toggle').setAttribute('aria-expanded','false');}
+ if(map){applyTheme({reload:false});applyPoiFilter({reload:false});if(map.getLayer('shade-fill'))map.setLayoutProperty('shade-fill','visibility',shadowDisplayEnabled&&is3D&&Boolean(displayShadeFrame)?'visible':'none');}
  $('shadow-view').disabled=!is3D;$('shadow-view').checked=shadowDisplayEnabled;
  const heading=$('panel-toggle')?.lastElementChild;if(heading&&exploreMode)heading.textContent=lang==='de'?'Stuttgart entdecken':'Explore Stuttgart';else if(heading)heading.textContent=t('planRoute');
  updateExperienceLanguage();
@@ -91,12 +91,7 @@ function installMapExperience(){
 }
 
 function setupCompactTools(){
- const tools=document.querySelector('.map-tools'),panel=$('layers-panel');
- tools.prepend(document.querySelector('.mode-switch'));
- const basemap=$('basemap'),holder=document.createElement('label');holder.className='basemap-choice';holder.append(basemap);panel.insertBefore(holder,panel.querySelector('label'));
- $('layers-toggle').hidden=false;
+ const panel=$('layers-panel');
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!panel.hidden){panel.hidden=true;$('layers-toggle').setAttribute('aria-expanded','false');$('layers-toggle').focus();}});
  document.addEventListener('pointerdown',event=>{if(!panel.hidden&&!panel.contains(event.target)&&!$('layers-toggle').contains(event.target)){panel.hidden=true;$('layers-toggle').setAttribute('aria-expanded','false');}});
- const icons={slope:'M3 18 11 10 15 14 21 6M15 6h6v6',surface:'M4 5h16v14H4zM4 12h16M12 5v7M8 12v7M16 12v7',shadeSummer:'M12 3v18M12 4a8 8 0 0 1 0 16M4 12h3M5 5l2 2M5 19l2-2',shadeWinter:'M12 3v18M4 7l16 10M4 17 20 7',utciSummer:'M9 5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0zM12 7v10M19 4v6M16 7h6',utciWinter:'M9 5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0zM12 10v7M18 6h5',noise:'M3 9h4l5-4v14l-5-4H3zM16 8q5 4 0 8M19 5q7 7 0 14',wind:'M3 8h12q6 0 4-4M3 12h17M3 16h10q6 0 4 4'};
- for(const label of document.querySelectorAll('.theme-option')){const icon=label.querySelector('i');icon.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${icons[label.dataset.theme]}"/></svg>`;}
 }

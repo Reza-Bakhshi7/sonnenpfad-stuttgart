@@ -160,7 +160,7 @@ function ensureDisplayShadeWorker(){
  displayShadeWorker.onmessage=({data:d})=>{
   if(d.type==='error'){stopDisplayShadows();map?.setLayoutProperty('shade-fill','visibility','none');return;}
   if(d.type!=='frame')return;
-  if(d.epoch===displayShadeEpoch&&is3D&&exploreMode&&shadowDisplayEnabled){
+  if(d.epoch===displayShadeEpoch&&is3D&&shadowDisplayEnabled){
    const canvas=$('shadow-canvas');canvas.width=d.bitmap.width;canvas.height=d.bitmap.height;canvas.getContext('2d').drawImage(d.bitmap,0,0);
    map.getSource('shade').setCoordinates([[d.bounds[0],d.bounds[3]],[d.bounds[2],d.bounds[3]],[d.bounds[2],d.bounds[1]],[d.bounds[0],d.bounds[1]]]);
    if(d.iso===selectedISO()){currentSun=d.sun;updateClock();}displayShadeFrame={iso:d.iso,renderMs:d.renderMs};map.setLayoutProperty('shade-fill','visibility','visible');updateWeatherOpacity();const source=map.getSource('shade');source.play();map.once('render',()=>source.pause());map.triggerRepaint();
@@ -170,13 +170,13 @@ function ensureDisplayShadeWorker(){
  displayShadeWorker.onerror=()=>{stopDisplayShadows();map?.setLayoutProperty('shade-fill','visibility','none');};
 }
 async function requestShade(recalculateRoute=false,{silent=false}={}){
- if(!ready||!is3D||!exploreMode||!shadowDisplayEnabled||previewState||viewSwitching||map.getZoom()<14)return;
+ if(!ready||!is3D||!shadowDisplayEnabled||previewState||viewSwitching||map.getZoom()<14)return;
  const epoch=displayShadeEpoch,id=++displayShadeId;
  try{
   const visual=await ensureDisplayManifest(),b=map.getBounds(),c=map.getCenter(),bounds=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()],keys=selectDisplayTiles(visual,meta,bounds,[c.lng,c.lat],{limit:16,bearing:map.getBearing()}),key=keys.slice().sort().join(',');
   if(!keys.length)return;
   const selected=key===displayObstacleKey?null:await fetchObstacleTiles(keys);
-  if(epoch!==displayShadeEpoch||id!==displayShadeId||!is3D||!exploreMode||!shadowDisplayEnabled)return;
+  if(epoch!==displayShadeEpoch||id!==displayShadeId||!is3D||!shadowDisplayEnabled)return;
   ensureDisplayShadeWorker();
   if(selected){displayShadeWorker.postMessage({type:'obstacles',obstacles:{buildings:selected.flatMap(tile=>tile.buildings),trees:selected.flatMap(tile=>tile.trees)}});displayObstacleKey=key;}
   const canvas=map.getCanvas(),ratio=Math.min(2,globalThis.devicePixelRatio||1),scale=Math.min(1,2048/(Math.max(canvas.clientWidth,canvas.clientHeight)*ratio)),width=Math.max(1,Math.round(canvas.clientWidth*ratio*scale)),height=Math.max(1,Math.round(canvas.clientHeight*ratio*scale));
@@ -250,7 +250,7 @@ async function loadVisibleCityTiles({force=false}={}){
  // loading is an independent job and can never block a camera transition.
  if(demand.trees){const treeJob=async()=>{const layer=await ensureCityScene();if(id!==tileLoadId||!is3D)return;const input=[];let frame=0;const update=()=>{frame=0;if(id===tileLoadId&&is3D){layer.setTrees(input,local(centre));layer.setVisible(true);}};await Promise.allSettled(treeKeys.map(async key=>{const tile=await displayStore.get(visual.tiles[key].sceneFile,revision);if(id!==tileLoadId||!is3D)return;const placed=typeof placeDisplayTrees==='function'?await placeDisplayTrees((tile.trees||[]).filter(tree=>inPilot(ll(tree.p)))):(tile.trees||[]).filter(tree=>inPilot(ll(tree.p)));if(id!==tileLoadId||!is3D)return;input.push(...placed);if(!frame)frame=requestAnimationFrame(update);}));};treeJob().catch(error=>console.warn('Tree display postponed:',error));}
  if(demand.pois)await ensurePoiImages();let selected;try{selected=await Promise.all(tasks);}catch(error){if(id===tileLoadId)activeCityViewSignature='';throw error;}if(id!==tileLoadId)return;if(demand.paths)await updateVisibleCitySources(selected,theme);activeCityViewSignature=signature;activeTileKeys=keys.join(',');renderThemeLegend();
- if(is3D&&exploreMode&&shadowDisplayEnabled&&!previewState){clearTimeout(cityShadeTimer);cityShadeTimer=setTimeout(()=>requestShade(false,{silent:true}),650);}
+ if(is3D&&shadowDisplayEnabled&&!previewState){clearTimeout(cityShadeTimer);cityShadeTimer=setTimeout(()=>requestShade(false,{silent:true}),650);}
 }
 let lastPreviewTileLoad=0;
 
@@ -266,7 +266,7 @@ async function init(){
  try{
   const loaded=await loadChunkedData();[meta,network,obstacles]=loaded;if(cityManifest){strings.de.pilot='FUSSWEGE · STADTGEBIET';strings.en.pilot='WALKING · STUTTGART';strings.de.outsidePilot='Mindestens ein Punkt liegt außerhalb des Stadtgebiets Stuttgart.';strings.en.outsidePilot='At least one point is outside Stuttgart city limits.';const response=await fetch(new URL('stuttgart-boundary.json',cityBaseURL));if(response.ok)cityBoundary=await response.json();}language();
   if(typeof maplibregl.Map!=='function')throw Error('MapLibre unavailable');
-  map=new maplibregl.Map({container:'map',style:createBasemapStyle(),center:[9.1779,48.7775],zoom:cityManifest?12.2:15.2,minZoom:cityManifest?11.7:12,maxZoom:18,maxBounds:cityManifest?[[meta.bounds[0],meta.bounds[1]],[meta.bounds[2],meta.bounds[3]]]:undefined,maxPitch:0,attributionControl:false,pitch:0,centerClampedToGround:false,canvasContextAttributes:{antialias:true}});map.touchPitch.disable();
+  map=new maplibregl.Map({container:'map',style:createBasemapStyle(),center:[9.1779,48.7775],zoom:cityManifest?12.2:15.2,minZoom:cityManifest?11.7:12,maxZoom:18,maxBounds:cityManifest?[[meta.bounds[0],meta.bounds[1]],[meta.bounds[2],meta.bounds[3]]]:undefined,maxPitch:0,attributionControl:false,pitch:0,centerClampedToGround:true,canvasContextAttributes:{antialias:true}});map.touchPitch.disable();
   map.addControl(new maplibregl.NavigationControl({showCompass:true}),'top-right');map.addControl(new maplibregl.AttributionControl({compact:false,customAttribution:'Atlas: M. Bakhshi'}),'bottom-right');
   map.on('load',()=>{setupLayers();updateMarkers();installDirectMapPicking();updateModeUI();$('loading-cover').hidden=true;worker=new Worker(URL.createObjectURL(new Blob([BUNDLED_WORKER],{type:'text/javascript'})));worker.onerror=()=>{status('modelFailed');$('calculate').disabled=true;};worker.onmessage=onWorker;if(cityManifest){worker.postMessage({type:'initCity',manifest:cityManifest,base:cityBaseURL.href});loadVisibleCityTiles().catch(console.warn);map.on('moveend',()=>{loadVisibleCityTiles().catch(error=>console.warn('Viewport display postponed:',error));});}else worker.postMessage({type:'init',meta,network,obstacles});map.on('rotate',updateSunDirection);map.on('click',e=>{if(pick===null)return;chooseMapPoint([e.lngLat.lng,e.lngLat.lat],{forcedIndex:pick});});});
  }catch(e){const key=typeof maplibregl.GPUInitializationError==='function'&&e instanceof maplibregl.GPUInitializationError?'mapUnsupported':'loadFail';status(key);$('loading-cover').querySelector('span').textContent=t(key);$('loading-cover').querySelector('.spinner').hidden=true;console.error(e);}
@@ -295,7 +295,7 @@ $('language').onclick=()=>{lang=lang==='de'?'en':'de';language();};
 $('calculate').onclick=()=>{calculate();if(innerWidth<=800&&points.every(Boolean)){$('sidebar-body').classList.remove('expanded');$('panel-toggle').setAttribute('aria-expanded','false');}};document.querySelectorAll('[data-pref]').forEach(b=>b.onclick=()=>setPreference(b.dataset.pref));$('mobility-profile').onchange=updateProfile;document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{$('mobility-profile').value=b.dataset.profile;updateProfile();});document.querySelectorAll('[data-slope]').forEach(b=>b.onclick=()=>{$('slope-mode').value=b.dataset.slope;updateSlopeChoice();});for(const id of ['steps','escalators','poor-surface','wheelchair-no'])$(id).onchange=()=>{if(result||serverRoutingPending)calculate();};$('panel-toggle').onclick=()=>{const open=$('sidebar-body').classList.toggle('expanded');$('panel-toggle').setAttribute('aria-expanded',String(open));};
 for(const [i,id]of ['pick-origin','pick-destination'].entries())$(id).onclick=()=>{if(!map)return;if(exploreMode)setExploreMode(false);finishPickMode(pick===i?null:i);};
 $('swap').onclick=()=>{const p=points[0]?.slice(),originLabel=$('origin').value,destinationLabel=$('destination').value;if(!p&&!points[1])return;for(const [i,value,label]of [[0,points[1]?.slice(),destinationLabel],[1,p,originLabel]]){points[i]=value||null;$(i?'destination':'origin').value=value?label:'';markers[i]?.remove();markers[i]=null;}updateMarkers();invalidateRoute();};
-let debounce;function selectedTimeChanged(){const reroute=!exploreMode&&preference!=='balanced'&&Boolean(result||serverRoutingPending);if(reroute&&serverRoutingPending){routeId++;serverRouteController?.abort();serverRoutingPending=false;}updateImmediateSun();if(is3D&&exploreMode&&shadowDisplayEnabled)requestShade(false,{silent:true});clearTimeout(debounce);if(reroute)debounce=setTimeout(()=>calculate(),250);}$('time').oninput=selectedTimeChanged;$('date').onchange=()=>{if($('date').checkValidity()&&$('date').value)selectedTimeChanged();};
+let debounce;function selectedTimeChanged(){const reroute=!exploreMode&&preference!=='balanced'&&Boolean(result||serverRoutingPending);if(reroute&&serverRoutingPending){routeId++;serverRouteController?.abort();serverRoutingPending=false;}updateImmediateSun();if(is3D&&shadowDisplayEnabled)requestShade(false,{silent:true});clearTimeout(debounce);if(reroute)debounce=setTimeout(()=>calculate(),250);}$('time').oninput=selectedTimeChanged;$('date').onchange=()=>{if($('date').checkValidity()&&$('date').value)selectedTimeChanged();};
 $('now').onclick=()=>{const p=berlinParts(new Date());$('date').value=dateNow();$('time').value=Math.min(1439,+p.hour*60+ +p.minute);selectedTimeChanged();};
 $('fit').onclick=()=>{stopRoutePreview(false);fitRoute();};
 $('locate').onclick=()=>{if(!navigator.geolocation){status('locationFail');return;}navigator.geolocation.getCurrentPosition(pos=>{const p=[pos.coords.longitude,pos.coords.latitude];if(!inPilot(p)){showToast('outsideLocation');return;}hideToast();setCustom(0,p,lang==='de'?'Mein Standort':'My location');map.flyTo({center:p,zoom:16});},()=>status('locationFail'),{timeout:10000,maximumAge:60000});};
@@ -358,7 +358,7 @@ async function setMapViewMode(entering){
  button.setAttribute('aria-pressed',String(is3D));button.textContent=is3D?'2D':'3D';$('city-screen-mask')?.setAttribute('hidden','');map.setLayoutProperty('city-buildings-3d','visibility',is3D?'visible':'none');map.setLayoutProperty('building-footprint','visibility',is3D?'none':'visible');map.setLayoutProperty('shade-fill','visibility','none');citySceneLayer?.setVisible(is3D);map.setMinZoom(cityManifest?11.7:12);map.setMaxPitch(60);if(is3D)map.touchPitch.enable();else map.touchPitch.disable();
  // The switch owns only the camera. Neither Three, tree tiles nor DEM can hold
  // the button disabled. Vector buildings already share the loaded basemap.
- try{await easeCamera({pitch:entering?44:0,zoom:entering?Math.max(14,map.getZoom()):map.getZoom(),duration:450,easing:value=>1-Math.pow(1-value,3),essential:true});}
+ try{await easeCamera({pitch:entering?44:0,zoom:map.getZoom(),duration:450,easing:value=>1-Math.pow(1-value,3),essential:true});}
  finally{if(transition===viewTransitionId){viewSwitching=false;button.disabled=false;button.classList.remove('is-switching');map.getContainer?.()?.parentElement?.classList?.remove('is-view-switching');if(!is3D){map.setMaxPitch(0);map.touchPitch.disable();}activeCityViewSignature='';updateModeUI();updateSunDirection();map.triggerRepaint();loadVisibleCityTiles({force:true}).catch(console.warn);}}
 }
 $('view').onclick=()=>setMapViewMode(!is3D);
