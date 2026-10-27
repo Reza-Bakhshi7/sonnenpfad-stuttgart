@@ -57,12 +57,25 @@ class CorsRepairTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'cors.conf'
             path.write_bytes(b'original')
-            with patch.object(cors.subprocess, 'run') as run, patch.object(cors, 'probe', return_value=(False, {})):
+            with patch.object(cors.subprocess, 'run') as run, patch.object(cors.time, 'sleep'), patch.object(cors, 'probe', return_value=(False, {})):
                 with self.assertRaises(ValueError):
                     cors.apply_configuration(path, b'original', b'changed', path.stat(), 'nginx')
             self.assertEqual(path.read_bytes(), b'original')
             self.assertEqual(run.call_count, 4)
 
+
+
+    def test_old_worker_response_is_rechecked_after_reload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'cors.conf'
+            path.write_bytes(b'original')
+            with patch.object(cors.subprocess, 'run') as run, patch.object(cors.time, 'sleep') as sleep, patch.object(cors, 'probe', side_effect=[(False, {}), (True, {'distance_m': 123})]) as probe:
+                props = cors.apply_configuration(path, b'original', b'changed', path.stat(), 'nginx')
+            self.assertEqual(path.read_bytes(), b'changed')
+            self.assertEqual(props['distance_m'], 123)
+            self.assertEqual(probe.call_count, 2)
+            sleep.assert_called_once_with(1)
+            self.assertEqual(run.call_count, 2)
 
 if __name__ == '__main__':
     unittest.main()
