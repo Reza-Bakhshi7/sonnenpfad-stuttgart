@@ -1,8 +1,8 @@
-# Sonnenpfad Stuttgart — Prototype 0.10
+# Sonnenpfad Stuttgart — Prototype 0.13.1
 
 A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the Stuttgart Pedestrian Atlas. German and English, desktop and mobile. Standard Direct routes use the Sonnenpfad HTTPS API backed by PostGIS/pgRouting on the Oracle server. Shade, Sun, custom and mobility profiles currently retain the browser engine. No paid routing API key is required.
 
-Production: <https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/>
+Production: <https://sonnenpfad-stuttgart.de/> (Cloudflare alias: <https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/>)
 
 Project rules are documented in [GOVERNANCE.md](GOVERNANCE.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [release process](docs/release-process.md). The current architecture and eight-step roadmap are in `docs/`.
 

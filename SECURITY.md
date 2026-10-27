@@ -17,7 +17,7 @@ Do not publish credentials, private source data, precise personal locations or s
 
 ## Application privacy
 
-Routing runs in the browser. The application does not intentionally persist selected routes or device positions. Shared route URLs contain coordinates and must be treated as location data. External map and live-data providers receive normal network request metadata.
+Standard Direct routing sends selected endpoint coordinates over verified HTTPS to the Sonnenpfad Oracle service. Other profiles currently run in the browser. The API must allow the exact production origin; do not replace that allowlist with a wildcard. The application does not intentionally persist selected routes or device positions. Shared route URLs contain coordinates and must be treated as location data. External map and live-data providers receive normal network request metadata.
 
 ## Incident response
 
