@@ -8,8 +8,8 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./style.css?v=88a50ea01ee02139">
-<script type="module" src="./app-v7.mjs?v=925d292ba659a823">
+<link rel="stylesheet" href="./style.css?v=9395306533ba371b">
+<script type="module" src="./app-v7.mjs?v=92ac93c31c9c8952">
 </script>
 </head>
 <body>
@@ -190,7 +190,7 @@
 <div class="metrics">
 <div>
 <strong id="duration">–</strong>
-<span data-i="minutes">Minuten¹</span>
+<span>Gehzeit¹</span>
 </div>
 <div>
 <strong id="distance">–</strong>
@@ -213,12 +213,14 @@
 </div>
 <div id="route-assessment" class="route-assessment" aria-live="polite"></div>
 <button id="route-preview" class="route-preview" type="button" disabled>▶ 3D-Routenvorschau</button>
+<div id="preview-controls" class="preview-controls" hidden><button id="preview-pause" type="button">Pause</button><button id="preview-stop" type="button">Stopp</button><div class="preview-speeds" role="group" aria-label="Vorschaugeschwindigkeit"><button type="button" data-speed="1" aria-pressed="true">×1</button><button type="button" data-speed="2" aria-pressed="false">×2</button><button type="button" data-speed="4" aria-pressed="false">×4</button></div></div>
 <div id="elevation-profile" class="elevation-profile" hidden>
 <div class="elevation-profile-head">
 <span data-i="elevationProfile">Höhenprofil</span>
 <strong id="elevation-range">
 </strong>
 </div>
+<div class="profile-readout"><span id="elevation-scale"></span><output id="elevation-position" aria-live="off"></output></div>
 <svg id="elevation-chart" viewBox="0 0 300 86" preserveAspectRatio="none" role="img" aria-label="Höhenprofil der Route">
 <defs>
 <linearGradient id="elevation-gradient" x1="0" y1="0" x2="0" y2="1">
