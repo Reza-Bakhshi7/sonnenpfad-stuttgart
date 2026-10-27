@@ -26,3 +26,7 @@ Selection is maintained in its own GeoJSON source so a clicked displayed segment
 - Mobile menu inspected at 390 px viewport width. Actual downloaded white/real JPEGs and cropped-parent encoding passed an in-browser image regression without WebGL. The cloud browser lacks WebGL, so real 2D/3D rendering, touch rotation and image continuity on a device remain unverified.
 
 No Oracle installation, production service switch or migration to the staged profile API is included. Do not merge/deploy main until the user approves the preview.
+
+## Preview routing isolation
+
+The new preview Origin receives no Access-Control-Allow-Origin from the legacy Oracle API (diagnostic route returned HTTP 200). Therefore the exact App 09 alias and Cloudflare version preview hosts use the existing browser engine, visibly labelled in route results and About. Both production hostnames keep the existing Oracle path. This enables UI/profile/replay review without a VM/CORS change; preview routes are not evidence of Oracle parity. No insecure request or TLS change is included. A local diagnostic required curl --insecure because the assistant network's certificate did not cover the IP; that diagnostic is not a browser TLS verification.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {createAerialCache,createAerialFallback,aerialParent} from './aerial-cache.mjs';
-import {profileScale,profileAtDistance,formatWalkDuration,routeMeasure,pointAlongRoute,densifyRoute,smoothBearing} from './route-experience.mjs';
+import {isRoutingPreview,profileScale,profileAtDistance,formatWalkDuration,routeMeasure,pointAlongRoute,densifyRoute,smoothBearing} from './route-experience.mjs';
 const source=fs.readFileSync(new URL('./app.source.mjs',import.meta.url),'utf8');
 // Read every original signed direction as int8; compare regenerated display
 // flags, so a regression from -1 to unsigned 255 cannot quietly return.
@@ -45,3 +45,8 @@ const parent=aerialParent(child);assert.equal(new URL(parent.url).searchParams.g
 const calls=[];const fallback=createAerialFallback({cache:{get:async url=>{calls.push(url);return new Uint8Array([url===child?0:9]).buffer;}},isBlank:async data=>new Uint8Array(data)[0]===0,crop:async(data,p)=>{assert.equal(p.x,1);assert.equal(p.y,1);return data;}});
 assert.equal(new Uint8Array(await fallback.get(child))[0],9);await fallback.get(child);assert.equal(calls.length,2,'cached fallback avoids repeated white-child and parent requests');
 console.log('Aerial blank-tile parent fallback verified.');
+
+assert(isRoutingPreview('app09-mobile-finalization-preview-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'));
+assert(isRoutingPreview('2feb460e-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'));
+assert(!isRoutingPreview('sonnenpfad-stuttgart.de'));assert(!isRoutingPreview('sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'));assert(!isRoutingPreview('example.test'));
+console.log('Preview routing is isolated from production hosts.');

@@ -232,3 +232,5 @@ html,body{height:100%;margin:0;overflow:hidden}
 }
 @media(max-width:380px){.date-actions input{max-width:125px;font-size:14px}.sun-direction{display:none}.profile-readout{font-size:9px}}
 @media(max-height:500px) and (max-width:800px){.time-panel{max-width:65%;right:auto}.sidebar-body{max-height:calc(100dvh - 20px)}.map-tools button,.map-tools #explore-mode,.maplibregl-ctrl-top-right button{height:34px!important;min-height:34px!important}}
+
+.preview-routing-note{padding:8px 10px;background:#e8f2fb;border-radius:7px;color:#245779;font-size:11px}

@@ -53,3 +53,9 @@ export function profileAtDistance(values,distance) {
  }
  return values.at(-1)?.every(Number.isFinite)?values.at(-1)[1]:null;
 }
+
+// Public production hosts retain Oracle routing. Preview hosts have no Oracle
+// CORS grant and use the existing local engine with an explicit UI notice.
+export function isRoutingPreview(hostname='') {
+ return /^(?:app09-mobile-finalization-preview|[a-f0-9]{8})-sonnenpfad-stuttgart\.mohammadreza-bakhshi\.workers\.dev$/.test(hostname);
+}

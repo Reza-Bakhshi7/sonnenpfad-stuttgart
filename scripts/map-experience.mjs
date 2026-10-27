@@ -1,6 +1,7 @@
 // Included after the application declarations by the bundler.
 function updateExperienceLanguage(){
  for(const [id,de,en] of [['mode-route','Route planen','Plan a route'],['mode-explore','Stuttgart erkunden','Explore Stuttgart'],['view','Zwischen 2D und 3D wechseln','Switch between 2D and 3D']])if($(id)){$(id).title=lang==='de'?de:en;$(id).setAttribute('aria-label',$(id).title);}
+ const previewNote=$('preview-routing-note');if(previewNote){previewNote.hidden=!isRoutingPreview(location.hostname);previewNote.textContent=lang==='de'?'Vorschau · Routenberechnung im Browser. Produktiv nutzt „Direkt“ weiterhin Oracle.':'Preview · Routing in your browser. Production still uses Oracle for Direct.';}
  const de=lang==='de',labels={openfree:'OpenFreeMap',osm:'Standard · OpenStreetMap',topo:(de?'Topografisch':'Topographic')+' · OpenTopoMap',aerial:(de?'Luftbild':'Aerial')+' · LGL BW'};
  for(const option of $('basemap')?.options||[])option.textContent=labels[option.value]||option.textContent;
  $('basemap')?.setAttribute('aria-label',de?'Hintergrundkarte':'Basemap');$('map-credits')?.setAttribute('aria-label',de?'Kartenquellen':'Map credits');const credits=$('credits-toggle');if(credits){const open=credits.getAttribute('aria-expanded')==='true',label=de?(open?'Kartenquellen ausblenden':'Kartenquellen einblenden'):(open?'Hide map credits':'Show map credits');credits.title=label;credits.setAttribute('aria-label',label);}
