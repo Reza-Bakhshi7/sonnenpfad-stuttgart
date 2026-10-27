@@ -6,7 +6,7 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/weather"],
+    "run_worker_first": ["/api/weather", "/api/route"],
     "not_found_handling": "single-page-application"
   }
 }

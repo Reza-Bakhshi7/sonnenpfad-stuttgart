@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.1 — custom-domain Standard routing, 2026-10-27
+
+- Route Standard Direct through same-origin `/api/route` to fix the new domain being absent from the Oracle CORS allowlist.
+- Keep the fixed Oracle HTTPS endpoint, certificate checks and oriented segment contract; bound parameters, payload size and timeout.
+- Omit client credentials and upstream cookies, disable shared route caching, and update German/English privacy text.
+- Fix the weather-cache test clock so its historical fixture does not expire with the real calendar.
+- Add proxy/error/timeout and same-origin regression checks. Preserve the staged profile API as a separate test service.
+
 ## 0.13.0 — terrain, direct shadow frames and metric audit, 2026-10-15
 
 - Restore static coarse terrain in 3D; place tree trunks at immutable sampled ground heights.

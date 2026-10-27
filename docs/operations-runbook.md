@@ -2,7 +2,8 @@
 
 ## Production
 
-- Application: `https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/`
+- Application: `https://sonnenpfad-stuttgart.de/`
+- Cloudflare alias: `https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/`
 - Source: private GitHub repository `Reza-Bakhshi7/sonnenpfad-stuttgart`
 - Production branch: `main`
 - Build: `npm run build`
@@ -32,3 +33,11 @@
 ## Incident record
 
 Record start/end time, affected version, user impact, evidence, mitigation, root cause and follow-up action in a GitHub issue without including secrets or unnecessary personal data.
+
+## Standard routing on the custom domain
+
+The browser calls `/api/route` on its current origin. The Cloudflare Worker validates bounded Stuttgart coordinates and the shortest/segment-metadata contract, then forwards only allowlisted parameters to `https://138.2.184.1/route`. Both TLS connections retain certificate validation. No client credentials or upstream cookies are forwarded and route responses use `Cache-Control: no-store`. The legacy Oracle API on port 8000 remains active. The profile test service on port 8001 must not replace it until the versioned contract is integrated and accepted.
+
+If Direct fails, check that the response from `/api/route` is JSON, not the SPA HTML fallback. Then check the Worker build and fixed upstream availability. A 504 means the 12-second proxy deadline expired. Do not disable TLS validation or advertise unimplemented profile capabilities.
+
+Rollback: revert the 0.13.1 pull request to restore commit `dbee3295afc0cc429d8f9b1d23fa95bd6c342227`; the previous direct cross-origin route path still needs the custom domain in the Oracle CORS allowlist.

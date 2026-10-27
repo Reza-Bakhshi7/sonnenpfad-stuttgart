@@ -1,4 +1,5 @@
 import {weatherUrl,normalizeWeather,normalizeMetWeather,usableWeatherCache,WEATHER_CACHE_MS} from '../scripts/weather.mjs';
+import {handleRouting} from './routing-proxy.mjs';
 
 const inFlight=new Map();
 const metURL='https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=48.778&lon=9.180';
@@ -29,4 +30,4 @@ export async function handleWeather(request,{cache,fetchImpl=fetch,now=Date.now,
  try{return json(await refresh(),'miss');}catch{return new Response(JSON.stringify({error:'weather-refresh',retryAfter:60}),{status:503,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Retry-After':'60'}});}
 }
 
-export default {async fetch(request,env,ctx){if(new URL(request.url).pathname==='/api/weather')return handleWeather(request,{cache:caches.default,waitUntil:job=>ctx.waitUntil(job)});return env.ASSETS.fetch(request);}};
+export default {async fetch(request,env,ctx){const path=new URL(request.url).pathname;if(path==='/api/route')return handleRouting(request);if(path==='/api/weather')return handleWeather(request,{cache:caches.default,waitUntil:job=>ctx.waitUntil(job)});return env.ASSETS.fetch(request);}};

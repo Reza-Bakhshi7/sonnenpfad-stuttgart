@@ -1,11 +1,11 @@
 // API 0.2 metadata describes oriented route pieces. Atlas heights are interpolated,
 // not resampled from terrain; unknown attributes must remain unknown.
-export const ROUTING_API='https://138.2.184.1';
+export const ROUTING_API='/api/route';
 export function usesServerRouting(options={}) {
  return options.preference==='balanced' && (!options.mobilityProfile||options.mobilityProfile==='standard') && !options.gentle && (!options.slopeMode||options.slopeMode==='none') && !['avoidSteps','avoidEscalators','avoidPoorSurface','avoidWheelchairNo','maxSlope'].some(key=>options[key]);
 }
-export async function requestServerRoute(start,end,{signal,fetchImpl=fetch}={}) {
- const url=new URL('/route',ROUTING_API);
+export async function requestServerRoute(start,end,{signal,fetchImpl=fetch,origin=globalThis.location?.origin}={}) {
+ const url=new URL(ROUTING_API,origin);
  for(const [key,value] of Object.entries({start_lon:start[0],start_lat:start[1],end_lon:end[0],end_lat:end[1],profile:'shortest',max_snap_m:50,include_segments:true}))url.searchParams.set(key,String(value));
  const response=await fetchImpl(url,{signal,headers:{Accept:'application/json'},credentials:'omit'});
  if(!response.ok){let detail='';try{detail=(await response.json()).detail||'';}catch{}const error=new Error(String(detail||'Routing service unavailable'));error.routeError=response.status===404?(detail.includes('within')?'serverOutside':'disconnected'):'serverUnavailable';throw error;}
