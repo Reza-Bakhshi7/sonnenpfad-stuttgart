@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.1 — custom-domain deployment repair, 2026-10-27
+
+- Document sonnenpfad-stuttgart.de as the production domain.
+- Supply a guarded Oracle Nginx CORS repair for the exact custom-domain origin, with backup, configuration validation and rollback.
+- Keep the existing direct HTTPS API contract and staged profile API separate; no insecure TLS or wildcard CORS workaround.
+- Make the historical weather-cache regression fixture use its fixed test clock consistently.
+
 ## 0.13.0 — terrain, direct shadow frames and metric audit, 2026-10-15
 
 - Restore static coarse terrain in 3D; place tree trunks at immutable sampled ground heights.
