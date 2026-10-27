@@ -8,6 +8,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+import time
 import urllib.request
 
 OLD = 'https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'
@@ -73,7 +74,9 @@ def probe():
         if (data.get('type') != 'FeatureCollection' or props.get('profile') != 'shortest'
                 or props.get('segment_metadata_version') != 1):
             raise ValueError('Unexpected production route contract')
-        return response.headers.get('Access-Control-Allow-Origin') == NEW, props
+        origin = response.headers.get('Access-Control-Allow-Origin')
+        print('CORS_CHECK:', repr(origin), flush=True)
+        return origin == NEW, props
 
 
 def apply_configuration(path, original, proposed, metadata, nginx):
@@ -81,7 +84,12 @@ def apply_configuration(path, original, proposed, metadata, nginx):
         replace_bytes(path, proposed, metadata)
         subprocess.run([nginx, '-t'], capture_output=True, check=True, timeout=20)
         subprocess.run(['systemctl', 'reload', 'nginx'], check=True, timeout=20)
-        allowed, props = probe()
+        for attempt in range(4):
+            if attempt:
+                time.sleep(attempt)
+            allowed, props = probe()
+            if allowed:
+                break
         if not allowed:
             raise ValueError('Production response still lacks the exact custom-domain CORS header')
     except BaseException:
