@@ -14,7 +14,7 @@ Replay runs at the previous base preview speed of 18 m/s (not walking speed), wi
 
 The profile is linear in metres, with a default 2× vertical exaggeration. Routes exceeding the available relief reduce that factor to fit and display the actual factor. A 5% grade has the same display tangent across route lengths while that scale fits. This is a labelled profile display, not an assertion that screen angles are real terrain angles. Missing heights stay gaps; original elevation and route cost values are not modified.
 
-Selection is maintained in its own GeoJSON source so a clicked displayed segment remains highlighted while details load. Closing the popup, changing language/mode or selecting another feature clears/replaces it. Documented categorical material/access/surface/direction values are translated; proper names and free text remain source text.
+Selection is maintained in its own GeoJSON source so a clicked displayed segment remains highlighted while details load. Full path coordinates are recovered from the cached path shard, rather than keeping a tile-clipped rendered fragment. Closing the popup, changing language/mode or selecting another feature clears/replaces it. Documented categorical material/access/surface/direction values are translated; proper names and free text remain source text.
 
 ## Verification
 
