@@ -16,7 +16,7 @@ function syncMobileDock(){
  if(mobile){const profile=$('elevation-profile'),slot=previewState?$('mobile-preview-slot'):$('profile-home');if(profile.parentElement!==slot)slot.append(profile);}
  document.body.classList.toggle('has-route',Boolean(result&&!result.error));document.body.classList.toggle('preview-active',Boolean(previewState));
  const summary=$('mobile-route-summary');if(summary){summary.hidden=!result||Boolean(result.error);if(result&&!result.error){$('mobile-route-time').textContent=formatWalkDuration(result.minutes,lang);$('mobile-route-distance').textContent=(result.length/1000).toLocaleString(lang,{maximumFractionDigits:2})+' km';}}
- if(mobile&&result&&!result.error)$('panel-toggle').lastElementChild.textContent=document.body.classList.contains('route-editing')?(lang==='de'?'Route bearbeiten':'Edit route'):t('yourRoute');
+ if(mobile)$('panel-toggle').lastElementChild.textContent=result&&!result.error?(document.body.classList.contains('route-editing')?(lang==='de'?'Route bearbeiten':'Edit route'):t('yourRoute')):t('planRoute');
  if(mobile){const height=Math.ceil(dock.getBoundingClientRect().height);document.documentElement.style.setProperty('--mobile-dock-height',`${height}px`);}
  syncMapInteraction();
 }
