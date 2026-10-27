@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.14.1 — mobile review corrections (preview)
+
+- Replace implicit endpoint changes with a one-shot centre-and-confirm mobile picker and locked markers.
+- Combine weather, route sheet and replay/profile into a single mobile dock, with explicit route editing.
+- Fix metric collisions and replay wrapping; use compact h:mm values and SVG controls.
+- Restore a padded readable linear relief profile with axes; isolate one selected building footprint.
+- Use the complete existing local terrain pyramid in 3D, with native grounding and subtle hillshade.
+
+## 0.14.0 — App 09 preview, 2026-10-27
+
+- Decode signed slope directions correctly: descending bytes are -1, not 255.
+- Retain compressed LGL aerial tiles with bounded memory/disk caches and preserve loading parents during zoom.
+- Remove implicit touch long-press endpoint placement; keep explicit pickers and desktop double-click.
+- Enlarge mobile controls and scrollable sheets while preserving the labelled layer selection.
+- Add replay pause/stop and ×1/×2/×4, a heading arrow and synchronized profile cursor/readout.
+- Use linear metric profile scales with explicit vertical exaggeration and preserve missing-height gaps.
+- Format long walking times in hours and minutes, translate documented POI enums, and highlight selected features.
+- Link the public Atlas repository in About and documentation.
+- Preview only: main, Oracle services and routing contracts are unchanged.
+
 ## 0.13.1 — custom-domain deployment repair, 2026-10-27
 
 - Document sonnenpfad-stuttgart.de as the production domain.

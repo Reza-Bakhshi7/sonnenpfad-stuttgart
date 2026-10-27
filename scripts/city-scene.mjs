@@ -10,7 +10,7 @@ export function createCityFrame(origin) {
 // North-positive scene metres keep Three's right-handed coordinates. The
 // model matrix flips Y once into Mercator, as in the SDK's Three examples.
 // Only trees live in this layer. MapLibre draws vector buildings and the route.
-// Flat display ground never waits for DEM. Computational elevations are separate.
+// Tree bases use immutable sampled display-ground heights; routing heights remain separate.
 export function createCitySceneLayer({origin,toLngLat,dimensions,rendererFactory,treeCap=4000}) {
  const frame=createCityFrame(origin),scene=new THREE.Scene(),camera=new THREE.Camera(),objects=new THREE.Group();scene.add(objects);
  const ambient=new THREE.AmbientLight(0xfff9eb,1.35),sun=new THREE.DirectionalLight(0xffffff,.55);sun.position.set(-400,600,900);scene.add(ambient,sun);
@@ -28,9 +28,9 @@ export function createCitySceneLayer({origin,toLngLat,dimensions,rendererFactory
   setSun(value){if(!value)return;const az=value.azimuth*Math.PI/180,alt=Math.max(.3,value.altitude*Math.PI/180);sun.position.set(Math.sin(az)*Math.cos(alt)*1000,Math.cos(az)*Math.cos(alt)*1000,Math.sin(alt)*1000);sun.intensity=value.altitude>0?.55:.2;map?.triggerRepaint();},
   setTrees(input,centre){
    if(disposed)return;const distance=p=>Math.hypot(p[0]-centre[0],p[1]-centre[1]);
-   for(const tree of input){if(!tree.p?.every(Number.isFinite)||!Number.isFinite(tree.r)||!Number.isFinite(tree.h))continue;const key=keyFor(tree.p);if(!trees.has(key))trees.set(key,{tree,key,ll:toLngLat(tree.p)});}
+   for(const tree of input){if(!tree.p?.every(Number.isFinite)||!Number.isFinite(tree.r)||!Number.isFinite(tree.h))continue;const key=keyFor(tree.p);if(!trees.has(key)||Number.isFinite(tree.ground)&&tree.ground!==trees.get(key).tree.ground)trees.set(key,{tree,key,ll:toLngLat(tree.p)});}
    for(const [key,record] of trees)if(distance(record.tree.p)>3400)trees.delete(key);
-   const next=[...trees.values()].filter(record=>distance(record.tree.p)<2200).sort((a,b)=>distance(a.tree.p)-distance(b.tree.p)||a.key.localeCompare(b.key)).slice(0,treeCap),signature=next.map(record=>record.key).sort().join('|');
+   const next=[...trees.values()].filter(record=>distance(record.tree.p)<2200).sort((a,b)=>distance(a.tree.p)-distance(b.tree.p)||a.key.localeCompare(b.key)).slice(0,treeCap),signature=next.map(record=>record.key+':'+(record.tree.ground??0)).sort().join('|');
    if(signature===selectionKey)return;selectionKey=signature;selected=next;
    for(const [index,record] of selected.entries()){
     const {r,h}=dimensions(record.tree),radius=frame.radius(record.ll,Math.max(.5,Math.min(r,h*.46))),height=frame.radius(record.ll,Math.max(2,h)),[x,y,ground]=frame.point(record.ll,record.tree.ground??0),canopyCentre=Math.max(radius+.35,height-radius),trunkHeight=Math.max(.6,canopyCentre-radius*.65),trunkRadius=Math.max(.12,Math.min(.28,r*.13));

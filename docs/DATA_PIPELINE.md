@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This pipeline converts the final, portable Pedestrian Atlas GeoPackage into the selected browser assets used by Sonnenpfad Stuttgart. The GeoPackage is an external, read-only input and is never committed to this repository.
+This pipeline converts the final, portable [Pedestrian Atlas GeoPackage](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart) into the selected browser assets used by Sonnenpfad Stuttgart. The GeoPackage is an external, read-only input and is never committed to this repository.
 
 ## Authoritative baseline
 

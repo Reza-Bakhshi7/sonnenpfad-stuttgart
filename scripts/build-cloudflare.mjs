@@ -17,7 +17,7 @@ const weather = read('scripts/weather.mjs')
   .replaceAll('export const ', 'const ')
   .replaceAll('export function ', 'function ')
   .replaceAll('export async function ', 'async function ');
-const experience = ['shadow-display.mjs','terrain-heightfield.mjs','route-experience.mjs','display-data.mjs','basemap-style.mjs','city-scene.mjs','boundary-projection.mjs'].map(name=>read('scripts/'+name).replace(/^import .*$/gm,'').replaceAll('export const ', 'const ').replaceAll('export function ', 'function ').replaceAll('export async function ', 'async function ')).join('\n');
+const experience = ['mobile-experience.mjs','aerial-cache.mjs','shadow-display.mjs','terrain-heightfield.mjs','route-experience.mjs','display-data.mjs','basemap-style.mjs','city-scene.mjs','boundary-projection.mjs'].map(name=>read('scripts/'+name).replace(/^import .*$/gm,'').replaceAll('export const ', 'const ').replaceAll('export function ', 'function ').replaceAll('export async function ', 'async function ')).join('\n');
 const application = `${experience}\n${serverRouting}\n${read('scripts/app.source.mjs')}\n${read('scripts/map-experience.mjs')}`;
 const workerSource = `${core}\n${serverRouting}\n${worker}`;
 
