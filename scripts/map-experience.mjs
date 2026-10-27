@@ -8,9 +8,11 @@ function updateExperienceLanguage(){
  for(const [id,label] of [['mode-route','Routing'],['mode-explore',de?'Entdecken':'Explore'],['explore-title',de?'Stuttgart entdecken':'Explore Stuttgart'],['explore-description',de?'Klicke auf einen Weg, einen Baum oder ein Gebäude, um mehr zu erfahren. Wähle zusätzliche Ebenen nach Interesse.':'Click a path, tree or building to learn more. Choose additional layers as you explore.'],['explore-layers',de?'Kartenebenen wählen':'Choose map layers'],['explore-3d',is3D?(de?'Zur 2D-Karte':'Switch to 2D'):(de?'Stadt in 3D ansehen':'View the city in 3D')]])if($(id))$(id).textContent=label;
  const button=$('explore-mode');if(button){button.textContent=exploreMode?'◎':'↦';button.title=exploreMode?(de?'Karte frei erkunden. Zur Routenplanung wechseln.':'Explore freely. Switch to route planning.'):(de?'Routenplanung aktiv. Frei erkunden einschalten.':'Route planning active. Switch to free exploration.');button.setAttribute('aria-label',button.title);}
  if($('preview-controls'))$('preview-controls').hidden=!previewState;
- if($('preview-pause'))$('preview-pause').textContent=previewState?.paused?(de?'▶ Weiter':'▶ Resume'):(de?'Ⅱ Pause':'Ⅱ Pause');
- if($('preview-stop'))$('preview-stop').textContent=de?'■ Stopp':'■ Stop';
+ if($('preview-pause')){const button=$('preview-pause');button.innerHTML=playbackIcon(previewState?.paused?'play':'pause');button.title=previewState?.paused?(de?'Fortsetzen':'Resume'):(de?'Pause':'Pause');button.setAttribute('aria-label',button.title);button.setAttribute('aria-pressed',String(Boolean(previewState?.paused)));}
+ if($('preview-stop')){$('preview-stop').innerHTML=playbackIcon('stop');$('preview-stop').title=de?'Stopp':'Stop';$('preview-stop').setAttribute('aria-label',de?'Stopp':'Stop');}
  document.querySelector('.preview-speeds')?.setAttribute('aria-label',de?'Vorschaugeschwindigkeit':'Preview speed');
+ if($('route-preview'))$('route-preview').hidden=Boolean(previewState);
+ if($('mobile-weather-toggle')){$('mobile-edit-route')?.setAttribute('aria-label',de?'Route bearbeiten':'Edit route');$('mobile-weather-toggle').setAttribute('aria-label',de?'Wetter und Datum einblenden':'Show weather and date');$('map-pick-confirm').setAttribute('aria-label',de?'Punkt übernehmen':'Confirm point');$('map-pick-cancel').setAttribute('aria-label',de?'Abbrechen':'Cancel');}
  if($('route-preview'))$('route-preview').textContent=previewState?(de?'■ Vorschau beenden':'■ Stop preview'):(de?'▶ 3D-Routenvorschau':'▶ 3D route preview');
  $('elevation-chart')?.setAttribute('aria-label',de?'Höhenprofil: Zeiger bewegen, um die Position auf der Karte zu sehen':'Elevation profile: move the pointer to see the location on the map');
 }
@@ -20,7 +22,7 @@ function updateModeUI(){
  $('explore-panel').hidden=!exploreMode;$('journey-panel').hidden=exploreMode;$('layers-toggle').hidden=!exploreMode;if(!exploreMode){$('layers-panel').hidden=true;$('layers-toggle').setAttribute('aria-expanded','false');}
  if(map){applyTheme({reload:false});applyPoiFilter({reload:false});if(map.getLayer('shade-fill'))map.setLayoutProperty('shade-fill','visibility',shadowDisplayEnabled&&is3D&&Boolean(displayShadeFrame)?'visible':'none');}
  const heading=$('panel-toggle')?.lastElementChild;if(heading&&exploreMode)heading.textContent=lang==='de'?'Stuttgart entdecken':'Explore Stuttgart';else if(heading)heading.textContent=t('planRoute');
- updateExperienceLanguage();
+ updateExperienceLanguage();syncMobileDock();
 }
 function setExploreMode(active){
  if(exploreMode===active)return;exploreMode=active;stopRoutePreview(false);hideRoutePosition();finishPickMode(null);hideToast();featureRequestId++;featurePopup?.remove();featurePopup=null;++tileLoadId;++displayShadeId;displayShadeSignature='';clearTimeout(cityShadeTimer);
@@ -43,16 +45,16 @@ function hideRoutePosition(){profileMarker?.remove();profileMarker=null;$('eleva
 
 function stopRoutePreview(restore=true){
  ++previewRequestId;previewPreparing=false;if($('route-preview'))$('route-preview').disabled=!result?.coords?.length;
- if(!previewState)return;const camera=previewState.camera;previewState=null;cancelAnimationFrame(previewFrame);previewFrame=0;hideRoutePosition();updateExperienceLanguage();if(restore&&map)map.easeTo({...camera,duration:500});if(map&&cityManifest)loadVisibleCityTiles().catch(console.warn);
+ if(!previewState)return;const camera=previewState.camera;previewState=null;cancelAnimationFrame(previewFrame);previewFrame=0;hideRoutePosition();updateExperienceLanguage();syncMobileDock();if(restore&&map)map.easeTo({...camera,duration:500});if(map&&cityManifest)loadVisibleCityTiles().catch(console.warn);
 }
 async function startRoutePreview(){
  if(previewState){stopRoutePreview();return;}if(previewPreparing||viewSwitching||!result?.coords?.length||!map)return;
  if(!is3D){await $('view').onclick();if(!is3D||viewSwitching)return;}
  const route=result,coordinates=densifyRoute(route.coords);routeMeasureCache=routeMeasure(coordinates);if(!routeMeasureCache.total)return;
  map.stop();
- const camera={center:[map.getCenter().lng,map.getCenter().lat],zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch()},state={camera,last:performance.now(),started:performance.now(),distance:0,speed:1,paused:false,bearing:camera.bearing};previewState=state;document.querySelectorAll('[data-speed]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.speed==='1')));updateExperienceLanguage();
- // One camera owner follows the flat visual route. Actual ascent/descent remain
- // in the Atlas profile; the preview neither downloads nor queries DEM heights.
+ const camera={center:[map.getCenter().lng,map.getCenter().lat],zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch()},state={camera,last:performance.now(),started:performance.now(),distance:0,speed:1,paused:false,bearing:camera.bearing};previewState=state;if(isMobileMap()){$('sidebar-body').classList.remove('expanded');$('panel-toggle').setAttribute('aria-expanded','false');}syncMobileDock();document.querySelectorAll('[data-speed]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.speed==='1')));updateExperienceLanguage();
+ // One camera owner follows the route with native terrain grounding. The
+ // terrain remains enabled throughout replay; Atlas route heights stay separate.
  const tick=now=>{
   if(previewState!==state)return;const dt=Math.min(.1,Math.max(0,(now-state.last)/1000));state.last=now;const intro=Math.min(1,(now-state.started)/650);
   if(intro>=1&&!state.paused)state.distance=Math.min(routeMeasureCache.total,state.distance+dt*18*(state.speed||1));
@@ -64,7 +66,7 @@ async function startRoutePreview(){
  };previewFrame=requestAnimationFrame(tick);
 }
 function setupRouteExperience(){
- setupCompactTools();
+ setupCompactTools();setupMobileExperience();
  $('explore-mode').onclick=()=>setExploreMode(!exploreMode);$('mode-route').onclick=()=>setExploreMode(false);$('mode-explore').onclick=()=>setExploreMode(true);$('route-preview').onclick=startRoutePreview;
  $('preview-pause').onclick=()=>{if(!previewState)return;previewState.paused=!previewState.paused;previewState.last=performance.now();updateExperienceLanguage();};
  $('preview-stop').onclick=()=>stopRoutePreview();
@@ -86,6 +88,7 @@ function setupRouteExperience(){
 async function ensureCityScene(){
  if(citySceneLayer)return citySceneLayer;if(!cityScenePending)cityScenePending=(async()=>{THREE=await import('./vendor/three.mjs');citySceneLayer=createCitySceneLayer({origin:meta.origin,toLngLat:ll,dimensions:treeDimensions});map.addLayer(citySceneLayer,'route-halo');citySceneLayer.setSun(currentSun);return citySceneLayer;})().catch(error=>{cityScenePending=null;throw error;});return cityScenePending;
 }
+function playbackIcon(kind){return `<svg viewBox="0 0 24 24" aria-hidden="true">${kind==='pause'?'<path d="M8 5v14M16 5v14"/>':kind==='play'?'<path d="M8 5l11 7-11 7z"/>':'<rect x="6" y="6" width="12" height="12" rx="1"/>'}</svg>`;}
 function installMapExperience(){
  for(const event of ['dragstart','zoomstart','rotatestart','pitchstart'])map.on(event,e=>{if(e.originalEvent)stopRoutePreview(false);});
  // Credits live in a reserved DOM slot, outside the map's control corners.

@@ -14,9 +14,7 @@ const arrowCode=source.slice(source.indexOf('function straightArrowSegment('),so
 assert(arrow.segment([[0,0],[0,100]],-1)[0][1]>arrow.segment([[0,0],[0,100]],-1)[1][1]);
 // Same true 5% grade on a 1 km and 10 km route must have the same display
 // tangent when the fixed 2x scale fits. Missing heights remain gaps.
-const short=profileScale([[0,200],[1000,250]]),long=profileScale([[0,200],[1000,250],[10000,250]]);
-const tangent=(scale,rise,distance)=>rise/(scale.high-scale.low)*70/(distance/scale.total*300);
-assert(Math.abs(tangent(short,50,1000)-tangent(long,50,1000))<1e-10);
+const basin=profileScale([[0,360],[4000,220],[10000,410]]);assert(basin.high>410&&basin.low<220);assert(190/(basin.high-basin.low)>.5&&190/(basin.high-basin.low)<.8,'the basin remains visible with deliberate headroom');
 assert.equal(profileAtDistance([[0,200],[500,null],[1000,250]],250),null);
 assert.equal(profileAtDistance([[0,200],[1000,250]],500),225);
 assert.equal(formatWalkDuration(59),'59 min');assert.equal(formatWalkDuration(60),'1 Std.');assert.equal(formatWalkDuration(125),'2 Std. 5 min');assert.equal(formatWalkDuration(83,'en'),'1 h 23 min');
@@ -29,13 +27,11 @@ await cache.get(url(2));await cache.get(url(1));assert.equal(fetches,2);await ca
 fail=true;await assert.rejects(cache.get(url(4)),/503/);fail=false;await cache.get(url(4));assert.equal(cache.snapshot().pending,0);await assert.rejects(cache.get('https://example.test/'),/Invalid/);
 // Execute the real touch handler: a hold/double tap cannot set a point. A
 // desktop double click still works, without passing touch gesture timers.
-const picking=source.slice(source.indexOf('function installDirectMapPicking('),source.indexOf('function updateMarkers('));let chosen=0,time=100;const events={},canvasEvents={};
-const context={map:{doubleClickZoom:{enable(){}},on:(name,fn)=>events[name]=fn,getCanvas:()=>({addEventListener:(name,fn)=>canvasEvents[name]=fn})},performance:{now:()=>time},exploreMode:false,chooseMapPoint:()=>chosen++};vm.runInNewContext(picking+';installDirectMapPicking();',context);
-canvasEvents.pointerdown({pointerType:'touch'});time+=600;events.dblclick({lngLat:{lng:9.18,lat:48.77}});assert.equal(chosen,0);time+=1000;events.dblclick({lngLat:{lng:9.18,lat:48.77},preventDefault(){}});assert.equal(chosen,1);
+const picking=source.slice(source.indexOf('function installDirectMapPicking('),source.indexOf('function updateMarkers('));const events={},canvasEvents={};const context={map:{doubleClickZoom:{enable(){}},on:(name,fn)=>events[name]=fn,getCanvas:()=>({addEventListener:(name,fn)=>canvasEvents[name]=fn})}};vm.runInNewContext(picking+';installDirectMapPicking();',context);assert.equal(events.dblclick,undefined);assert.equal(canvasEvents.pointerdown,undefined);
 // Real replay loop: pause does not advance, x2/x4 change distance continuously,
 // stop cancels the current camera owner even with a previously queued callback.
 const experience=fs.readFileSync(new URL('./map-experience.mjs',import.meta.url),'utf8'),controller=experience.slice(experience.indexOf('function stopRoutePreview('),experience.indexOf('function setupRouteExperience()'));
-let callback=null,clock=0;const frames=[],ctx={document:{querySelectorAll:()=>[]},result:{coords:[[0,0],[1000,0]]},previewState:null,previewPreparing:false,previewRequestId:0,previewFrame:0,is3D:true,viewSwitching:false,cityManifest:null,routeMeasureCache:null,routeMeasure,pointAlongRoute,densifyRoute,smoothBearing,performance:{now:()=>clock},$:()=>({}),ll:p=>p,showRoutePosition(){},hideRoutePosition(){},updateExperienceLanguage(){},requestAnimationFrame:fn=>{callback=fn;return 1;},cancelAnimationFrame:()=>callback=null,map:{stop(){},getCenter:()=>({lng:0,lat:0}),getZoom:()=>17,getBearing:()=>90,getPitch:()=>50,jumpTo:o=>frames.push(o),easeTo(){}}};
+let callback=null,clock=0;const frames=[],ctx={isMobileMap:()=>false,syncMobileDock(){},document:{querySelectorAll:()=>[]},result:{coords:[[0,0],[1000,0]]},previewState:null,previewPreparing:false,previewRequestId:0,previewFrame:0,is3D:true,viewSwitching:false,cityManifest:null,routeMeasureCache:null,routeMeasure,pointAlongRoute,densifyRoute,smoothBearing,performance:{now:()=>clock},$:()=>({}),ll:p=>p,showRoutePosition(){},hideRoutePosition(){},updateExperienceLanguage(){},requestAnimationFrame:fn=>{callback=fn;return 1;},cancelAnimationFrame:()=>callback=null,map:{stop(){},getCenter:()=>({lng:0,lat:0}),getZoom:()=>17,getBearing:()=>90,getPitch:()=>50,jumpTo:o=>frames.push(o),easeTo(){}}};
 vm.runInNewContext(controller+';this.start=startRoutePreview;this.stop=stopRoutePreview;',ctx);await ctx.start();const tick=()=>{clock+=100;callback(clock);};for(let i=0;i<10;i++)tick();const initial=ctx.previewState.distance;ctx.previewState.paused=true;tick();assert.equal(ctx.previewState.distance,initial);ctx.previewState.paused=false;ctx.previewState.speed=2;tick();assert(Math.abs(ctx.previewState.distance-initial-3.6)<1e-9);const twice=ctx.previewState.distance;ctx.previewState.speed=4;tick();assert(Math.abs(ctx.previewState.distance-twice-7.2)<1e-9);const queued=callback;ctx.stop(false);const count=frames.length;queued(clock+100);assert.equal(frames.length,count);
 console.log(`App 09 passed: ${descending} reversed signed display records, metric grades, gaps, hour durations, bounded aerial cache/retry, touch safety and pause/x2/x4/cancel.`);
 

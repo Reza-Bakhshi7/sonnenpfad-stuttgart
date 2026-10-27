@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.1 — mobile review corrections (preview)
+
+- Replace implicit endpoint changes with a one-shot centre-and-confirm mobile picker and locked markers.
+- Combine weather, route sheet and replay/profile into a single mobile dock, with explicit route editing.
+- Fix metric collisions and replay wrapping; use compact h:mm values and SVG controls.
+- Restore a padded readable linear relief profile with axes; isolate one selected building footprint.
+- Use the complete existing local terrain pyramid in 3D, with native grounding and subtle hillshade.
+
 ## 0.14.0 — App 09 preview, 2026-10-27
 
 - Decode signed slope directions correctly: descending bytes are -1, not 255.

@@ -32,13 +32,13 @@ export function densifyRoute(coords,spacing=12) {
 
 // The same linear metric scale applies to short and long routes. A modest,
 // explicit 2x vertical exaggeration is used until the full relief needs more.
-export function profileScale(values,width=300,height=70,exaggeration=2) {
- const valid=values.filter(p=>p.every(Number.isFinite));
- if(valid.length<2)return null;
+// Independent, linear distance/elevation axes, padded to show relief without
+// filling the entire chart with a small rise. Explicit vertical factor remains.
+export function profileScale(values,width=300,height=70) {
+ const valid=values.filter(p=>p.every(Number.isFinite));if(valid.length<2)return null;
  const total=valid.at(-1)[0]||1,zs=valid.map(p=>p[1]),min=Math.min(...zs),max=Math.max(...zs);
- const metresPerPixel=Math.max(total/width/exaggeration,(max-min)/height,1/height);
- const range=metresPerPixel*height,low=(min+max-range)/2;
- return {low,high:low+range,total,exaggeration:total/width/metresPerPixel,min,max};
+ const range=Math.max(35,(max-min)*1.6,total*.012),low=(min+max-range)/2;
+ return {low,high:low+range,total,exaggeration:total/width/(range/height),min,max};
 }
 export function formatWalkDuration(minutes,language='de') {
  if(!Number.isFinite(minutes))return '—';
@@ -58,4 +58,16 @@ export function profileAtDistance(values,distance) {
 // CORS grant and use the existing local engine with an explicit UI notice.
 export function isRoutingPreview(hostname='') {
  return /^(?:app09-mobile-finalization-preview|[a-f0-9]{8})-sonnenpfad-stuttgart\.mohammadreza-bakhshi\.workers\.dev$/.test(hostname);
+}
+
+export function durationMetric(minutes){
+ if(!Number.isFinite(minutes)||minutes<0)return {text:'—',unit:'min'};
+ const n=Math.round(minutes);return n<60?{text:String(n),unit:'min'}:{text:`${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`,unit:'h:min'};
+}
+export function singleSelectedGeometry(geometry,point){
+ if(geometry?.type!=='MultiPolygon')return geometry;
+ const inside=ring=>{let hit=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])hit=!hit;}return hit;};
+ const dist=ring=>{let best=Infinity;const sx=Math.cos(point[1]*Math.PI/180);for(let i=1;i<ring.length;i++){const a=[(ring[i-1][0]-point[0])*sx,ring[i-1][1]-point[1]],b=[(ring[i][0]-point[0])*sx,ring[i][1]-point[1]],dx=b[0]-a[0],dy=b[1]-a[1],f=Math.max(0,Math.min(1,-(a[0]*dx+a[1]*dy)/(dx*dx+dy*dy||1)));best=Math.min(best,Math.hypot(a[0]+f*dx,a[1]+f*dy));}return best;};
+ const polygons=geometry.coordinates;const selected=polygons.find(p=>inside(p[0])&&!p.slice(1).some(inside))||polygons.slice().sort((a,b)=>dist(a[0])-dist(b[0]))[0];
+ return selected?{type:'Polygon',coordinates:selected}:geometry;
 }

@@ -30,3 +30,14 @@ No Oracle installation, production service switch or migration to the staged pro
 ## Preview routing isolation
 
 The new preview Origin receives no Access-Control-Allow-Origin from the legacy Oracle API (diagnostic route returned HTTP 200). Therefore the exact App 09 alias and Cloudflare version preview hosts use the existing browser engine, visibly labelled in route results and About. Both production hostnames keep the existing Oracle path. This enables UI/profile/replay review without a VM/CORS change; preview routes are not evidence of Oracle parity. No insecure request or TLS change is included. A local diagnostic required curl --insecure because the assistant network's certificate did not cover the IP; that diagnostic is not a browser TLS verification.
+
+## 0.14.1 mobile review corrections
+
+- A centre-and-confirm mobile pick transaction replaces map tap placement. It consumes the active picker once; arbitrary taps and double clicks do not replace established endpoints. Markers are not draggable. Desktop users use explicit A/B pickers.
+- A single fixed mobile dock combines a compact expandable weather strip, a scrollable route sheet, a route summary and visible replay/profile controls. A separate edit action reveals route fields. The sheet handle supports click and vertical drag; scrolling content is not treated as a map gesture.
+- Preview buttons are one row of SVG pause/play, stop and ×1/×2/×4; no duplicate full-width stop button. Long duration metrics use h:mm with an explicit h:min label and independent metric columns.
+- Profile axes remain linear, using relief plus padding rather than the overly flat fixed 2× scale. Distance and elevation labels are visible; vertical exaggeration is stated. Missing heights stay gaps.
+- Building MultiPolygons are narrowed to one containing/nearest footprint before selection rendering. Explore uses the normal pointer; Ctrl camera gestures use a hand.
+- Native terrain uses the complete existing local zoom pyramid 12–14, 1× heights, subtle hillshade and a 55° entry pitch. No new DGM1 provenance is claimed.
+
+Validation includes a repeated confirmation/route-lock regression, real selection geometry, metric formatting, native terrain source/style contracts, source heightfield checks, and mobile layout fixtures at 320/390 px. Layout fixtures are excluded from deployment. No full real-device or WebGL rendering pass is claimed in this environment.
