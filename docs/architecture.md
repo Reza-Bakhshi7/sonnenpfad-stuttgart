@@ -34,9 +34,10 @@ modified by this build step.
 The base style is local application code rather than a blocking external style
 JSON request. OpenFreeMap serves the vector tiles and glyphs. Native extruded OSM
 buildings share that source in both modes and all basemaps. Three loads on first
-3D display and draws only cached opaque tree instances. Visible ground is flat;
-DEM is excluded from the display bundle. Actual elevation remains in the routing
-metadata and chart. Building display estimates do not alter calculation heights.
+3D display and draws only cached opaque tree instances. Native raster-dem terrain
+uses the existing local zoom pyramid 12–14 at 1× height, with a restrained
+hillshade. Tree bases sample the same immutable zoom-14 surface. Atlas route
+elevation remains in the routing metadata and chart. Building display estimates do not alter calculation heights.
 
 Atlas-wide modelled shadows are an explicit Explore checkbox in 3D. This loads
 original obstacle tiles on demand into a separate worker, without loading a graph

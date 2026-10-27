@@ -15,7 +15,7 @@ export function buildDisplayAssets(cityDirectory) {
  const write=(file,data)=>{const content=JSON.stringify(data),filename=path.join(cityDirectory,file);fs.mkdirSync(path.dirname(filename),{recursive:true});fs.writeFileSync(filename,content);hash.update(file).update(content);return Buffer.byteLength(content);};
  for(const [key,definition] of Object.entries(manifest.obstacles.tiles)) {
   const display=read(definition.displayFile||definition.file),shade=read(definition.shadeFile||definition.file),edgeIds=display.edgeIds||[],themes=display.themes||[],pathsFile=`visual/paths/${key}.json`,sceneFile=`visual/scene/${key}.json`,poiFile=`visual/pois/${key}.json`,detailFile=`visual/details/${key}.json`,themeFiles={};
-  const flags=edgeIds.map(id=>[structures[id]||0,steps[id]||0,directions[id]||0]);
+  const flags=edgeIds.map(id=>[structures[id]||0,steps[id]||0,(directions.length>id?directions.readInt8(id):0)]);
   stats.displayBytes+=write(pathsFile,{lines:display.lines||[],edgeIds,flags});stats.paths+=edgeIds.length;
   const trees=(shade.trees||[]).map(({p,r,h,evergreen})=>({p,r,h,...(evergreen?{evergreen:true}:{})}));
   stats.sceneBytes+=write(sceneFile,{trees});stats.trees+=trees.length;stats.oldSceneBytes+=fs.statSync(path.join(cityDirectory,definition.shadeFile||definition.file)).size;
