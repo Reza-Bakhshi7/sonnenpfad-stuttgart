@@ -9,7 +9,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
 <link rel="stylesheet" href="./style.css?v=00f53a2a00cf33ca">
-<script type="module" src="./app-v7.mjs?v=4f435e89b6af876c">
+<script type="module" src="./app-v7.mjs?v=14513f440786a5fb">
 </script>
 </head>
 <body>
@@ -77,7 +77,7 @@
 </div>
 <div class="profile-choice">
 <span data-i="profileLabel">Für wen planst du?</span>
-<div class="icon-choices profile-icons" id="profile-icons" role="group" aria-label="Mobilitätsprofil">
+<div class="icon-choices profile-icons" id="profile-icons" data-i-aria="mobilityGroup" role="group" aria-label="Mobilitätsprofil">
 <button type="button" data-profile="standard" class="selected" aria-pressed="true" title="Standard">
 <span class="choice-glyph icon-walk" aria-hidden="true"></span>
 <span class="sr-only" data-i="profileStandard">Standard</span>
@@ -107,13 +107,13 @@
 <span class="sr-only" data-i="profileCustom">Eigene Einstellungen</span>
 </button>
 </div>
-<select id="mobility-profile" class="visually-hidden-select" aria-label="Mobilitätsprofil"><option value="standard" selected>Standard</option>
-<option value="wheelchair">Rollstuhl</option>
-<option value="powerWheelchair">Elektrorollstuhl</option>
-<option value="walkingAid">Stock oder Rollator</option>
-<option value="vision">Blind oder sehbehindert</option>
-<option value="stroller">Kinderwagen</option>
-<option value="custom">Eigene Einstellungen</option>
+<select id="mobility-profile" data-i-aria="mobilityGroup" class="visually-hidden-select" aria-label="Mobilitätsprofil"><option value="standard" selected data-i="profileStandard">Standard</option>
+<option value="wheelchair" data-i="profileWheelchair">Rollstuhl</option>
+<option value="powerWheelchair" data-i="profilePower">Elektrorollstuhl</option>
+<option value="walkingAid" data-i="profileWalkingAid">Stock oder Rollator</option>
+<option value="vision" data-i="profileVision">Blind oder sehbehindert</option>
+<option value="stroller" data-i="profileStroller">Kinderwagen</option>
+<option value="custom" data-i="profileCustom">Eigene Einstellungen</option>
 </select>
 </div>
 <p id="profile-description" class="profile-description" hidden>
@@ -121,7 +121,7 @@
 <div class="advanced-title" data-i="advanced">Eigene Einstellungen</div>
 <div class="slope-choice">
 <span data-i="slopeLabel">Steigungen vermeiden</span>
-<div class="icon-choices slope-icons" role="group" aria-label="Steigung vermeiden">
+<div class="icon-choices slope-icons" data-i-aria="slopeLabel" role="group" aria-label="Steigung vermeiden">
 <button type="button" data-slope="none" aria-pressed="true" title="Keine Steigungsvermeidung">
 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 <path d="M3 12h18"/>
@@ -147,11 +147,11 @@
 <span class="sr-only" data-i="slopeBoth">Bergauf und bergab vermeiden</span>
 </button>
 </div>
-<select id="slope-mode" class="visually-hidden-select" aria-label="Steigung vermeiden">
-<option value="none">Keine Steigungsvermeidung</option>
-<option value="uphill">Bergauf vermeiden</option>
-<option value="downhill">Bergab vermeiden</option>
-<option value="both">Bergauf und bergab vermeiden</option>
+<select id="slope-mode" data-i-aria="slopeLabel" class="visually-hidden-select" aria-label="Steigung vermeiden">
+<option value="none" data-i="slopeNone">Keine Steigungsvermeidung</option>
+<option value="uphill" data-i="slopeUp">Bergauf vermeiden</option>
+<option value="downhill" data-i="slopeDown">Bergab vermeiden</option>
+<option value="both" data-i="slopeBoth">Bergauf und bergab vermeiden</option>
 </select>
 </div>
 <label class="avoid-choice">
@@ -263,9 +263,9 @@
 <main class="map-area">
 <svg id="city-screen-mask" class="city-screen-mask" aria-hidden="true"><path fill="#edf1f2" fill-rule="evenodd"/></svg>
 <canvas id="shadow-canvas" width="1" height="1" hidden aria-hidden="true"></canvas>
-<div id="map" aria-label="Karte von Stuttgart">
+<div id="map" data-i-aria="mapLabel" aria-label="Karte von Stuttgart">
 </div>
-<div class="mode-switch" role="group" aria-label="Kartenmodus">
+<div class="mode-switch" data-i-aria="mapMode" role="group" aria-label="Kartenmodus">
 <button id="mode-route" type="button" class="selected" aria-pressed="true">Routing</button>
 <button id="mode-explore" type="button" aria-pressed="false">Entdecken</button>
 </div>
@@ -286,13 +286,13 @@
 <section class="layers-panel" id="layers-panel" hidden aria-labelledby="layers-title">
 <div class="layers-head">
 <strong id="layers-title" data-i="layersTitle">Kartenebenen</strong>
-<button id="layers-close" type="button" aria-label="Schließen">×</button>
+<button id="layers-close" data-i-aria="close" type="button" aria-label="Schließen">×</button>
 </div>
 <label for="theme" data-i="themeLabel">Linienthema</label>
-<select id="theme" class="visually-hidden-select" aria-label="Linienthema">
+<select id="theme" data-i-aria="themeLabel" class="visually-hidden-select" aria-label="Linienthema">
 <option value="slope">Steigung</option><option value="surface">Oberfläche</option><option value="shadeSummer">Schatten · Sommer</option><option value="shadeWinter">Schatten · Winter</option><option value="utciSummer">UTCI · Sommer</option><option value="utciWinter">UTCI · Winter</option><option value="noise">Lärm</option><option value="wind">Wind</option>
 </select>
-<div id="theme-options" class="theme-options" role="radiogroup" aria-label="Linienthema"></div>
+<div id="theme-options" data-i-aria="themeLabel" class="theme-options" role="radiogroup" aria-label="Linienthema"></div>
 <p id="theme-description" class="theme-description"></p>
 
 <fieldset>
@@ -304,7 +304,7 @@
 <aside class="theme-legend" id="theme-legend" hidden aria-live="polite"></aside>
 <div class="map-toast" id="map-toast" hidden role="status" aria-live="polite">
 <span id="map-toast-text"></span>
-<button id="map-toast-close" type="button" aria-label="Schließen">×</button>
+<button id="map-toast-close" data-i-aria="close" type="button" aria-label="Schließen">×</button>
 </div>
 <section class="time-panel">
 <div class="time-top">
