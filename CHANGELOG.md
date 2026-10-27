@@ -1,12 +1,11 @@
 # Changelog
 
-## 0.13.1 — custom-domain Standard routing, 2026-10-27
+## 0.13.1 — custom-domain deployment repair, 2026-10-27
 
-- Route Standard Direct through same-origin `/api/route` to fix the new domain being absent from the Oracle CORS allowlist.
-- Keep the fixed Oracle HTTPS endpoint, certificate checks and oriented segment contract; bound parameters, payload size and timeout.
-- Omit client credentials and upstream cookies, disable shared route caching, and update German/English privacy text.
-- Fix the weather-cache test clock so its historical fixture does not expire with the real calendar.
-- Add proxy/error/timeout and same-origin regression checks. Preserve the staged profile API as a separate test service.
+- Document sonnenpfad-stuttgart.de as the production domain.
+- Supply a guarded Oracle Nginx CORS repair for the exact custom-domain origin, with backup, configuration validation and rollback.
+- Keep the existing direct HTTPS API contract and staged profile API separate; no insecure TLS or wildcard CORS workaround.
+- Make the historical weather-cache regression fixture use its fixed test clock consistently.
 
 ## 0.13.0 — terrain, direct shadow frames and metric audit, 2026-10-15
 

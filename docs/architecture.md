@@ -68,7 +68,3 @@ before moving the remaining browser profiles off devices. See
 `step8-profile-server-migration.md` for the explicit installation and acceptance
 requirements. No SSH, database migration or production merge was performed for
 this preview.
-
-## Custom-domain Standard routing
-
-From 0.13.1 the browser uses same-origin `/api/route`, dispatched before static assets by the Cloudflare Worker. A fixed HTTPS proxy preserves the legacy shortest-route/segment metadata contract and avoids browser CORS dependence on the Oracle origin allowlist. Client credentials are omitted, redirects rejected, coordinates and parameters validated, responses bounded and never cached. The staged `/v1/route` profile API remains separate.

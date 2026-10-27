@@ -17,7 +17,7 @@ Do not publish credentials, private source data, precise personal locations or s
 
 ## Application privacy
 
-Standard Direct routing sends selected endpoint coordinates through the Cloudflare same-origin proxy to the fixed Oracle HTTPS service. Other profiles currently run in the browser. The proxy does not copy client cookies or authorization to the upstream and returns no-store responses. It has no application coordinate logging or shared route cache. Hosting providers may process normal request metadata. The application does not intentionally persist selected routes or device positions. Shared route URLs contain coordinates and must be treated as location data. External map and live-data providers receive normal network request metadata.
+Standard Direct routing sends selected endpoint coordinates over verified HTTPS to the Sonnenpfad Oracle service. Other profiles currently run in the browser. The API must allow the exact production origin; do not replace that allowlist with a wildcard. The application does not intentionally persist selected routes or device positions. Shared route URLs contain coordinates and must be treated as location data. External map and live-data providers receive normal network request metadata.
 
 ## Incident response
 

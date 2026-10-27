@@ -34,10 +34,12 @@
 
 Record start/end time, affected version, user impact, evidence, mitigation, root cause and follow-up action in a GitHub issue without including secrets or unnecessary personal data.
 
-## Standard routing on the custom domain
+## Custom-domain Standard routing repair
 
-The browser calls `/api/route` on its current origin. The Cloudflare Worker validates bounded Stuttgart coordinates and the shortest/segment-metadata contract, then forwards only allowlisted parameters to `https://138.2.184.1/route`. Both TLS connections retain certificate validation. No client credentials or upstream cookies are forwarded and route responses use `Cache-Control: no-store`. The legacy Oracle API on port 8000 remains active. The profile test service on port 8001 must not replace it until the versioned contract is integrated and accepted.
+The current browser calls the legacy Oracle HTTPS `/route` endpoint directly. It requires `Access-Control-Allow-Origin: https://sonnenpfad-stuttgart.de` on the API response. The old workers.dev origin alone does not cover the custom domain.
 
-If Direct fails, check that the response from `/api/route` is JSON, not the SPA HTML fallback. Then check the Worker build and fixed upstream availability. A 504 means the 12-second proxy deadline expired. Do not disable TLS validation or advertise unimplemented profile capabilities.
+`scripts/repair_custom_domain_cors.py` is an administrator-run Oracle repair. It recognises only an explicit Nginx `map $http_origin` entry for the existing workers.dev origin; adds the exact custom domain without removing existing origins; saves a root-only backup; checks `nginx -t`; reloads Nginx; and validates a real HTTPS route response and its CORS header. Unsupported configuration is left untouched and reported. A failed verification restores the original configuration and reloads it. No database writes, API replacement or profile-capability change is performed. Run this reviewed script with system Python and sudo on the Oracle VM; it is not part of the Cloudflare build. Keep its backup on the VM.
 
-Rollback: revert the 0.13.1 pull request to restore commit `dbee3295afc0cc429d8f9b1d23fa95bd6c342227`; the previous direct cross-origin route path still needs the custom domain in the Oracle CORS allowlist.
+Cloudflare Workers cannot fetch an IP-address URL directly (see https://developers.cloudflare.com/workers/platform/known-issues/#fetch-to-ip-addresses). A future same-origin proxy requires a real API hostname with a valid certificate first. The IP-based proxy preview was not promoted.
+
+Keep production port 8000 and the test profile API on 8001 separate. Passing self-tests alone does not replace database integration checks or make the versioned profile API production-ready.

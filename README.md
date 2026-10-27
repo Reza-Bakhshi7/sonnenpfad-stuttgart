@@ -1,6 +1,6 @@
 # Sonnenpfad Stuttgart — Prototype 0.13.1
 
-A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the Stuttgart Pedestrian Atlas. German and English, desktop and mobile. Standard Direct routes use the same-origin Sonnenpfad routing endpoint, forwarded to the PostGIS/pgRouting API on the Oracle server. Shade, Sun, custom and mobility profiles currently retain the browser engine. No paid routing API key is required.
+A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the Stuttgart Pedestrian Atlas. German and English, desktop and mobile. Standard Direct routes use the Sonnenpfad HTTPS API backed by PostGIS/pgRouting on the Oracle server. Shade, Sun, custom and mobility profiles currently retain the browser engine. No paid routing API key is required.
 
 Production: <https://sonnenpfad-stuttgart.de/> (Cloudflare alias: <https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/>)
 
@@ -8,7 +8,7 @@ Project rules are documented in [GOVERNANCE.md](GOVERNANCE.md), [CONTRIBUTING.md
 
 ## Run and deploy
 
-Run `npm ci`, `npm run build`, and then serve the app through `npx wrangler dev` so `/api/route` and `/api/weather` are available. A plain static HTTP server can display assets but does not run those service endpoints. ES module workers do not run from `file://` URLs. Cloudflare Workers Static Assets uses `wrangler.jsonc`; `npm run deploy` performs a manual deployment. Cloudflare Builds should use `npm run build` as its build command and `npx wrangler deploy` as its deploy command.
+Run `npm ci`, `npm run build`, and then serve `dist/` over HTTP (for example `python -m http.server 8080 --directory dist`). ES module workers do not run from `file://` URLs. Cloudflare Workers Static Assets uses `wrangler.jsonc`; `npm run deploy` performs a manual deployment. Cloudflare Builds should use `npm run build` as its build command and `npx wrangler deploy` as its deploy command.
 
 Prepared application data is split into size-bounded static chunks so the browser can load it reliably and Cloudflare can cache it efficiently. Visual tiles and 3D shadow-obstacle tiles are separate, allowing 2D to avoid building and tree payloads. The routing and shadow worker remains embedded as a Blob. The original GeoPackage is a local, read-only pipeline input and is not committed.
 
@@ -70,7 +70,7 @@ Pull requests and pushes to `main` run `npm test` in GitHub Actions. Operational
 
 ## Privacy and attribution
 
-Standard Direct routes send selected start and destination coordinates to the same-origin `/api/route` endpoint. The Cloudflare Worker forwards them over verified HTTPS to the fixed Sonnenpfad Oracle server at `https://138.2.184.1/route`. Responses are not cached; client credentials and cookies are not forwarded. Neither the proxy nor the app intentionally logs or stores endpoints; normal hosting request metadata may still be processed. Those coordinates may originate from clicked map points, selected addresses or a device location explicitly requested by the user. Shade, Sun, custom and mobility routes currently run locally in the browser. Location is requested only after a click. Shared URLs contain selected coordinates. External basemap providers receive tile requests (and associated IP/request metadata); Google Fonts is currently used with system-font fallback. Open-Meteo receives a fixed Stuttgart coordinate, never route endpoints or device location. No analytics, accounts or advertising.
+Standard Direct routes transmit selected start and destination coordinates to the Sonnenpfad server at https://138.2.184.1 over HTTPS. Those coordinates may originate from clicked map points, selected addresses or a device location explicitly requested by the user. Shade, Sun, custom and mobility routes currently run locally in the browser. Location is requested only after a click. Shared URLs contain selected coordinates. External basemap providers receive tile requests (and associated IP/request metadata); Google Fonts is currently used with system-font fallback. Open-Meteo receives a fixed Stuttgart coordinate, never route endpoints or device location. No analytics, accounts or advertising.
 
 Base map: OpenFreeMap / OpenMapTiles / © OpenStreetMap contributors. Weather: Open-Meteo, data under CC BY 4.0. MapLibre GL JS 5.6.2 is vendored under its BSD-3-Clause licence, see `dist/vendor/LICENSE-maplibre.txt`. Atlas-derived data retains its original source obligations; the code licence does not relicense geodata. The input package's full source documentation remains authoritative.
 
