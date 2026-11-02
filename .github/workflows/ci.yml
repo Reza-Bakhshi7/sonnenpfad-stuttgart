@@ -28,3 +28,21 @@ jobs:
           python -m json.tool config/data_catalog.json >/dev/null
           python -m py_compile scripts/validate_source.py
           python -m unittest discover -s tests -v
+
+  profile_transport:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: python -m pip install 'fastapi>=0.95,<1' 'uvicorn>=0.17,<1'
+      - name: Validate new ASGI transport without a database
+        working-directory: services/profile-api-v1
+        run: python -B -m unittest -v test_adapter
+      - name: Check real Python and JavaScript contract exchange
+        run: node scripts/check_profile_v1.mjs

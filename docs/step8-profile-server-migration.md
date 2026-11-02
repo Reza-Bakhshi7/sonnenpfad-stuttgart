@@ -1,5 +1,37 @@
 # Server profile preparation and remaining installation
 
+## Local API transport preparation, 2 November 2026
+
+The installed stage-1 source was supplied by the owner and verified as SHA256
+`ad44b2c11b0d6e851f63e49fc929da78c6fb547316268d0e007e7ff008a06b70`.
+It supports Standard, wheelchair and power wheelchair with balanced/Direct only.
+The SQL and component-check improvements remain unchanged in the reviewed snapshot
+under `services/profile-api-v1/`.
+
+The prepared FastAPI transport uses `127.0.0.1:8002` and the browser's versioned
+request format. `scripts/profile-routing-v1.mjs` checks explicit preview versus
+production acceptance, effective criteria, geometry, missing values and profile
+times. It is deliberately absent from `build-cloudflare.mjs`: no UI request or
+production behavior changes merely by committing this preparation.
+
+`python scripts/build_profile_v2_installer.py` generates the single-file installer.
+It verifies the installed core and two dependency-module hashes, tests only the
+new transport, and creates a separate stage-2 directory and systemd unit. It
+changes no Nginx configuration, firewall rules, existing API service or database
+schema. Its loopback acceptance uses three new-transport requests and compares
+Standard against API 0.2. Those VM checks have not yet been run. The final
+read-only column inventory supports planning the remaining profile attributes.
+
+The 11 ASGI transport tests, 6 isolated installer boundary tests and actual
+Python/JavaScript exchange checks pass locally. Existing core runtime acceptance
+is recorded separately; it is not a claim that the new service is installed.
+
+Publication is explicitly on hold at the owner's request. Public HTTPS exposure,
+browser integration and citywide acceptance remain separate work. Do not replace
+`production_ready: false` merely to satisfy an older capability predicate.
+
+## Earlier migration contract and remaining profile work
+
 Current production API 0.2 supports shortest only. No SSH was used for this change.
 The audited server graph remains authoritative for standard Direct. Other profiles
 continue to use the existing browser graph until server implementation is installed.
