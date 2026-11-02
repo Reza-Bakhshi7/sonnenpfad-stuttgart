@@ -8,8 +8,8 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./style.css?v=6127bf6b734d0ee8">
-<script type="module" src="./app-v7.mjs?v=7ed10900f2233f23">
+<link rel="stylesheet" href="./style.css?v=fdda41c06d437d75">
+<script type="module" src="./app-v7.mjs?v=6c56f9b87e242269">
 </script>
 </head>
 <body>
@@ -190,7 +190,7 @@
 <div class="metrics">
 <div>
 <strong id="duration">–</strong>
-<span>Gehzeit¹</span>
+<span>Gehzeit · min</span>
 </div>
 <div>
 <strong id="distance">–</strong>
@@ -198,7 +198,7 @@
 </div>
 <div>
 <strong id="shade-value">–</strong>
-<span data-i="shadePart">im Schatten²</span>
+<span data-i="shadePart">im Schatten</span>
 </div>
 </div>
 <div class="exposure-bar">
@@ -221,7 +221,7 @@
 <strong id="elevation-range">
 </strong>
 </div>
-<div class="profile-readout"><span id="elevation-scale"></span><output id="elevation-position" aria-live="off"></output></div>
+<div class="profile-readout"><output id="elevation-position" aria-live="off"></output></div>
 <svg id="elevation-chart" viewBox="0 0 300 86" preserveAspectRatio="none" role="img" aria-label="Höhenprofil der Route">
 <defs>
 <linearGradient id="elevation-gradient" x1="0" y1="0" x2="0" y2="1">
@@ -242,23 +242,21 @@
 </span>
 </div>
 </div></div>
-<p class="micro" id="snap-note">
-</p>
 <button id="share" class="text-button" data-i="share">Route als Link teilen ↗</button>
 </section>
 </div>
 <section id="explore-panel" class="explore-panel" hidden>
 <span class="explore-eyebrow">STUTTGART</span>
 <h2 id="explore-title">Stuttgart entdecken</h2>
-<p id="explore-description">Klicke auf einen Weg, einen Baum oder ein Gebäude, um mehr zu erfahren. Wähle zusätzliche Ebenen nach Interesse.</p>
+<p id="explore-description">Wähle Kartenebenen und klicke auf Wege oder Orte, um mehr zu erfahren.</p>
 <button id="explore-layers" type="button">Kartenebenen wählen</button>
 <button id="explore-3d" type="button">Stadt in 3D ansehen</button>
 </section>
-<button type="button" id="about-mobile" class="mobile-about" data-i="about">Über den Pilot</button>
+<button type="button" id="about-mobile" class="mobile-about" data-i="about">Über Sonnenpfad</button>
 </div>
 <footer>
 <span>Mohammadreza Bakhshi</span>
-<button id="about" data-i="about">Über den Pilot</button>
+<button id="about" data-i="about">Über Sonnenpfad</button>
 </footer>
 </aside>
 <main class="map-area">
@@ -371,4 +369,5 @@
 <noscript>Für diese interaktive Karte ist JavaScript erforderlich. / This interactive map requires JavaScript.</noscript>
 </body>
 </html>
+
 

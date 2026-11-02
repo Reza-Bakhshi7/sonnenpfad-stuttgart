@@ -1,6 +1,8 @@
-# Sonnenpfad Stuttgart — Prototype 0.14.1 (preview)
+# Sonnenpfad Stuttgart — Prototype 0.14.2 (preview)
 
 A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the [Stuttgart Pedestrian Atlas](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart). German and English, desktop and mobile. Standard Direct routes use the Sonnenpfad HTTPS API backed by PostGIS/pgRouting on the Oracle server. Shade, Sun, custom and mobility profiles currently retain the browser engine. No paid routing API key is required.
+
+Autor und Inhaber von Sonnenpfad Stuttgart und Fußgängeratlas Stuttgart ist Mohammadreza Bakhshi. Die Entwicklung erfolgte mit punktueller Unterstützung aus dem MobiData-BW-Team während seiner Tätigkeit als Werkstudent.
 
 Production: <https://sonnenpfad-stuttgart.de/> (Cloudflare alias: <https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/>)
 
@@ -17,7 +19,7 @@ Prepared application data is split into size-bounded static chunks so the browse
 - Full-municipality Stuttgart network, building footprints/heights and trees when the versioned city assets are published; robust pilot fallback otherwise.
 - Direct, shade-preferring and sun-preferring Dijkstra routes with separate uphill/downhill treatment.
 - Mobility presets for manual wheelchair, power wheelchair, cane/walker, blind or low-vision pedestrians and pushchairs. Known barriers are hard exclusions, unknown attributes remain routable but visible, and custom controls expose width, gradient, surface, stair, escalator and wheelchair restrictions. The exact assumptions are documented in [Step 5 routing profiles](docs/step5-routing-profiles.md).
-- Photon-backed Stuttgart place/address search with map picking and draggable endpoints.
+- Photon-backed Stuttgart place/address search with explicit map picking and confirmed mobile endpoints.
 - Changing date/time updates solar geometry, the 3D shadow display and route weighting. The solar compass responds immediately while the time slider is dragged; automatic time animation is intentionally disabled.
 - Hourly Open-Meteo weather for a fixed Stuttgart reference point: condition, temperature, cloud cover, direct radiation, 10 m wind, forecast-valid time and retrieval time. Direct radiation transparently scales the optional sun/shade preference; details and limitations are documented in [Step 6 live weather](docs/step6-live-weather.md).
 - A worker rasterizes shadow polygons for 3D rendering. The 2D map never requests or draws map-wide shadow rasters. A sun/shade route still computes exact shade values for a narrow route corridor, independently of the current 2D/3D view.
@@ -47,7 +49,7 @@ For the browser routing profiles, every existing line vertex is a routing node. 
 
 This is not a validated heat-risk, accessibility or navigation service.
 
-- The displayed 3D surface is an interpolation of elevations sampled along the walking network, not the original continuous DEM and not a survey model. Visual terrain exaggeration is 1.3×. It should not be used to infer precise ground heights away from sampled streets.
+- The displayed 3D surface is an interpolation of elevations sampled along the walking network, not the original continuous DEM and not a survey model. Visual terrain exaggeration is 1×. It should not be used to infer precise ground heights away from sampled streets.
 - Geometric clear-sky shadows still assume flat ground, simplified vertical building prisms and spherical opaque tree crowns. Building heights include source estimates. Clouds do not alter geometry; hourly direct radiation only scales raster opacity and the optional routing preference. Terrain occlusion, reflected radiation and thermal inertia are not modelled.
 - Tree heights fall back to 8 m when absent; radius falls back to 2 m (minimum 1 m). April–October is the simplified leaf-on season; winter shade includes only trees explicitly classified evergreen. This is not phenology.
 - At solar elevations ≤2°, shade geometry is disabled; the UI suppresses percentage and uses direct weighting. Night is not represented as a sun/shade choice.
@@ -80,3 +82,4 @@ Base map: OpenFreeMap / OpenMapTiles / © OpenStreetMap contributors. Weather: O
 2. Replace the interpolated display terrain with an authoritative raster DEM when redistribution and hosting terms are confirmed; audit sidewalk alignment and topology.
 3. Validate weather-aware route choices against representative clear and overcast days; decide whether animated spatial cloud rendering adds enough value for its performance cost.
 4. Add a user detour budget and expand coverage after performance measurements.
+

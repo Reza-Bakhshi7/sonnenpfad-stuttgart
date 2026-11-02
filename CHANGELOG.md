@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.2 — Development preview, 2 November 2026
+
+- Use Bordstein/Bordsteine throughout the German interface.
+- Keep route results concise; remove coverage percentages, snap diagnostics, profile exaggeration text and weather-weight labels.
+- Restrict Explore selection to Atlas paths and POIs; buildings and trees are display-only.
+- Show = before walking time and simplify bilingual About text.
+- Identify Mohammadreza Bakhshi as author and owner; keep the MobiData BW acknowledgement in the repository.
+
+
 ## 0.14.1 — mobile review corrections (preview)
 
 - Replace implicit endpoint changes with a one-shot centre-and-confirm mobile picker and locked markers.
@@ -130,3 +139,4 @@ All notable product changes are documented here. The project follows semantic ve
 - Coverage is limited to the Stuttgart-Mitte pilot.
 - Weather, cloud attenuation, UTCI and public-transport positions are not live in 0.7.0.
 - The display terrain is interpolated from network elevation samples.
+

@@ -41,5 +41,11 @@ vm.runInNewContext(cardCode+';installFeatureCards();',cardContext);assert.deepEq
 cardContext.exploreMode=true;await handlers.get('click')({point:{x:0,y:0},lngLat:[9.18,48.777]});assert.deepEqual(requests,['details','paths']);assert.equal(shown.at(-1).su,2);assert.equal(shown.at(-1).ss,70);assert.equal(selection.features[0].geometry.coordinates.length,3,'selection restores the full source line instead of a clipped rendered fragment');cardContext.featurePopup.remove();assert.equal(selection.features.length,0,'closing detail card clears highlight');
 
 // The map worker can be initialized in either mode without downloading a graph.
+// Decorative buildings and trees never enter Explore hit-testing or selection.
+const cardsBefore=shown.length;cardContext.is3D=true;cardContext.citySceneLayer={pickTree(){throw Error('Trees must not be inspected');}};
+cardContext.map.queryRenderedFeatures=(point,{layers})=>{assert.deepEqual(Array.from(layers),['poi-points','network-line']);return [];};
+await handlers.get('click')({point:{x:10,y:10},lngLat:{lng:9.18,lat:48.777}});assert.equal(shown.length,cardsBefore);assert.equal(selection.features.length,0);
+
 const worker=fs.readFileSync(new URL('scripts/worker.mjs',root),'utf8').replace(/^import .*$/gm,'');let graphFetches=0;const w={self:{postMessage(){}},fetch:()=>{graphFetches++;throw Error('Graph is lazy');},Float32Array,console};vm.runInNewContext(worker,w);await w.self.onmessage({data:{type:'initCity',manifest:{origin:[0,0],scale:[1,1]},base:'https://example.test/'}});assert.equal(graphFetches,0);
 console.log(`Display pipeline verified: Routing 2D makes zero Atlas display requests; Routing 3D loads only trees; Explore uses one selected theme and click-only shards. Tree display ${(visual.stats.sceneBytes/1e6).toFixed(2)} MB, ${Math.round((1-visual.stats.sceneBytes/visual.stats.oldSceneBytes)*100)}% smaller.`);
+

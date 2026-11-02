@@ -1,21 +1,21 @@
 # Governance
 
-Sonnenpfad Stuttgart is an experimental MobiData BW/NVBW showroom data application. Concept and development are attributed to Mohammadreza Bakhshi. The product communication does not reference a master's thesis.
+Sonnenpfad Stuttgart is an independent project owned and authored by Mohammadreza Bakhshi.
 
 ## Responsibilities
 
 | Role | Current responsibility |
 | --- | --- |
-| Product owner | Mohammadreza Bakhshi until a formal NVBW handover |
+| Product owner | Mohammadreza Bakhshi |
 | Technical maintainer | Mohammadreza Bakhshi |
-| Backup administrator | To be assigned from NVBW/MobiData BW |
+| Backup administrator | Optional; appointed by the owner |
 | Data owner | Determined per source dataset; no ownership is implied by this repository |
 
-The backup administrator must have access to the GitHub repository and the Cloudflare project before production ownership is transferred.
+Any future backup administrator receives access from the owner using an individual account.
 
 ## Decision process
 
-- Product and data-policy decisions require the product owner or an appointed NVBW successor.
+- Product and data-policy decisions require the product owner.
 - Changes to routing costs, accessibility interpretation, scientific claims, privacy behaviour or source attribution require review in a pull request.
 - Routine dependency, documentation and presentation changes may be merged after CI passes.
 - Public releases require the checklist in `docs/release-process.md`.
@@ -31,4 +31,5 @@ The backup administrator must have access to the GitHub repository and the Cloud
 ## Continuity
 
 The handover checklist is maintained in `docs/access-and-secrets.md`. No shared password or personal API token may be used as the continuity mechanism.
+
 
