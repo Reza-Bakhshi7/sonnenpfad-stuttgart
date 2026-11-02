@@ -19,3 +19,17 @@ console.log('Mobile finalization passed: one-shot confirmed picking, stable rout
 
 const routeHandler=source.slice(source.indexOf('function onWorker('),source.indexOf('\npopulate();'));const failureEvents=[],failureContext={routeId:1,serverRoutingPending:true,result:null,shortest:null,$:()=>({hidden:false,disabled:true}),map:{getSource:()=>({setData(){}})},fc:x=>x,status:key=>failureEvents.push(key),syncMobileDock(){failureEvents.push('sync:'+failureContext.result.error);}};vm.runInNewContext(routeHandler+';onWorker({data:{type:"route",id:1,result:{error:"disconnected"}}});',failureContext);assert.deepEqual(failureEvents,['sync:disconnected','disconnected']);
 console.log('Failed routes clear stale mobile result state.');
+
+// The actual result renderer must work after diagnostic-only DOM nodes are removed.
+const resultElements=new Map();const element=id=>{if(['snap-note','elevation-scale'].includes(id))throw Error('Removed diagnostic node accessed');if(!resultElements.has(id))resultElements.set(id,{textContent:'',nextElementSibling:{},style:{}});return resultElements.get(id);};
+const resultContext={result:{minutes:11,length:1000,shade:.7,ascent:20,descent:10},shortest:null,currentSun:{altitude:30},lang:'de',preference:'balanced',durationMetric,document:{body:{classList:{remove(){}}}},finishPickMode(){},effectiveWeather:()=>null,$:element,t:x=>x,renderRouteAssessment(){}};
+const resultCode=source.slice(source.indexOf('function showResult(){'),source.indexOf('function fitRoute(){'));vm.runInNewContext(resultCode+';showResult();',resultContext);assert.equal(element('duration').textContent,'= 11');assert.equal(element('duration').nextElementSibling.textContent,'Gehzeit · min');assert.equal(element('route-type').textContent,'balanced');
+resultContext.result.minutes=183;vm.runInNewContext('showResult();',resultContext);assert.equal(element('duration').textContent,'= 3:03');
+
+// Concise output still discloses relaxed constraints and missing profile data.
+const node=()=>({children:[],textContent:'',classList:{add(){}},append(...children){this.children.push(...children);},replaceChildren(){this.children=[];}}),assessmentBox=node();
+const assessmentContext={result:{quality:{surfaceKnown:1,slopeKnown:1,poorSurface:0},criteria:{}},lang:'de',$:id=>id==='route-assessment'?assessmentBox:{value:'wheelchair'},document:{createElement:node},routePoiCounts:()=>({})};
+const assessmentCode=source.slice(source.indexOf('function renderRouteAssessment(){'),source.indexOf('function showResult(){'));vm.runInNewContext(assessmentCode+';renderRouteAssessment();',assessmentContext);assert.equal(assessmentBox.hidden,true);
+assessmentContext.result.relaxedCriteria=['steps'];assessmentContext.result.quality.surfaceKnown=.2;vm.runInNewContext('renderRouteAssessment();',assessmentContext);assert.equal(assessmentBox.hidden,false);assert(assessmentBox.children.some(child=>child.textContent.includes('Nicht eingehalten: Treppen')));assert(assessmentBox.children.some(child=>child.textContent.includes('Angaben zur Eignung fehlen')));
+console.log('Concise result UI passed: removed diagnostics, minute/hour formatting and retained constraint warnings.');
+

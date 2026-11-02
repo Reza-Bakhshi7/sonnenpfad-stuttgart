@@ -1,6 +1,6 @@
 {
   "name": "sonnenpfad-stuttgart",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,3 +13,4 @@
     "wrangler": "4.151.0"
   }
 }
+

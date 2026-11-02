@@ -41,3 +41,12 @@ The new preview Origin receives no Access-Control-Allow-Origin from the legacy O
 - Native terrain uses the complete existing local zoom pyramid 12–14, 1× heights, subtle hillshade and a 55° entry pitch. No new DGM1 provenance is claimed.
 
 Validation includes a repeated confirmation/route-lock regression, real selection geometry, metric formatting, native terrain source/style contracts, source heightfield checks, and mobile layout fixtures at 320/390 px. Layout fixtures are excluded from deployment. No full real-device or WebGL rendering pass is claimed in this environment.
+
+
+## 0.14.2 interface cleanup preview — 2 November 2026
+
+The preview uses `app09-ui-cleanup-preview`. Production routing remains unchanged; this preview keeps the existing browser routing path because the branch host has no Oracle CORS grant.
+
+Route results omit snap diagnostics, attribute-coverage percentages, weather weights and the elevation exaggeration annotation. Known obstacles, relaxed criteria and missing mobility suitability data remain visible in short notices. Elevation axes and route values remain unchanged. Explore hit-testing accepts only Atlas paths and POIs; trees and basemap buildings remain visual context.
+
+Mohammadreza Bakhshi is identified as author and owner. The short MobiData BW acknowledgement is repository-only; source licences and map/weather attribution are retained.

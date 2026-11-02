@@ -57,7 +57,7 @@ export function profileAtDistance(values,distance) {
 // Public production hosts retain Oracle routing. Preview hosts have no Oracle
 // CORS grant and use the existing local engine with an explicit UI notice.
 export function isRoutingPreview(hostname='') {
- return /^(?:app09-mobile-finalization-preview|[a-f0-9]{8})-sonnenpfad-stuttgart\.mohammadreza-bakhshi\.workers\.dev$/.test(hostname);
+ return /^(?:app09-mobile-finalization-preview|app09-ui-cleanup-preview|[a-f0-9]{8})-sonnenpfad-stuttgart\.mohammadreza-bakhshi\.workers\.dev$/.test(hostname);
 }
 
 export function durationMetric(minutes){
@@ -71,3 +71,4 @@ export function singleSelectedGeometry(geometry,point){
  const polygons=geometry.coordinates;const selected=polygons.find(p=>inside(p[0])&&!p.slice(1).some(inside))||polygons.slice().sort((a,b)=>dist(a[0])-dist(b[0]))[0];
  return selected?{type:'Polygon',coordinates:selected}:geometry;
 }
+
