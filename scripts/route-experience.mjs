@@ -57,7 +57,13 @@ export function profileAtDistance(values,distance) {
 // Public production hosts retain Oracle routing. Preview hosts have no Oracle
 // CORS grant and use the existing local engine with an explicit UI notice.
 export function isRoutingPreview(hostname='') {
- return /^(?:app09-mobile-finalization-preview|app09-ui-cleanup-preview|[a-f0-9]{8})-sonnenpfad-stuttgart\.mohammadreza-bakhshi\.workers\.dev$/.test(hostname);
+ return /^(?:app09-mobile-finalization-preview|app09-ui-cleanup-preview|oracle-profiles-v1-preview|[a-f0-9]{8})-sonnenpfad-stuttgart\.mohammadreza-bakhshi\.workers\.dev$/.test(hostname);
+}
+// Stage-2 profile API (Nginx /profile-v2/ -> 127.0.0.1:8002). Preview hosts only,
+// and only with the explicit ?profileApi=v2 opt-in; production never sends it.
+export const PROFILE_V2_API='https://138.2.184.1/profile-v2/';
+export function profileApiFor(hostname='',search=''){
+ return isRoutingPreview(hostname)&&new URLSearchParams(search).get('profileApi')==='v2'?PROFILE_V2_API:null;
 }
 
 export function durationMetric(minutes){
