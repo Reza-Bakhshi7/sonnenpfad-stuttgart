@@ -19,7 +19,9 @@ const weather = read('scripts/weather.mjs')
   .replaceAll('export async function ', 'async function ');
 const experience = ['mobile-experience.mjs','aerial-cache.mjs','shadow-display.mjs','terrain-heightfield.mjs','route-experience.mjs','display-data.mjs','basemap-style.mjs','city-scene.mjs','boundary-projection.mjs'].map(name=>read('scripts/'+name).replace(/^import .*$/gm,'').replaceAll('export const ', 'const ').replaceAll('export function ', 'function ').replaceAll('export async function ', 'async function ')).join('\n');
 const application = `${experience}\n${serverRouting}\n${read('scripts/app.source.mjs')}\n${read('scripts/map-experience.mjs')}`;
-const workerSource = `${core}\n${serverRouting}\n${worker}`;
+// The Stage-2 adapter runs only in the worker; app.source.mjs gates it to preview hosts.
+const profileV2 = ['server-profile-contract.mjs','profile-routing-v1.mjs'].map(name=>read('scripts/'+name).replace(/^import .*$/gm,'').replaceAll('export const ', 'const ').replaceAll('export function ', 'function ').replaceAll('export async function ', 'async function ')).join('\n');
+const workerSource = `${core}\n${serverRouting}\n${profileV2}\n${worker}`;
 
 fs.mkdirSync(path.join(root, 'dist/vendor'), { recursive: true });
 fs.writeFileSync(
