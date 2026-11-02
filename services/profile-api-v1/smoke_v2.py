@@ -1,0 +1,58 @@
+"""Acceptance of the new local transport, not a repeat of core self-tests."""
+import json
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+from test_adapter import payload
+
+BASE='http://127.0.0.1:8002/'
+START=[9.1703775,48.7727873]
+END=[9.1630688,48.7708607]
+
+
+def request(url, body=None):
+    raw=None if body is None else json.dumps(body,allow_nan=False).encode()
+    request=urllib.request.Request(url,data=raw,headers={'Content-Type':'application/json','Accept':'application/json'})
+    try:
+        with urllib.request.urlopen(request,timeout=45) as response:
+            return response.status,json.load(response)
+    except urllib.error.HTTPError as error:
+        return error.code,json.load(error)
+
+
+def main():
+    status,health=request(BASE+'health')
+    assert status==200 and health['api_version']=='0.3.0-preview.1'
+    status,caps=request(BASE+'capabilities')
+    assert status==200 and caps['production_ready'] is False and caps['shadow_model'] is None
+    assert caps['mobility_profiles']==['standard','wheelchair','powerWheelchair']
+    invalid=payload();invalid['unknown_field']=True
+    status,error=request(BASE+'v1/route',invalid)
+    assert status==422 and error['error']=='unsupported_fields'
+    standard=None
+    for profile in caps['mobility_profiles']:
+        body=payload(profile);body['start']=START;body['end']=END
+        started=time.monotonic();status,data=request(BASE+'v1/route',body)
+        assert status==200,(profile,status,data.get('error'))
+        p=data['properties']
+        assert p['requested_profile']==profile and p['profile_contract_version']==1
+        assert p['relaxed_criteria']==[] and p['fallback_level']==0
+        assert p['route_parts']==len(p['segments']) and p['shade'] is None
+        assert p['time_model']['speedMpm']==(60 if profile=='wheelchair' else 75)
+        if profile=='standard':standard=p['distance_m']
+        print(json.dumps({'profile':profile,'transport':'PASS','distance_m':p['distance_m'],
+                          'seconds':round(time.monotonic()-started,3)},ensure_ascii=False),flush=True)
+    query=urllib.parse.urlencode(dict(start_lon=START[0],start_lat=START[1],end_lon=END[0],end_lat=END[1],profile='shortest',max_snap_m=50,include_segments='true'))
+    status,old=request('http://127.0.0.1:8000/route?'+query)
+    assert status==200 and abs(old['properties']['distance_m']-standard)<=.02
+    print('PROFILE_V2_TRANSPORT_PASS: three profiles; Standard matches the unchanged API 0.2.',flush=True)
+    print('Local preview only. Citywide and public-browser acceptance remain open.',flush=True)
+
+
+if __name__=='__main__':
+    try:main()
+    except Exception as error:
+        print('PROFILE_V2_TRANSPORT_FAIL: '+str(error),flush=True);sys.exit(1)
