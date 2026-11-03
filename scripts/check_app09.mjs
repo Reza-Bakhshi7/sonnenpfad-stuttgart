@@ -46,5 +46,6 @@ assert(isRoutingPreview('app09-mobile-finalization-preview-sonnenpfad-stuttgart.
 assert(isRoutingPreview('2feb460e-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'));
 assert(isRoutingPreview('oracle-profiles-v1-preview-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'));
 assert(isRoutingPreview('access-blocks-preview-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'));
+assert(isRoutingPreview('server-routing-preview-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'));
 assert(!isRoutingPreview('sonnenpfad-stuttgart.de'));assert(!isRoutingPreview('sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'));assert(!isRoutingPreview('example.test'));
 console.log('Preview routing is isolated from production hosts.');

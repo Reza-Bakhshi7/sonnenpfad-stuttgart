@@ -2,15 +2,19 @@ import {sunPosition,makeShadows,edgeShades,buildAdj,buildComponents,bestAvailabl
 import {adaptServerRoute} from './server-routing.mjs';
 import {buildProfileV1Request,supportsProfileV1,requestProfileV1,adaptProfileV1Route} from './profile-routing-v1.mjs';
 let profileCapabilities=null;
-// Preview only: returns {result} from Stage 2 or {reason} for the browser fallback.
+// Preview: every route comes from the Stage-2 server; failures are reported, never recomputed locally.
 async function profileV2Route({profileApi,lonlat,options,iso}){
  try{
-  const signal=AbortSignal.timeout(15000),toLocal=p=>[(p[0]-meta.origin[0])*meta.scale[0],(p[1]-meta.origin[1])*meta.scale[1]];
+  const signal=AbortSignal.timeout(20000),toLocal=p=>[(p[0]-meta.origin[0])*meta.scale[0],(p[1]-meta.origin[1])*meta.scale[1]];
   if(!profileCapabilities){const response=await fetch(new URL('capabilities',profileApi),{signal,credentials:'omit',headers:{Accept:'application/json'}});if(!response.ok)throw Error('capabilities');profileCapabilities=await response.json();}
-  if(!supportsProfileV1(profileCapabilities,buildProfileV1Request(lonlat[0],lonlat[1],options,{iso}),{preview:true}))return {reason:'unsupported'};
-  const {data,request}=await requestProfileV1(lonlat[0],lonlat[1],options,{baseURL:profileApi,preview:true,capabilities:profileCapabilities,signal,iso});
-  return {result:adaptProfileV1Route(data,toLocal,request)};
- }catch(error){return {reason:error.status?'serverError:'+(error.code||error.status):['TypeError','TimeoutError','AbortError'].includes(error.name)||error.message==='capabilities'?'unreachable':'invalidResponse'};}
+  const context={baseURL:profileApi,preview:true,capabilities:profileCapabilities,signal,iso,allowRelaxation:true};
+  if(!supportsProfileV1(profileCapabilities,buildProfileV1Request(lonlat[0],lonlat[1],options,{iso,allowRelaxation:true}),{preview:true}))return {result:{error:'serverUnavailable'}};
+  const {data,request}=await requestProfileV1(lonlat[0],lonlat[1],options,context),result=adaptProfileV1Route(data,toLocal,request);
+  if(result.error||options.preference==='balanced')return {result,shortest:result};
+  // The detour against the direct route ("+x m") also comes from the server.
+  let shortest=result;try{const direct=await requestProfileV1(lonlat[0],lonlat[1],{...options,preference:'balanced'},context);shortest=adaptProfileV1Route(direct.data,toLocal,direct.request);}catch{}
+  return {result,shortest:shortest.error?result:shortest};
+ }catch(error){return {result:{error:error.routeError||'serverUnavailable'}};}
 }
 let network,obstacles={buildings:[],trees:[]},activeEdgeIds=null,meta,adj,componentCache=new Map(),shades=[];
 
@@ -70,6 +74,6 @@ self.onmessage=async({data:d})=>{try{
   } catch(error){self.postMessage({type:'route',id:d.id,result:{error:'serverUnavailable'}});}
   return;
  }
- if(d.type==='route'){let fallback=null;if(d.profileApi){const via=await profileV2Route(d);if(via.result){self.postMessage({type:'route',id:d.id,result:via.result,shortest:via.result});return;}fallback=via.reason;}await ensureNetwork();const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=best.result,shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});if(fallback)result.profileApiFallback=fallback;self.postMessage({type:'route',id:d.id,result,shortest});}
+ if(d.type==='route'){if(d.profileApi){const via=await profileV2Route(d);self.postMessage({type:'route',id:d.id,result:via.result,shortest:via.shortest||via.result});return;}await ensureNetwork();const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=best.result,shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
  }catch(e){if(d.type==='route')self.postMessage({type:'route',id:d.id,result:{error:'modelFailed'}});else self.postMessage({type:'error',message:e.message,id:d.id});}};
 
