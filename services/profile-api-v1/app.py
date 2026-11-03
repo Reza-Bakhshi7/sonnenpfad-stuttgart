@@ -12,7 +12,7 @@ import engine
 import profile_api as core
 from sonnenpfad_profile_rules import relaxation_tiers, resolved_options
 
-VERSION = '0.3.0'
+VERSION = '0.3.1'
 MAX_BODY = 16384
 # Two routes compute at once (two CPU cores); further requests wait briefly instead of failing.
 SLOTS = 2

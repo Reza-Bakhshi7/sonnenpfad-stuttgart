@@ -10,3 +10,4 @@ dist/city/visual/
 dist/vendor/maplibre-v3.js
 dist/vendor/maplibre-gl*.mjs
 dist/vendor/three.mjs
+build/

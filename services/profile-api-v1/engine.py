@@ -277,6 +277,22 @@ FROM normalized n JOIN routing.atlas_network a ON a.fid=n.atlas_fid'''
             self.components[key] = ids
         return self.components[key]
 
+    def violations(self, i, direction, options):
+        """Requirements of the requested profile that edge i breaks in this direction (shown in orange)."""
+        found = []
+        if options.get('avoidSteps') and self.steps[i]:
+            found.append('steps')
+        if options.get('avoidEscalators') and self.escalator[i]:
+            found.append('escalator')
+        if options.get('avoidPoorSurface') and self.surface[i] == 3:
+            found.append('poorSurface')
+        if options.get('avoidWheelchairNo') and self.wheelchair[i] == 3:
+            found.append('wheelchairNo')
+        slope = self.sf[i] * direction
+        if options.get('maxSlope') and not math.isnan(slope) and abs(slope) > options['maxSlope']:
+            found.append('maxSlope')
+        return found
+
     # --- one tier, like core.mjs route() ----------------------------------------------------
     def route(self, start_candidates, end_candidates, options, max_snap, shade=None):
         forward, backward = self.costs(options, shade)
@@ -368,7 +384,12 @@ def restricted(options):
     return any(options.get(k) for k in ('avoidSteps', 'avoidEscalators', 'avoidPoorSurface', 'avoidWheelchairNo', 'maxSlope'))
 
 
-def snap_candidates(cursor, point, radius):
+# Every request gets a route: when nothing usable is close enough, the search widens
+# to the nearest permitted way (access blocks are never lifted).
+SNAP_STEPS = ((None, SNAP_CANDIDATES), (300, 256), (1500, 1024), (5000, 2048))
+
+
+def snap_candidates(cursor, point, radius, limit=SNAP_CANDIDATES):
     """Nearest routable edges (walk_edges plus nearby supplement), ordered by distance."""
     edges = core.scope_supplement(core.edges_cte(), 'ST_DWithin(a.geom,ST_Transform(ST_SetSRID(ST_MakePoint(%r,%r),4326),25832),%r)'
                                   % (float(point[0]), float(point[1]), float(radius)))
@@ -377,11 +398,11 @@ SELECT e.id,ST_LineLocatePoint(e.geom,p.geom) AS fraction,ST_Distance(e.geom,p.g
  ST_AsGeoJSON(ST_Transform(ST_ClosestPoint(e.geom,p.geom),4326),9)::jsonb AS point
 FROM all_edges e CROSS JOIN point p
 WHERE (e.cost>=0 OR e.reverse_cost>=0) AND ST_DWithin(e.geom,p.geom,%s)
-ORDER BY ST_Distance(e.geom,p.geom),e.id LIMIT %s''', (*point, radius, SNAP_CANDIDATES))
+ORDER BY ST_Distance(e.geom,p.geom),e.id LIMIT %s''', (*point, radius, limit))
     return [dict(row) for row in cursor.fetchall()]
 
 
-def route_segments(cursor, engine, parts):
+def route_segments(cursor, engine, parts, requested=None):
     """Oriented pieces with atlas attributes, in the segment format of the SQL engine."""
     ids = [int(engine.edge_id[i]) for i, _, _ in parts]
     edges = core.scope_supplement(core.edges_cte(), 's.id IN (' + ','.join(map(str, sorted(set(ids)))) + ')')
@@ -409,9 +430,11 @@ FROM pieces s JOIN routing.atlas_network a ON a.fid=s.atlas_fid ORDER BY s.seq''
             coords.extend(points[1:])
         else:
             coords.extend(points)
+        i, t0, t1 = parts[int(row['seq'])]
         segments.append(dict(edge_id=int(row['id']), atlas_fid=int(row['atlas_fid']), length_m=float(row['length_m']),
                              atlas_t0=float(row['atlas_t0']), atlas_t1=float(row['atlas_t1']),
-                             geometry=row['geometry'], atlas_attributes=row['atlas_attributes']))
+                             geometry=row['geometry'], atlas_attributes=row['atlas_attributes'],
+                             profile_violations=engine.violations(i, 1 if t1 >= t0 else -1, requested or {})))
     return segments, coords
 
 
@@ -429,50 +452,68 @@ def calculate(request):
             maxima = cursor.fetchone()
             if (maxima['max_edge'], maxima['max_node']) != (core.SUPPLEMENT['baseMaxEdge'], core.SUPPLEMENT['baseMaxNode']):
                 raise core.RouteError(503, 'gap_supplement_stale', 'Routing graph changed; the gap supplement must be regenerated')
-        starts = snap_candidates(cursor, request['start'], request['max_snap_m'])
-        ends = snap_candidates(cursor, request['end'], request['max_snap_m'])
-        if not starts or not ends:
-            raise core.RouteError(404, 'no_matching_snap', 'No walkable edge in snap radius; no route returned')
         when, leaf_on, preference = request.get('time_ms'), request.get('leaf_on', True), request.get('preference', 'balanced')
         shaded = sun = None
         if preference != 'balanced':
             if when is None or engine.shade_store is None:
                 raise core.RouteError(422, 'unsupported_preference', 'Sun/shade routing needs a time and the shadow data')
             shaded, sun = engine.shades(request['start'], request['end'], when, leaf_on)
-        profile_blocked = None
-        for level, tier in enumerate(tiers):
-            effective = dict(tier['options'])
-            result = engine.route(starts, ends, effective | ({'solarWeight': weight} if weight is not None else {}), request['max_snap_m'], shaded)
-            if 'parts' in result:
-                segments, coords = route_segments(cursor, engine, result['parts'])
-                metrics = core.route_metrics(segments, effective)
-                if when is not None and engine.shade_store is not None:
-                    parts = result['parts']
-                    if shaded is None:
-                        shaded, sun = engine.shades(request['start'], request['end'], when, leaf_on, [i for i, _, _ in parts])
-                    sizes = [engine.length[i] * abs(t1 - t0) for i, t0, t1 in parts]
-                    metrics['shade'] = round(float(sum(shaded[i] * size for (i, _, _), size in zip(parts, sizes)) / sum(sizes)), 4) if sum(sizes) else 0.0
-                    metrics['sun_altitude_deg'] = round(sun[0], 2)
-                a, b = result['snaps']
-                return dict(type='FeatureCollection', features=[dict(type='Feature', geometry=dict(type='LineString', coordinates=coords), properties=dict(distance_m=metrics['distance_m']))],
-                            properties=dict(**metrics, requested_profile=request['mobility_profile'], preference=preference, effective_options=effective,
-                                            relaxed_criteria=tier['relaxed_criteria'], fallback_level=level, segments=segments, segment_metadata_version=1,
-                                            snapped_start=a['point']['coordinates'], snapped_end=b['point']['coordinates'],
-                                            start_snap_distance_m=round(a['distance'], 2), end_snap_distance_m=round(b['distance'], 2),
-                                            engine='in-memory', experimental=True, reference_commit=core.REFERENCE_COMMIT))
-            if result['error'] == 'same':
+        found_any = False
+        for step, (radius, limit) in enumerate(SNAP_STEPS):
+            radius = request['max_snap_m'] if radius is None else max(radius, request['max_snap_m'])
+            starts = snap_candidates(cursor, request['start'], radius, limit)
+            ends = snap_candidates(cursor, request['end'], radius, limit)
+            if not starts or not ends:
+                continue
+            found_any = True
+            outcome = route_tiers(engine, starts, ends, tiers, radius, shaded, weight)
+            if outcome[0] == 'same':
                 raise core.RouteError(422, 'same_point', 'Start and destination snap to the same point')
-            # Only a route blocked by the profile's own restrictions may try the next tier (core.mjs profileBlocked).
-            if not restricted(effective):
-                break
-            if profile_blocked is None:
-                free = {k: v for k, v in effective.items() if k not in ('avoidSteps', 'avoidEscalators', 'avoidPoorSurface', 'avoidWheelchairNo', 'maxSlope')}
-                profile_blocked = 'parts' in engine.route(starts, ends, free, request['max_snap_m'], shaded)
-            if not profile_blocked:
-                break
-        if result['error'] == 'outside' and not profile_blocked:
-            raise core.RouteError(404, 'no_matching_snap', 'No mutually reachable walkable edges in snap radius')
-        raise core.RouteError(404, 'no_route', 'No route with the permitted restrictions')
+            if outcome[0] == 'blocked' and not request['allow_relaxation']:
+                raise core.RouteError(404, 'no_route', 'No route with the permitted restrictions')
+            if outcome[0] != 'route':
+                continue
+            _, level, tier, result = outcome
+            effective = dict(tier['options'])
+            segments, coords = route_segments(cursor, engine, result['parts'], tiers[0]['options'])
+            metrics = core.route_metrics(segments, effective)
+            if when is not None and engine.shade_store is not None:
+                parts = result['parts']
+                if shaded is None:
+                    shaded, sun = engine.shades(request['start'], request['end'], when, leaf_on, [i for i, _, _ in parts])
+                sizes = [engine.length[i] * abs(t1 - t0) for i, t0, t1 in parts]
+                metrics['shade'] = round(float(sum(shaded[i] * size for (i, _, _), size in zip(parts, sizes)) / sum(sizes)), 4) if sum(sizes) else 0.0
+                metrics['sun_altitude_deg'] = round(sun[0], 2)
+            a, b = result['snaps']
+            return dict(type='FeatureCollection', features=[dict(type='Feature', geometry=dict(type='LineString', coordinates=coords), properties=dict(distance_m=metrics['distance_m']))],
+                        properties=dict(**metrics, requested_profile=request['mobility_profile'], preference=preference, effective_options=effective,
+                                        relaxed_criteria=tier['relaxed_criteria'], fallback_level=level, segments=segments, segment_metadata_version=1,
+                                        snapped_start=a['point']['coordinates'], snapped_end=b['point']['coordinates'],
+                                        start_snap_distance_m=round(a['distance'], 2), end_snap_distance_m=round(b['distance'], 2),
+                                        snap_widened=step > 0, engine='in-memory', experimental=True, reference_commit=core.REFERENCE_COMMIT))
+        if not found_any:
+            raise core.RouteError(404, 'no_matching_snap', 'No walkable edge near start or destination')
+        raise core.RouteError(404, 'no_route', 'No connected walkable route between start and destination')
+
+
+def route_tiers(engine, starts, ends, tiers, radius, shaded, weight):
+    """Strict tier first, then the relaxation tiers while the profile's own restrictions block (core.mjs)."""
+    profile_blocked = None
+    for level, tier in enumerate(tiers):
+        effective = dict(tier['options'])
+        result = engine.route(starts, ends, effective | ({'solarWeight': weight} if weight is not None else {}), radius, shaded)
+        if 'parts' in result:
+            return ('route', level, tier, result)
+        if result['error'] == 'same':
+            return ('same',)
+        if not restricted(effective):
+            break
+        if profile_blocked is None:
+            free = {k: v for k, v in effective.items() if k not in ('avoidSteps', 'avoidEscalators', 'avoidPoorSurface', 'avoidWheelchairNo', 'maxSlope')}
+            profile_blocked = 'parts' in engine.route(starts, ends, free, radius, shaded)
+        if not profile_blocked:
+            break
+    return ('blocked',) if profile_blocked else ('unreachable',)
 
 
 def get_engine():

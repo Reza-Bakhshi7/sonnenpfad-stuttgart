@@ -70,6 +70,16 @@ class Mobility(unittest.TestCase):
         self.assertEqual(engine.route([snap(0, .1)], [snap(2, .9)], tiers[0]['options'], 30)['error'], 'outside')
         self.assertIn(1, edge_ids(engine, engine.route([snap(0, .1)], [snap(2, .9)], tiers[-1]['options'], 30)))
 
+    def test_relaxed_route_reports_what_it_breaks(self):
+        engine = Engine(self.rows[:3])
+        tiers = relaxation_tiers(self.options('wheelchair'))
+        parts = engine.route([snap(0, .1)], [snap(2, .9)], tiers[-1]['options'], 30)['parts']
+        flagged = {int(engine.edge_id[i]): engine.violations(i, 1 if t1 >= t0 else -1, tiers[0]['options']) for i, t0, t1 in parts}
+        self.assertEqual(flagged, {0: [], 1: ['steps'], 2: []})
+        steep = Engine([row(0, 0, 1, 10, 9, 1)])
+        self.assertEqual(steep.violations(0, 1, self.options('wheelchair')), ['maxSlope'])
+        self.assertEqual(steep.violations(0, 1, self.options('powerWheelchair')), [])
+
     def test_bench_at_zero_metres_is_best(self):
         engine = Engine([row(0, 0, 1, 10)])
         options = self.options('walkingAid')

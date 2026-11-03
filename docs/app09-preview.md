@@ -1,6 +1,6 @@
 # App 09 — 0.14.0 preview
 
-The public Atlas is at https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart . The App repository remains private.
+The public Atlas is at https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart .
 
 ## Corrections
 

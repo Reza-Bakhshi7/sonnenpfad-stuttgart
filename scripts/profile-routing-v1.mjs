@@ -47,7 +47,10 @@ export function adaptProfileV1Route(data,toLocal,request){
  const coverage=p.attribute_coverage;
  if(!coverage||['surface','width','wheelchair','elevation'].some(key=>!Number.isFinite(coverage[key])||coverage[key]<0||coverage[key]>1+1e-9))throw Error('Invalid profile coverage');
  Object.assign(route.quality,{surfaceKnown:coverage.surface,widthKnown:coverage.width,wheelchairKnown:coverage.wheelchair,slopeKnown:coverage.elevation});
- return {...route,source:'server-profile-v1',shade:p.shade,minutes:p.estimated_minutes,ascent:p.ascent_m,descent:p.descent_m,
+ // Pieces that break the requested profile (after relaxation) are drawn in orange.
+ const warnings=(p.segments||[]).filter(segment=>Array.isArray(segment.profile_violations)&&segment.profile_violations.length)
+  .map(segment=>({coords:segment.geometry.coordinates.map(toLocal),reasons:segment.profile_violations}));
+ return {...route,source:'server-profile-v1',shade:p.shade,warnings,snapWidened:p.snap_widened===true,minutes:p.estimated_minutes,ascent:p.ascent_m,descent:p.descent_m,
   profile:p.elevation_profile,timeModel:model,criteria:options,effectiveOptions:options,
   requestedProfile:p.requested_profile,relaxedCriteria:p.relaxed_criteria,fallbackLevel:level};
 }

@@ -29,7 +29,7 @@ def request(url, body=None):
 
 def main():
     status,health=request(BASE+'health')
-    assert status==200 and health['api_version']=='0.3.0'
+    assert status==200 and health['api_version']=='0.3.1'
     status,caps=request(BASE+'capabilities')
     assert status==200 and caps['production_ready'] is PRODUCTION_READY and caps['shadow_model']=='geometric-time-aware'
     gap=caps['gap_supplement'];assert gap and gap['atlasWays']>0 and gap['pieces']>0
@@ -73,6 +73,11 @@ def main():
         shares[preference]=p['shade']
         print(json.dumps({'preference':preference,'distance_m':p['distance_m'],'shade':p['shade'],'seconds':round(time.monotonic()-started,3)}),flush=True)
     assert shares['shade']>=shares['sun'],shares
+    # A search hit inside the Stuttgart 21 construction site (about 90 m from any way) still gets a route.
+    body=payload('wheelchair',relax=True);body['start']=[9.1833959,48.7856099];body['end']=[9.17935,48.77845]
+    status,data=request(BASE+'v1/route',body)
+    assert status==200 and data['properties']['snap_widened'] is True and data['properties']['start_snap_distance_m']>50,(status,data.get('error'))
+    print(json.dumps({'far_start_snap_m':data['properties']['start_snap_distance_m'],'distance_m':data['properties']['distance_m']}),flush=True)
     print('PROFILE_V2_TRANSPORT_PASS: all seven profiles; engine equals the SQL engine; sun/shade routes; Standard equals API 0.2 or is shorter via restored atlas ways.',flush=True)
     print('Local preview only. Citywide and public-browser acceptance remain open.',flush=True)
 
