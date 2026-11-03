@@ -28,9 +28,9 @@ def request(url, body=None):
 
 def main():
     status,health=request(BASE+'health')
-    assert status==200 and health['api_version']=='0.3.0-preview.3'
+    assert status==200 and health['api_version']=='0.3.0-preview.4'
     status,caps=request(BASE+'capabilities')
-    assert status==200 and caps['production_ready'] is False and caps['shadow_model'] is None
+    assert status==200 and caps['production_ready'] is False and caps['shadow_model']=='geometric-time-aware'
     gap=caps['gap_supplement'];assert gap and gap['atlasWays']>0 and gap['pieces']>0
     assert caps['mobility_profiles']==['standard','wheelchair','powerWheelchair','walkingAid','vision','stroller','custom']
     assert caps['routing_engine']=='in-memory'
@@ -62,7 +62,17 @@ def main():
     assert status==200 and standard['distance_m']<=old['properties']['distance_m']+.02
     assert supplement_used or abs(old['properties']['distance_m']-standard['distance_m'])<=.02
     print(json.dumps({'standard_m':standard['distance_m'],'api_0_2_m':old['properties']['distance_m'],'gap_ways_used':supplement_used}),flush=True)
-    print('PROFILE_V2_TRANSPORT_PASS: all seven profiles; engine equals the SQL engine; Standard equals API 0.2 or is shorter via restored atlas ways.',flush=True)
+    # Sun and shade at midsummer noon: real shares, and the shade route is at least as shaded as the sun route.
+    shares={}
+    for preference in ('balanced','shade','sun'):
+        body=payload('standard',preference=preference,time='2026-06-21T11:00:00.000Z');body['start']=START;body['end']=END
+        started=time.monotonic();status,data=request(BASE+'v1/route',body)
+        assert status==200,(preference,status,data.get('error'))
+        p=data['properties'];assert p['preference']==preference and 0<=p['shade']<=1
+        shares[preference]=p['shade']
+        print(json.dumps({'preference':preference,'distance_m':p['distance_m'],'shade':p['shade'],'seconds':round(time.monotonic()-started,3)}),flush=True)
+    assert shares['shade']>=shares['sun'],shares
+    print('PROFILE_V2_TRANSPORT_PASS: all seven profiles; engine equals the SQL engine; sun/shade routes; Standard equals API 0.2 or is shorter via restored atlas ways.',flush=True)
     print('Local preview only. Citywide and public-browser acceptance remain open.',flush=True)
 
 

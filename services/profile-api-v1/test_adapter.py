@@ -13,13 +13,13 @@ CUSTOM = dict(avoidSteps=True, avoidEscalators=False, avoidPoorSurface=True, avo
               unknownFactor=.45, speedMpm=75, ascentMinutesPer10m=1)
 
 
-def payload(profile='wheelchair', relax=False, weight=None):
-    options = resolved_options({'mobilityProfile': profile, 'preference': 'balanced', **(CUSTOM if profile == 'custom' else {})})
+def payload(profile='wheelchair', relax=False, weight=None, preference='balanced', time=None):
+    options = resolved_options({'mobilityProfile': profile, 'preference': preference, **(CUSTOM if profile == 'custom' else {})})
     if weight is not None:
         options['solarWeight'] = weight
     return dict(contract_version=1, start=[9.18,48.77], end=[9.181,48.771],
                 max_snap_m=50, include_segments=True, mobility_profile=profile,
-                preference='balanced', options=options, time=None,
+                preference=preference, options=options, time=time,
                 timezone='Europe/Berlin', leaf_on=True, tiers=relaxation_tiers(options),
                 allow_relaxation=relax)
 
@@ -82,6 +82,12 @@ class ContractTests(unittest.TestCase):
             body=payload();body[key]=value
             with self.assertRaises(service.core.RouteError):service.validate_contract(body)
 
+    def test_sun_and_shade_need_a_time(self):
+        for preference in ('shade','sun'):
+            with self.assertRaises(service.core.RouteError):service.validate_contract(payload('standard',preference=preference))
+            result=service.validate_contract(payload('stroller',preference=preference,time='2026-06-21T11:00:00.000Z'))
+            self.assertEqual((result['preference'],result['time_ms'],result['leaf_on']),(preference,1782039600000.0,True))
+
     def test_optional_context_is_validated(self):
         for value in ['', '2026-11-02', 'garbage', 123]:
             body=payload();body['time']=value
@@ -107,12 +113,12 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data['properties']['profile_contract_version'],1)
         self.assertEqual(data['properties']['route_parts'],1)
         self.assertEqual(headers[b'cache-control'],b'no-store')
-        self.assertEqual(set(calls[0]),{'start','end','mobility_profile','preference','max_snap_m','allow_relaxation','options','solar_weight'})
+        self.assertEqual(set(calls[0]),{'start','end','mobility_profile','preference','max_snap_m','allow_relaxation','options','solar_weight','time_ms','leaf_on'})
 
     async def test_no_unaccepted_production_capability(self):
         status,data,_=await invoke(service.create_app(),method='GET',path='/capabilities')
         self.assertEqual(status,200);self.assertFalse(data['production_ready'])
-        self.assertEqual(data['preferences'],['balanced']);self.assertIsNone(data['shadow_model'])
+        self.assertEqual(data['preferences'],['balanced','shade','sun']);self.assertEqual(data['shadow_model'],'geometric-time-aware')
 
     async def test_body_limits_bad_json_and_type(self):
         app=service.create_app(lambda _:self.fail('Invalid body reached SQL'))
