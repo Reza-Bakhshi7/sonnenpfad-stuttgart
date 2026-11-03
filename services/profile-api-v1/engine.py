@@ -5,6 +5,7 @@ Costs, access rules, components, snapping choice, Dijkstra and relaxation follow
 browser core (scripts/core.mjs) and sonnenpfad_profile_rules.py, vectorised with numpy.
 The database still answers nearest-edge and geometry queries; it is never modified.
 """
+import collections
 import contextlib
 import heapq
 import json
@@ -15,9 +16,11 @@ import threading
 import numpy as np
 
 import profile_api as core
+import shadows
 from sonnenpfad_profile_rules import relaxation_tiers, resolved_options
 
 POI_PATH = pathlib.Path(__file__).with_name('poi_points.json')
+SHADE_PATH = pathlib.Path(__file__).with_name('shade_tiles.zip')
 SNAP_CANDIDATES = 64
 _LOCK = threading.Lock()
 _ENGINE = None
@@ -85,15 +88,30 @@ def load_engine(connection):
               FROM unnest(%s::float8[],%s::float8[]) WITH ORDINALITY AS t(x,y,ord)) s ORDER BY ord''',
                            ([p[2] for p in points], [p[3] for p in points]))
             poi_xy = np.array(cursor.fetchall(), dtype=float)
-    return Engine(rows, points, poi_xy, pois.get('counts', {}))
+    store = shadows.ShadeTiles(SHADE_PATH) if SHADE_PATH.exists() else None
+    return Engine(rows, points, poi_xy, pois.get('counts', {}), store)
 
 
 class Engine:
-    def __init__(self, rows, points=(), poi_xy=np.zeros((0, 2)), poi_counts=None):
-        """rows: load_sql() columns; points: [kind, crossing_class, lon, lat]; poi_xy: projected points."""
+    def __init__(self, rows, points=(), poi_xy=np.zeros((0, 2)), poi_counts=None, shade_store=None):
+        """rows: load_sql() columns (geometry WKB optional); points: [kind, crossing_class, lon, lat]."""
         columns = list(zip(*rows))
         (ids, sources, targets, cost, reverse, length, steps, escalator, surface, wheelchair, way,
-         sf, dz_sign, forward_on_atlas, handrail, tactile, width, covered, mx, my) = columns
+         sf, dz_sign, forward_on_atlas, handrail, tactile, width, covered, mx, my) = columns[:20]
+        self.shade_store = shade_store
+        if shade_store is not None and len(columns) > 20:
+            # Edge lines in the app's local metre frame, where the browser shadow model works.
+            import shapely
+            lines = shapely.from_wkb([bytes(w) for w in columns[20]])
+            xy, owner = shapely.get_coordinates(lines, return_index=True)
+            x, y = shade_store.local(xy[:, 0], xy[:, 1])
+            self.coords = np.column_stack([x, y])
+            self.offsets = np.concatenate([[0], np.cumsum(np.bincount(owner, minlength=len(ids)))])
+            first, last = self.coords[self.offsets[:-1]], self.coords[self.offsets[1:] - 1]
+            grid = shade_store.meta['grid']
+            cells = np.floor((first + last) / 2 / grid).astype(int)
+            self.tile = np.array([f'{cx}_{cy}' for cx, cy in cells.tolist()], dtype=object)
+        self.shade_cache = collections.OrderedDict()
         self.edge_id = np.array(ids, dtype=np.int64)
         self.index = {int(e): i for i, e in enumerate(self.edge_id)}
         nodes, compact = np.unique(np.concatenate([np.array(sources, dtype=np.int64), np.array(targets, dtype=np.int64)]), return_inverse=True)
@@ -144,8 +162,36 @@ SELECT n.id,n.source,n.target,n.cost,n.reverse_cost,n.length_m,n.steps,n.escalat
  ST_LineLocatePoint(n.atlas_geom,ST_StartPoint(n.geom))<=ST_LineLocatePoint(n.atlas_geom,ST_EndPoint(n.geom)),
  a.handrail,a.tactile_paving,a.width,
  lower(COALESCE(a.covered_current,''))='yes' OR lower(COALESCE(a.tunnel,'')) IN ('t','yes','true','1'),
- ST_X(ST_LineInterpolatePoint(n.geom,.5)),ST_Y(ST_LineInterpolatePoint(n.geom,.5))
+ ST_X(ST_LineInterpolatePoint(n.geom,.5)),ST_Y(ST_LineInterpolatePoint(n.geom,.5)),
+ ST_AsBinary(ST_Transform(n.geom,4326))
 FROM normalized n JOIN routing.atlas_network a ON a.fid=n.atlas_fid'''
+
+    # --- shadows (browser model, shadows.py) ------------------------------------------------
+    def shades(self, start, end, epoch_ms, leaf_on, edges=None):
+        """Shade fraction per edge for the route corridor (app routeTileKeys) or the given edges.
+
+        Edges outside the corridor stay 0, exactly as in the browser's route-aware shading.
+        """
+        store = self.shade_store
+        lon, lat = (start[0] + end[0]) / 2, (start[1] + end[1]) / 2
+        altitude, azimuth = shadows.sun_position(epoch_ms, lat, lon)
+        a, b = [tuple(map(float, store.local(*p))) for p in (start, end)]
+        keys = shadows.corridor_tiles(a, b, store.meta['grid'], store.available)
+        cache_key = (tuple(sorted(keys)), epoch_ms, leaf_on, None if edges is None else tuple(sorted(set(edges))))
+        if cache_key in self.shade_cache:
+            return self.shade_cache[cache_key], (altitude, azimuth)
+        tiles = [store.tile(key) for key in keys]
+        footprints = shadows.Footprints.combine([t[0] for t in tiles])
+        crowns = shadows.tree_crowns([tree for t in tiles for tree in t[1]], altitude, azimuth, leaf_on)
+        if edges is None:
+            edges = np.flatnonzero(np.isin(self.tile, keys))
+        edges = np.asarray(sorted(set(int(e) for e in edges)), dtype=int)
+        result = np.zeros(len(self.length))
+        result[edges] = shadows.edge_shades(self.coords, self.offsets, edges, self.covered, footprints, crowns, altitude, azimuth)
+        self.shade_cache[cache_key] = result
+        while len(self.shade_cache) > 6:
+            self.shade_cache.popitem(last=False)
+        return result, (altitude, azimuth)
 
     # --- rules (vectorised port of sonnenpfad_profile_rules / core.mjs) -------------------
     def allowed(self, options, direction):
@@ -384,16 +430,29 @@ def calculate(request):
         ends = snap_candidates(cursor, request['end'], request['max_snap_m'])
         if not starts or not ends:
             raise core.RouteError(404, 'no_matching_snap', 'No walkable edge in snap radius; no route returned')
+        when, leaf_on, preference = request.get('time_ms'), request.get('leaf_on', True), request.get('preference', 'balanced')
+        shaded = sun = None
+        if preference != 'balanced':
+            if when is None or engine.shade_store is None:
+                raise core.RouteError(422, 'unsupported_preference', 'Sun/shade routing needs a time and the shadow data')
+            shaded, sun = engine.shades(request['start'], request['end'], when, leaf_on)
         profile_blocked = None
         for level, tier in enumerate(tiers):
             effective = dict(tier['options'])
-            result = engine.route(starts, ends, effective | ({'solarWeight': weight} if weight is not None else {}), request['max_snap_m'])
+            result = engine.route(starts, ends, effective | ({'solarWeight': weight} if weight is not None else {}), request['max_snap_m'], shaded)
             if 'parts' in result:
                 segments, coords = route_segments(cursor, engine, result['parts'])
                 metrics = core.route_metrics(segments, effective)
+                if when is not None and engine.shade_store is not None:
+                    parts = result['parts']
+                    if shaded is None:
+                        shaded, sun = engine.shades(request['start'], request['end'], when, leaf_on, [i for i, _, _ in parts])
+                    sizes = [engine.length[i] * abs(t1 - t0) for i, t0, t1 in parts]
+                    metrics['shade'] = round(float(sum(shaded[i] * size for (i, _, _), size in zip(parts, sizes)) / sum(sizes)), 4) if sum(sizes) else 0.0
+                    metrics['sun_altitude_deg'] = round(sun[0], 2)
                 a, b = result['snaps']
                 return dict(type='FeatureCollection', features=[dict(type='Feature', geometry=dict(type='LineString', coordinates=coords), properties=dict(distance_m=metrics['distance_m']))],
-                            properties=dict(**metrics, requested_profile=request['mobility_profile'], effective_options=effective,
+                            properties=dict(**metrics, requested_profile=request['mobility_profile'], preference=preference, effective_options=effective,
                                             relaxed_criteria=tier['relaxed_criteria'], fallback_level=level, segments=segments, segment_metadata_version=1,
                                             snapped_start=a['point']['coordinates'], snapped_end=b['point']['coordinates'],
                                             start_snap_distance_m=round(a['distance'], 2), end_snap_distance_m=round(b['distance'], 2),
@@ -405,7 +464,7 @@ def calculate(request):
                 break
             if profile_blocked is None:
                 free = {k: v for k, v in effective.items() if k not in ('avoidSteps', 'avoidEscalators', 'avoidPoorSurface', 'avoidWheelchairNo', 'maxSlope')}
-                profile_blocked = 'parts' in engine.route(starts, ends, free, request['max_snap_m'])
+                profile_blocked = 'parts' in engine.route(starts, ends, free, request['max_snap_m'], shaded)
             if not profile_blocked:
                 break
         if result['error'] == 'outside' and not profile_blocked:

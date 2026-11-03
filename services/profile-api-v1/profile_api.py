@@ -105,7 +105,7 @@ class RouteError(Exception):
         self.status, self.code = status, code
 
 
-def validate_request(body, supported=SUPPORTED):
+def validate_request(body, supported=SUPPORTED, preferences=('balanced',)):
     if not isinstance(body, dict):
         raise RouteError(422, 'invalid_request', 'Expected a JSON object')
     allowed = {'start', 'end', 'mobility_profile', 'preference', 'max_snap_m', 'allow_relaxation'}
@@ -120,8 +120,8 @@ def validate_request(body, supported=SUPPORTED):
     profile = body.get('mobility_profile', 'standard')
     if profile not in supported:
         raise RouteError(422, 'unsupported_profile', 'Unsupported mobility profile')
-    if body.get('preference', 'balanced') != 'balanced':
-        raise RouteError(422, 'unsupported_preference', 'Sun/shade routing is not implemented by this test API')
+    if body.get('preference', 'balanced') not in preferences:
+        raise RouteError(422, 'unsupported_preference', 'Sun/shade routing is not available for this request')
     radius = body.get('max_snap_m', 30)
     if not finite(radius) or not 0 < radius <= 50:
         raise RouteError(422, 'invalid_snap_radius', 'max_snap_m must be greater than 0 and at most 50')
@@ -129,7 +129,7 @@ def validate_request(body, supported=SUPPORTED):
     if not isinstance(relax, bool):
         raise RouteError(422, 'invalid_relaxation', 'allow_relaxation must be a JSON boolean')
     return dict(start=body['start'], end=body['end'], mobility_profile=profile,
-                max_snap_m=radius, allow_relaxation=relax, preference='balanced')
+                max_snap_m=radius, allow_relaxation=relax, preference=body.get('preference', 'balanced'))
 
 
 def policy_sql(options):

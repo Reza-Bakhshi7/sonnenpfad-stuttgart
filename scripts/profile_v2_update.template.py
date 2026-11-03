@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import pwd
+import re
 import shutil
 import subprocess
 import sys
@@ -25,6 +26,15 @@ TARGET=BASE/'api-stage2'
 UNIT=Path('/etc/systemd/system/sonnenpfad-profile-v2.service')
 UNIT_NAME='sonnenpfad-profile-v2.service'
 UNIT_MARKER='WorkingDirectory=/opt/sonnenpfad-profile-test/api-stage2'
+# The in-memory engine needs more room than the SQL-only preview; only these two Stage-2 limits change.
+UNIT_LIMITS={'MemoryMax':'1G','CPUQuota':'100%'}
+
+
+def unit_with_limits(text):
+    for key,value in UNIT_LIMITS.items():
+        text,count=re.subn(r'(?m)^'+key+r'=.*$',key+'='+value,text)
+        if count!=1:raise ValueError('Unit ohne eindeutige Zeile '+key+'. Nichts geaendert.')
+    return text
 
 
 def run(arguments,**kwargs):
@@ -63,11 +73,13 @@ def update():
     if os.geteuid()!=0:
         raise SystemExit('Bitte mit sudo /usr/bin/python3 ausfuehren.')
     safe_existing(BASE,True);safe_existing(TARGET,True);safe_existing(UNIT)
-    if UNIT_MARKER not in UNIT.read_text():raise ValueError('Unerwartete Unit. Nichts geaendert.')
+    unit_before=UNIT.read_text()
+    if UNIT_MARKER not in unit_before:raise ValueError('Unerwartete Unit. Nichts geaendert.')
+    unit_after=unit_with_limits(unit_before)
     try:pwd.getpwnam('sonnenpfad_api')
     except KeyError:raise ValueError('Benutzer sonnenpfad_api fehlt. Nichts geaendert.')
     files=payload()
-    if all((TARGET/name).is_file() and (TARGET/name).read_bytes()==data for name,data in files.items()) and health_version()==VERSION:
+    if unit_after==unit_before and all((TARGET/name).is_file() and (TARGET/name).read_bytes()==data for name,data in files.items()) and health_version()==VERSION:
         print('Stufe 2 ist bereits auf diesem Stand und erreichbar. Keine Aenderung.',flush=True)
         return
     stamp=time.strftime('%Y%m%d-%H%M%S');backup=BASE/('api-stage2.prev-'+stamp)
@@ -78,16 +90,21 @@ def update():
         for name,data in files.items():
             path=staged/name;path.write_bytes(data);path.chmod(0o644)
         print('Pruefe die neue Fassung im Staging.',flush=True)
-        run(['sudo','-u','sonnenpfad_api','/usr/bin/python3','-B','-m','unittest','-v','test_adapter','test_engine'],cwd=staged,timeout=120)
+        run(['sudo','-u','sonnenpfad_api','/usr/bin/python3','-B','-m','unittest','-v','test_adapter','test_engine','test_shadows'],cwd=staged,timeout=120)
         TARGET.rename(backup)
         staged.rename(TARGET);staged=None
         print('Starte nur sonnenpfad-profile-v2.service neu. Sicherung: '+str(backup),flush=True)
         try:
+            if unit_after!=unit_before:
+                UNIT.write_text(unit_after);run(['systemctl','daemon-reload'])
+                print('Stufe-2-Unit: '+', '.join(k+'='+v for k,v in UNIT_LIMITS.items()),flush=True)
             run(['systemctl','restart',UNIT_NAME])
             if not wait_for(VERSION):raise ValueError('Neue Fassung wurde nicht erreichbar.')
             run(['sudo','-u','sonnenpfad_api','/usr/bin/python3','-B','-u','smoke_v2.py'],cwd=TARGET,timeout=300)
         except Exception:
             TARGET.rename(BASE/('api-stage2.failed-'+stamp));backup.rename(TARGET)
+            if UNIT.read_text()!=unit_before:
+                UNIT.write_text(unit_before);subprocess.run(['systemctl','daemon-reload'],check=False)
             subprocess.run(['systemctl','restart',UNIT_NAME],check=False)
             print('Zurueckgerollt: vorherige Stufe 2 wieder aktiv. Fehlversion liegt in api-stage2.failed-'+stamp,flush=True)
             raise
