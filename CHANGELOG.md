@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — access blocks (preview)
+## 0.14.3 — 3 November 2026
+
+- The About dialog shows the release version without the "VORSCHAU" label that shipped with 0.14.2.
 
 - Browser routing no longer uses ways that the audited server graph blocks in both directions (21,670 of 248,725 edges: e.g. access=private, foot=no, foot=use_sidepath, motorroads, gates). The block list is exported read-only from `routing.walk_edges` (`scripts/export_access_blocks.py`, `scripts/access_blocks.mjs`) and applies to every profile without relaxation; 193 ambiguous edges stay open.
 - Known remaining difference: atlas ways without a confident OSM match (about 217 km) are missing from the server graph, so server routes can be longer than browser routes.
