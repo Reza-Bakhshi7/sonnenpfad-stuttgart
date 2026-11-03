@@ -3,12 +3,12 @@ import {adaptServerRoute} from './server-routing.mjs';
 import {buildProfileV1Request,supportsProfileV1,requestProfileV1,adaptProfileV1Route} from './profile-routing-v1.mjs';
 let profileCapabilities=null;
 // Preview: every route comes from the Stage-2 server; failures are reported, never recomputed locally.
-async function profileV2Route({profileApi,lonlat,options,iso}){
+async function profileV2Route({profileApi,lonlat,options,iso,serverPreview=true}){
  try{
   const signal=AbortSignal.timeout(20000),toLocal=p=>[(p[0]-meta.origin[0])*meta.scale[0],(p[1]-meta.origin[1])*meta.scale[1]];
   if(!profileCapabilities){const response=await fetch(new URL('capabilities',profileApi),{signal,credentials:'omit',headers:{Accept:'application/json'}});if(!response.ok)throw Error('capabilities');profileCapabilities=await response.json();}
-  const context={baseURL:profileApi,preview:true,capabilities:profileCapabilities,signal,iso,allowRelaxation:true};
-  if(!supportsProfileV1(profileCapabilities,buildProfileV1Request(lonlat[0],lonlat[1],options,{iso,allowRelaxation:true}),{preview:true}))return {result:{error:'serverUnavailable'}};
+  const context={baseURL:profileApi,preview:serverPreview,capabilities:profileCapabilities,signal,iso,allowRelaxation:true};
+  if(!supportsProfileV1(profileCapabilities,buildProfileV1Request(lonlat[0],lonlat[1],options,{iso,allowRelaxation:true}),{preview:serverPreview}))return {result:{error:'serverUnavailable'}};
   const {data,request}=await requestProfileV1(lonlat[0],lonlat[1],options,context),result=adaptProfileV1Route(data,toLocal,request);
   if(result.error||options.preference==='balanced')return {result,shortest:result};
   // The detour against the direct route ("+x m") also comes from the server.

@@ -12,8 +12,13 @@ import engine
 import profile_api as core
 from sonnenpfad_profile_rules import relaxation_tiers, resolved_options
 
-VERSION = '0.3.0-preview.4'
+VERSION = '0.3.0-preview.6'
 MAX_BODY = 16384
+# Two routes compute at once (two CPU cores); further requests wait briefly instead of failing.
+SLOTS = 2
+QUEUE_SECONDS = 10
+# Set to True only for the production release; production hosts use this server only then.
+PRODUCTION_READY = False
 HEADERS = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'}
 
 
@@ -115,7 +120,7 @@ def capabilities():
                 preferences=['balanced', 'shade', 'sun'] if engine.SHADE_PATH.exists() else ['balanced'],
                 shadow_model='geometric-time-aware' if engine.SHADE_PATH.exists() else None, strict_by_default=True,
                 explicit_relaxation=True, preset_overrides=False, max_snap_m=50,
-                deployment_stage='local-preview', production_ready=False, route_parity_verified=False,
+                deployment_stage='production' if PRODUCTION_READY else 'local-preview', production_ready=PRODUCTION_READY, route_parity_verified=False,
                 gap_supplement=dict(core.SUPPLEMENT['stats'], routing_reference=core.SUPPLEMENT['routingReference'])
                 if core.SUPPLEMENT else None,
                 reference_commit=core.REFERENCE_COMMIT)
@@ -134,9 +139,9 @@ def strict_json(data):
     return json.loads(data, object_pairs_hook=pairs, parse_constant=invalid)
 
 
-def create_app(calculator=engine.calculate):
+def create_app(calculator=engine.calculate, slots=SLOTS, queue_seconds=QUEUE_SECONDS):
     app = FastAPI(title='Sonnenpfad profile preview', version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
-    slot = threading.BoundedSemaphore(1)
+    slot = asyncio.Semaphore(slots)
     app.state.slot = slot
 
     if calculator is engine.calculate:
@@ -147,7 +152,7 @@ def create_app(calculator=engine.calculate):
 
     @app.get('/health')
     async def health():
-        return JSONResponse(dict(status='running', api_version=VERSION, database_checked=False, production_ready=False), headers=HEADERS)
+        return JSONResponse(dict(status='running', api_version=VERSION, database_checked=False, production_ready=PRODUCTION_READY), headers=HEADERS)
 
     @app.get('/capabilities')
     async def get_capabilities():
@@ -181,15 +186,19 @@ def create_app(calculator=engine.calculate):
             except (ValueError, UnicodeDecodeError, RecursionError):
                 fail(400, 'invalid_json', 'Invalid JSON')
             legacy = validate_contract(body)
-            acquired = slot.acquire(blocking=False)
-            if not acquired:
+            # Waiting happens in the event loop, so no worker thread is blocked by the queue.
+            try:
+                await asyncio.wait_for(slot.acquire(), timeout=queue_seconds)
+            except (asyncio.TimeoutError, TimeoutError):
                 fail(503, 'busy', 'Routing is busy; retry shortly')
+            acquired = True
+            loop = asyncio.get_running_loop()
             def compute():
                 try:
                     return adapt_response(calculator(legacy), legacy)
                 finally:
-                    slot.release()
-            pending = asyncio.get_running_loop().run_in_executor(None, compute)
+                    loop.call_soon_threadsafe(slot.release)
+            pending = loop.run_in_executor(None, compute)
             # A disconnected client must not free the slot while its SQL still
             # runs. Shield the job and release only inside the worker thread.
             acquired = False

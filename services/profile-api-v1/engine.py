@@ -112,6 +112,7 @@ class Engine:
             cells = np.floor((first + last) / 2 / grid).astype(int)
             self.tile = np.array([f'{cx}_{cy}' for cx, cy in cells.tolist()], dtype=object)
         self.shade_cache = collections.OrderedDict()
+        self.cache_lock = threading.Lock()  # two routes may run at once
         self.edge_id = np.array(ids, dtype=np.int64)
         self.index = {int(e): i for i, e in enumerate(self.edge_id)}
         nodes, compact = np.unique(np.concatenate([np.array(sources, dtype=np.int64), np.array(targets, dtype=np.int64)]), return_inverse=True)
@@ -178,8 +179,9 @@ FROM normalized n JOIN routing.atlas_network a ON a.fid=n.atlas_fid'''
         a, b = [tuple(map(float, store.local(*p))) for p in (start, end)]
         keys = shadows.corridor_tiles(a, b, store.meta['grid'], store.available)
         cache_key = (tuple(sorted(keys)), epoch_ms, leaf_on, None if edges is None else tuple(sorted(set(edges))))
-        if cache_key in self.shade_cache:
-            return self.shade_cache[cache_key], (altitude, azimuth)
+        with self.cache_lock:
+            if cache_key in self.shade_cache:
+                return self.shade_cache[cache_key], (altitude, azimuth)
         tiles = [store.tile(key) for key in keys]
         footprints = shadows.Footprints.combine([t[0] for t in tiles])
         crowns = shadows.tree_crowns([tree for t in tiles for tree in t[1]], altitude, azimuth, leaf_on)
@@ -188,9 +190,10 @@ FROM normalized n JOIN routing.atlas_network a ON a.fid=n.atlas_fid'''
         edges = np.asarray(sorted(set(int(e) for e in edges)), dtype=int)
         result = np.zeros(len(self.length))
         result[edges] = shadows.edge_shades(self.coords, self.offsets, edges, self.covered, footprints, crowns, altitude, azimuth)
-        self.shade_cache[cache_key] = result
-        while len(self.shade_cache) > 6:
-            self.shade_cache.popitem(last=False)
+        with self.cache_lock:
+            self.shade_cache[cache_key] = result
+            while len(self.shade_cache) > 6:
+                self.shade_cache.popitem(last=False)
         return result, (altitude, azimuth)
 
     # --- rules (vectorised port of sonnenpfad_profile_rules / core.mjs) -------------------
