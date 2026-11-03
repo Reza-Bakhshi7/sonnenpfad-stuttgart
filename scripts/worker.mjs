@@ -32,15 +32,18 @@ async function fetchMapping(files,base,label){
 
 async function loadCity(manifest,base){
  meta=manifest;
- const [nodeBuffer,edgeBuffer,snapIndex]=await Promise.all([
+ const blockedFile=manifest.network.accessBlocked?.file,[nodeBuffer,edgeBuffer,snapIndex,blockedBuffer]=await Promise.all([
   fetchBinary(manifest.network.nodes,base,'nodes'),
   fetchBinary(manifest.network.edges,base,'edges'),
   fetchMapping(manifest.network.snapIndex,base,'snap index'),
+  blockedFile?fetchBinary(blockedFile,base,'access blocks'):null,
  ]);
+ // A declared but unusable block list must fail loudly, never route through blocked ways.
+ const blocked=blockedBuffer&&new Uint8Array(blockedBuffer);if(blockedFile&&blocked.length!==Math.ceil(manifest.network.edgeCount/8))throw Error('access blocks');
  const nodeView=new DataView(nodeBuffer),edgeView=new DataView(edgeBuffer),nodes=new Array(manifest.network.nodeCount),edges=new Array(manifest.network.edgeCount);
  for(let i=0;i<nodes.length;i++){const o=i*8;nodes[i]=[nodeView.getFloat32(o,true),nodeView.getFloat32(o+4,true)];}
  const stride=manifest.network.edgeStride||32;
- for(let i=0;i<edges.length;i++){const o=i*stride,a=edgeView.getUint32(o,true),b=edgeView.getUint32(o+4,true),flags=edgeView.getUint8(o+29),sf=edgeView.getFloat32(o+16,true),mobility=stride>=48?edgeView.getUint16(o+32,true):0;edges[i]={a,b,c:[nodes[a],nodes[b]],l:edgeView.getFloat32(o+8,true),s:edgeView.getFloat32(o+12,true),sf:Number.isNaN(sf)?null:sf,z0:edgeView.getFloat32(o+20,true),z1:edgeView.getFloat32(o+24,true),dz:edgeView.getFloat32(o+24,true)-edgeView.getFloat32(o+20,true),dir:edgeView.getInt8(o+28),steps:Boolean(flags&1),covered:Boolean(flags&2),sq:edgeView.getUint8(o+30),tactile:Boolean(mobility&1),handrail:Boolean(mobility&2),ramp:Boolean(mobility&4),escalator:Boolean(mobility&8),surface:stride>=48?edgeView.getUint8(o+34):0,way:stride>=48?edgeView.getUint8(o+35):0,width:stride>=48?edgeView.getUint16(o+36,true)/10:0,bench:stride>=48?edgeView.getUint16(o+38,true):65535,shelter:stride>=48?edgeView.getUint16(o+40,true):65535,crossing:stride>=48?edgeView.getUint8(o+42):0,wheelchair:stride>=48?edgeView.getUint8(o+43):0};}
+ for(let i=0;i<edges.length;i++){const o=i*stride,a=edgeView.getUint32(o,true),b=edgeView.getUint32(o+4,true),flags=edgeView.getUint8(o+29),sf=edgeView.getFloat32(o+16,true),mobility=stride>=48?edgeView.getUint16(o+32,true):0;edges[i]={a,b,c:[nodes[a],nodes[b]],l:edgeView.getFloat32(o+8,true),s:edgeView.getFloat32(o+12,true),sf:Number.isNaN(sf)?null:sf,z0:edgeView.getFloat32(o+20,true),z1:edgeView.getFloat32(o+24,true),dz:edgeView.getFloat32(o+24,true)-edgeView.getFloat32(o+20,true),dir:edgeView.getInt8(o+28),steps:Boolean(flags&1),covered:Boolean(flags&2),sq:edgeView.getUint8(o+30),tactile:Boolean(mobility&1),handrail:Boolean(mobility&2),ramp:Boolean(mobility&4),escalator:Boolean(mobility&8),surface:stride>=48?edgeView.getUint8(o+34):0,way:stride>=48?edgeView.getUint8(o+35):0,width:stride>=48?edgeView.getUint16(o+36,true)/10:0,bench:stride>=48?edgeView.getUint16(o+38,true):65535,shelter:stride>=48?edgeView.getUint16(o+40,true):65535,crossing:stride>=48?edgeView.getUint8(o+42):0,wheelchair:stride>=48?edgeView.getUint8(o+43):0,accessBlocked:Boolean(blocked&&blocked[i>>3]&1<<(i&7))};}
  network={nodes,edges,snapIndex,snapGrid:manifest.network.snapGrid};finishNetwork();
 }
 
