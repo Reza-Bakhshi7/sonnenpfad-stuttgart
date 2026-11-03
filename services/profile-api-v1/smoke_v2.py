@@ -29,7 +29,7 @@ def request(url, body=None):
 
 def main():
     status,health=request(BASE+'health')
-    assert status==200 and health['api_version']=='0.3.0-preview.6'
+    assert status==200 and health['api_version']=='0.3.0'
     status,caps=request(BASE+'capabilities')
     assert status==200 and caps['production_ready'] is PRODUCTION_READY and caps['shadow_model']=='geometric-time-aware'
     gap=caps['gap_supplement'];assert gap and gap['atlasWays']>0 and gap['pieces']>0
