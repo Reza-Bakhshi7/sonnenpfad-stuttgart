@@ -3,12 +3,12 @@ import {adaptServerRoute} from './server-routing.mjs';
 import {buildProfileV1Request,supportsProfileV1,requestProfileV1,adaptProfileV1Route} from './profile-routing-v1.mjs';
 let profileCapabilities=null;
 // Preview only: returns {result} from Stage 2 or {reason} for the browser fallback.
-async function profileV2Route({profileApi,lonlat,options}){
+async function profileV2Route({profileApi,lonlat,options,iso}){
  try{
   const signal=AbortSignal.timeout(15000),toLocal=p=>[(p[0]-meta.origin[0])*meta.scale[0],(p[1]-meta.origin[1])*meta.scale[1]];
   if(!profileCapabilities){const response=await fetch(new URL('capabilities',profileApi),{signal,credentials:'omit',headers:{Accept:'application/json'}});if(!response.ok)throw Error('capabilities');profileCapabilities=await response.json();}
-  if(!supportsProfileV1(profileCapabilities,buildProfileV1Request(lonlat[0],lonlat[1],options),{preview:true}))return {reason:'unsupported'};
-  const {data,request}=await requestProfileV1(lonlat[0],lonlat[1],options,{baseURL:profileApi,preview:true,capabilities:profileCapabilities,signal});
+  if(!supportsProfileV1(profileCapabilities,buildProfileV1Request(lonlat[0],lonlat[1],options,{iso}),{preview:true}))return {reason:'unsupported'};
+  const {data,request}=await requestProfileV1(lonlat[0],lonlat[1],options,{baseURL:profileApi,preview:true,capabilities:profileCapabilities,signal,iso});
   return {result:adaptProfileV1Route(data,toLocal,request)};
  }catch(error){return {reason:error.status?'serverError:'+(error.code||error.status):['TypeError','TimeoutError','AbortError'].includes(error.name)||error.message==='capabilities'?'unreachable':'invalidResponse'};}
 }

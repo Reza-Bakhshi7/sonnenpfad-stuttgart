@@ -26,6 +26,7 @@ globalThis.fetch=async url=>{profileCalls.push(String(url));throw new TypeError(
 await profileRoute(19,'wheelchair');assert.equal(messages.at(-1).id,19);assert.equal(messages.at(-1).result.profileApiFallback,'unreachable');
 globalThis.fetch=async url=>{profileCalls.push(String(url));return String(url).endsWith('capabilities')?{ok:true,json:async()=>capabilities}:{ok:false,status:503,json:async()=>({error:'busy'})};};
 profileCalls.length=0;await profileRoute(20,'vision');assert.equal(messages.at(-1).result.profileApiFallback,'unsupported');assert.deepEqual(profileCalls,[PROFILE_V2_API+'capabilities']);
+for(const preference of ['shade','sun']){await self.onmessage({data:{type:'route',id:23,start:[0,0],end:[1,1],lonlat:[[9.17,48.77],[9.16,48.77]],profileApi:PROFILE_V2_API,iso:'2026-06-21T11:00:00Z',options:{preference,mobilityProfile:'standard'}}});assert.equal(messages.at(-1).result.profileApiFallback,'unsupported',`${preference} is unsupported, not an invalid response`);}
 profileCalls.length=0;await profileRoute(21,'wheelchair');assert.equal(messages.at(-1).result.profileApiFallback,'serverError:busy');assert.deepEqual(profileCalls,[PROFILE_V2_API+'v1/route'],'capabilities are cached after success');
 profileCalls.length=0;await profileRoute(22,'wheelchair',null);assert.equal(profileCalls.length,0);assert.equal(messages.at(-1).result.profileApiFallback,undefined);
 globalThis.fetch=realFetch;

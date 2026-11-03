@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {buildAdj,route} from './core.mjs';
+import {buildAdj,route,edgeCostMultiplier,resolvedOptions} from './core.mjs';
 
 const nodes=[[0,0],[10,0],[20,0],[10,10],[20,10],[30,0]];
 const edge=(a,b,extras={})=>({a,b,c:[nodes[a],nodes[b]],l:Math.hypot(nodes[b][0]-nodes[a][0],nodes[b][1]-nodes[a][1]),s:0,sf:0,dz:0,z0:250,z1:250,steps:false,escalator:false,dir:0,surface:1,way:1,width:1.8,wheelchair:1,bench:50,shelter:100,crossing:0,...extras});
@@ -23,5 +23,12 @@ assert(!indices(route(network,adj,shades,[1,0],[29,0],{mobilityProfile:'stroller
 
 const indexed={...network,snapGrid:500,snapIndex:{'0_0':[0,1,2,3,4,5]}};
 assert(!route(indexed,adj,shades,[1,1],[29,1],{mobilityProfile:'standard'}).error);
+
+// A bench or shelter at 0 m is the best case, not "none within 1000 m".
+for(const profile of ['walkingAid','stroller']){
+ const cost=extras=>edgeCostMultiplier(edge(0,1,extras),resolvedOptions({mobilityProfile:profile}));
+ assert(cost({bench:0,shelter:0})<=cost({bench:1,shelter:1}),`${profile}: 0 m must not cost more than 1 m`);
+ assert(cost({bench:0,shelter:0})<cost({bench:1000,shelter:1000}),`${profile}: 0 m must beat 1000 m`);
+}
 
 console.log('Mobility profile and indexed snapping verification passed');
