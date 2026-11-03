@@ -83,9 +83,12 @@ def cost_multiplier(edge, options, shade=0, forward=True):
         # Preserve the current core formula exactly (not multiplied by factor).
         cost += (0 if edge.get('handrail') else 1.2) + (0 if edge.get('tactile') else 1.2)
     if options.get('benchFactor'):
-        cost += min(2, max(0, (min(edge.get('bench') or 1000, 1000) - 100) / 450)) * options['benchFactor']
+        bench = edge.get('bench')
+        # A bench at 0 m is the best case; only a missing value means "none within 1000 m" (core.mjs uses ??).
+        cost += min(2, max(0, (min(1000 if bench is None else bench, 1000) - 100) / 450)) * options['benchFactor']
     if options.get('shelterFactor'):
-        cost += min(1.2, max(0, (min(edge.get('shelter') or 1000, 1000) - 200) / 650)) * options['shelterFactor']
+        shelter = edge.get('shelter')
+        cost += min(1.2, max(0, (min(1000 if shelter is None else shelter, 1000) - 200) / 650)) * options['shelterFactor']
     if options.get('unknownFactor'):
         unknown = int(edge.get('surface') == 0) + int(not finite(edge.get('sf')))
         unknown += int(bool(options.get('avoidWheelchairNo')) and edge.get('wheelchair') == 0)

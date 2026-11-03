@@ -8,6 +8,8 @@ import urllib.parse
 import urllib.request
 
 from test_adapter import payload
+import profile_api as sql_engine
+from sonnenpfad_profile_rules import resolved_options
 
 BASE='http://127.0.0.1:8002/'
 START=[9.1703775,48.7727873]
@@ -26,11 +28,12 @@ def request(url, body=None):
 
 def main():
     status,health=request(BASE+'health')
-    assert status==200 and health['api_version']=='0.3.0-preview.2'
+    assert status==200 and health['api_version']=='0.3.0-preview.3'
     status,caps=request(BASE+'capabilities')
     assert status==200 and caps['production_ready'] is False and caps['shadow_model'] is None
     gap=caps['gap_supplement'];assert gap and gap['atlasWays']>0 and gap['pieces']>0
-    assert caps['mobility_profiles']==['standard','wheelchair','powerWheelchair']
+    assert caps['mobility_profiles']==['standard','wheelchair','powerWheelchair','walkingAid','vision','stroller','custom']
+    assert caps['routing_engine']=='in-memory'
     invalid=payload();invalid['unknown_field']=True
     status,error=request(BASE+'v1/route',invalid)
     assert status==422 and error['error']=='unsupported_fields'
@@ -43,7 +46,11 @@ def main():
         assert p['requested_profile']==profile and p['profile_contract_version']==1
         assert p['relaxed_criteria']==[] and p['fallback_level']==0
         assert p['route_parts']==len(p['segments']) and p['shade'] is None
-        assert p['time_model']['speedMpm']==(60 if profile=='wheelchair' else 75)
+        assert p['time_model']['speedMpm']==body['options']['speedMpm']
+        if profile in sql_engine.SUPPORTED:
+            # The in-memory engine must reproduce the reviewed SQL/pgRouting engine exactly.
+            reference=sql_engine.calculate_route(dict(start=START,end=END,mobility_profile=profile,max_snap_m=50))['properties']
+            assert abs(reference['distance_m']-p['distance_m'])<=.02,(profile,reference['distance_m'],p['distance_m'])
         if profile=='standard':standard=p
         print(json.dumps({'profile':profile,'transport':'PASS','distance_m':p['distance_m'],
                           'seconds':round(time.monotonic()-started,3)},ensure_ascii=False),flush=True)
@@ -55,7 +62,7 @@ def main():
     assert status==200 and standard['distance_m']<=old['properties']['distance_m']+.02
     assert supplement_used or abs(old['properties']['distance_m']-standard['distance_m'])<=.02
     print(json.dumps({'standard_m':standard['distance_m'],'api_0_2_m':old['properties']['distance_m'],'gap_ways_used':supplement_used}),flush=True)
-    print('PROFILE_V2_TRANSPORT_PASS: three profiles; Standard equals API 0.2 or is shorter via restored atlas ways.',flush=True)
+    print('PROFILE_V2_TRANSPORT_PASS: all seven profiles; engine equals the SQL engine; Standard equals API 0.2 or is shorter via restored atlas ways.',flush=True)
     print('Local preview only. Citywide and public-browser acceptance remain open.',flush=True)
 
 

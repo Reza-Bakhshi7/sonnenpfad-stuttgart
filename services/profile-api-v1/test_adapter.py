@@ -9,8 +9,12 @@ import app as service
 from sonnenpfad_profile_rules import resolved_options, relaxation_tiers
 
 
+CUSTOM = dict(avoidSteps=True, avoidEscalators=False, avoidPoorSurface=True, avoidWheelchairNo=False, slopeMode='uphill',
+              unknownFactor=.45, speedMpm=75, ascentMinutesPer10m=1)
+
+
 def payload(profile='wheelchair', relax=False, weight=None):
-    options = resolved_options({'mobilityProfile': profile, 'preference': 'balanced'})
+    options = resolved_options({'mobilityProfile': profile, 'preference': 'balanced', **(CUSTOM if profile == 'custom' else {})})
     if weight is not None:
         options['solarWeight'] = weight
     return dict(contract_version=1, start=[9.18,48.77], end=[9.181,48.771],
@@ -52,12 +56,19 @@ async def invoke(app, method='POST', path='/v1/route', body=None, raw=None, head
 
 
 class ContractTests(unittest.TestCase):
-    def test_three_presets_and_weather_context(self):
-        for profile in service.core.SUPPORTED:
+    def test_all_profiles_and_weather_context(self):
+        for profile in service.engine.SUPPORTED:
             for weight in [None,0,.5,1]:
                 result=service.validate_contract(payload(profile,weight=weight))
                 self.assertEqual(result['mobility_profile'],profile)
                 self.assertFalse(result['allow_relaxation'])
+                self.assertEqual(result['solar_weight'],weight)
+
+    def test_custom_accepts_only_switches_and_fixed_numbers(self):
+        self.assertEqual(service.validate_contract(payload('custom'))['options']['slopeMode'],'uphill')
+        for key,value in [('avoidSteps',1),('slopeMode','sideways'),('unknownFactor',0),('maxSlope',4),('speedMpm',90)]:
+            body=payload('custom');body['options'][key]=value;body['tiers']=relaxation_tiers(body['options'])
+            with self.assertRaises(service.core.RouteError):service.validate_contract(body)
 
     def test_reject_overrides_and_forged_tiers(self):
         for key, value in [('avoidSteps',False),('maxSlope',100),('speedMpm',True),('unknownField',1)]:
@@ -67,7 +78,7 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(service.core.RouteError):service.validate_contract(body)
 
     def test_unsupported_profiles_preferences_and_numeric_boolean(self):
-        for key,value in [('mobility_profile','walkingAid'),('preference','shade'),('contract_version',True),('max_snap_m',True),('leaf_on',1),('allow_relaxation','true'),('extra',1)]:
+        for key,value in [('mobility_profile','skateboard'),('preference','shade'),('contract_version',True),('max_snap_m',True),('leaf_on',1),('allow_relaxation','true'),('extra',1)]:
             body=payload();body[key]=value
             with self.assertRaises(service.core.RouteError):service.validate_contract(body)
 
@@ -96,7 +107,7 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data['properties']['profile_contract_version'],1)
         self.assertEqual(data['properties']['route_parts'],1)
         self.assertEqual(headers[b'cache-control'],b'no-store')
-        self.assertEqual(set(calls[0]),{'start','end','mobility_profile','preference','max_snap_m','allow_relaxation'})
+        self.assertEqual(set(calls[0]),{'start','end','mobility_profile','preference','max_snap_m','allow_relaxation','options','solar_weight'})
 
     async def test_no_unaccepted_production_capability(self):
         status,data,_=await invoke(service.create_app(),method='GET',path='/capabilities')
