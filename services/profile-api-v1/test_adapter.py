@@ -141,7 +141,7 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
     async def test_cancelled_client_does_not_free_live_sql_slot(self):
         started=threading.Event();release=threading.Event()
         def calculate(_):started.set();release.wait(3);return response()
-        app=service.create_app(calculate);first=asyncio.create_task(invoke(app))
+        app=service.create_app(calculate,slots=1,queue_seconds=.2);first=asyncio.create_task(invoke(app))
         await asyncio.to_thread(started.wait,2)
         first.cancel()
         with self.assertRaises(asyncio.CancelledError):await first
@@ -149,10 +149,20 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(status,503);self.assertEqual(data['error'],'busy')
         release.set()
         for _ in range(100):
-            if app.state.slot.acquire(blocking=False):app.state.slot.release();break
+            if not app.state.slot.locked():break
             await asyncio.sleep(.01)
         else:self.fail('SQL slot was not released after work completed')
         status,_,_=await invoke(app);self.assertEqual(status,200)
+
+    async def test_waiting_request_is_served_after_the_running_one(self):
+        started=threading.Event();release=threading.Event()
+        def calculate(_):started.set();release.wait(3);return response()
+        app=service.create_app(calculate,slots=1,queue_seconds=3);first=asyncio.create_task(invoke(app))
+        await asyncio.to_thread(started.wait,2)
+        second=asyncio.create_task(invoke(app));await asyncio.sleep(.2)
+        self.assertFalse(second.done(),'the second request waits instead of failing')
+        release.set()
+        self.assertEqual((await first)[0],200);self.assertEqual((await second)[0],200)
 
 
 if __name__=='__main__':unittest.main(verbosity=2)

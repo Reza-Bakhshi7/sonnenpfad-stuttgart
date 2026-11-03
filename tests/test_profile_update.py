@@ -22,7 +22,7 @@ class UpdaterTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.base=Path(self.temp.name);self.target=self.base/'api-stage2';self.target.mkdir()
         (self.target/'app.py').write_text('old stage 2');self.unit=self.base/'unit.service'
-        self.unit_text='[Service]\n'+self.module.UNIT_MARKER+'\nMemoryMax=512M\nCPUQuota=50%\n';self.unit.write_text(self.unit_text)
+        self.unit_text='[Service]\n'+self.module.UNIT_MARKER+'\nExecStart=/usr/bin/python3 -m uvicorn app:app --limit-concurrency 8 --backlog 16\nMemoryMax=512M\nCPUQuota=50%\n';self.unit.write_text(self.unit_text)
         for key,value in {'BASE':self.base,'TARGET':self.target,'UNIT':self.unit}.items():
             patcher=patch.object(self.module,key,value);patcher.start();self.addCleanup(patcher.stop)
         for target,value in [(self.module.os,'geteuid'),(self.module.pwd,'getpwnam')]:
@@ -45,7 +45,7 @@ class UpdaterTests(unittest.TestCase):
         backups=list(self.base.glob('api-stage2.prev-*'));self.assertEqual(len(backups),1)
         self.assertEqual((backups[0]/'app.py').read_text(),'old stage 2')
         self.assertEqual(self.systemctl(),[['systemctl','daemon-reload'],['systemctl','restart','sonnenpfad-profile-v2.service']])
-        self.assertIn('MemoryMax=1G\nCPUQuota=100%',self.unit.read_text());self.assertIn(self.module.UNIT_MARKER,self.unit.read_text())
+        self.assertIn('MemoryMax=1G\nCPUQuota=100%',self.unit.read_text());self.assertIn('--limit-concurrency 32 --backlog 16',self.unit.read_text());self.assertIn(self.module.UNIT_MARKER,self.unit.read_text())
         self.assertTrue(all('sonnenpfad-api.service' not in args and 'nginx' not in ' '.join(args) for args in self.calls))
 
     def test_failed_smoke_rolls_back_to_previous_stage_two(self):
@@ -58,7 +58,7 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(self.systemctl(),restart*2)
 
     def test_unexpected_unit_changes_nothing(self):
-        self.unit.write_text('[Service]\nWorkingDirectory=/elsewhere\nMemoryMax=512M\nCPUQuota=50%\n')
+        self.unit.write_text('[Service]\nWorkingDirectory=/elsewhere\nExecStart=x --limit-concurrency 8\nMemoryMax=512M\nCPUQuota=50%\n')
         with self.assertRaises(ValueError):self.module.update()
         self.assertEqual(self.calls,[]);self.assertEqual((self.target/'app.py').read_text(),'old stage 2')
 

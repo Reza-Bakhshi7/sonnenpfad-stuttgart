@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 
 from test_adapter import payload
+from app import PRODUCTION_READY
 import profile_api as sql_engine
 from sonnenpfad_profile_rules import resolved_options
 
@@ -28,9 +29,9 @@ def request(url, body=None):
 
 def main():
     status,health=request(BASE+'health')
-    assert status==200 and health['api_version']=='0.3.0-preview.4'
+    assert status==200 and health['api_version']=='0.3.0-preview.6'
     status,caps=request(BASE+'capabilities')
-    assert status==200 and caps['production_ready'] is False and caps['shadow_model']=='geometric-time-aware'
+    assert status==200 and caps['production_ready'] is PRODUCTION_READY and caps['shadow_model']=='geometric-time-aware'
     gap=caps['gap_supplement'];assert gap and gap['atlasWays']>0 and gap['pieces']>0
     assert caps['mobility_profiles']==['standard','wheelchair','powerWheelchair','walkingAid','vision','stroller','custom']
     assert caps['routing_engine']=='in-memory'

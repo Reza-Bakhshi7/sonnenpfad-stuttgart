@@ -9,6 +9,7 @@ the browser's 16-point ellipses.
 import collections
 import json
 import math
+import threading
 
 import numpy as np
 import shapely
@@ -95,17 +96,19 @@ class ShadeTiles:
         self.meta = json.loads(self.archive.read('meta.json'))
         self.available = set(self.meta['tiles'])
         self.cache, self.size = collections.OrderedDict(), cache
+        self.lock = threading.Lock()  # concurrent routes share the archive and cache
 
     def tile(self, key):
-        if key in self.cache:
-            self.cache.move_to_end(key)
-            return self.cache[key]
-        data = json.loads(self.archive.read(key + '.json'))
-        value = (Footprints(data.get('buildings', [])), data.get('trees', []))
-        self.cache[key] = value
-        while len(self.cache) > self.size:
-            self.cache.popitem(last=False)
-        return value
+        with self.lock:
+            if key in self.cache:
+                self.cache.move_to_end(key)
+                return self.cache[key]
+            data = json.loads(self.archive.read(key + '.json'))
+            value = (Footprints(data.get('buildings', [])), data.get('trees', []))
+            self.cache[key] = value
+            while len(self.cache) > self.size:
+                self.cache.popitem(last=False)
+            return value
 
     def local(self, lon, lat):
         origin, scale = self.meta['origin'], self.meta['scale']

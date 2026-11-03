@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — server-only routing (preview)
+
+- Stage 2 routes every profile and option on the Oracle server (in-memory engine, equal to the reviewed pgRouting engine, 0.3–0.7 s per route) and includes 2,118 atlas ways (217 km) that were missing from the server graph, e.g. Augustenstraße.
+- Sun/shade routing and route shade shares on the server with the browser's shadow model (identical values on a real tile).
+- Preview hosts route only on the server, without browser fallback; production switches only after Stage 2 declares production readiness (docs/server-routing-release.md).
+- Stage 2 queues up to two concurrent routes, Nginx allows the production origins on /profile-v2/.
+
 ## 0.14.3 — 3 November 2026
 
 - The About dialog shows the release version without the "VORSCHAU" label that shipped with 0.14.2.

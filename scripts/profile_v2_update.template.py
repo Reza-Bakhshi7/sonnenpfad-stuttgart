@@ -28,12 +28,16 @@ UNIT_NAME='sonnenpfad-profile-v2.service'
 UNIT_MARKER='WorkingDirectory=/opt/sonnenpfad-profile-test/api-stage2'
 # The in-memory engine needs more room than the SQL-only preview; only these two Stage-2 limits change.
 UNIT_LIMITS={'MemoryMax':'1G','CPUQuota':'100%'}
+# Connections may queue in the app (SLOTS/QUEUE_SECONDS) instead of uvicorn's plain-text 503.
+UNIT_CONCURRENCY='--limit-concurrency 32'
 
 
 def unit_with_limits(text):
     for key,value in UNIT_LIMITS.items():
         text,count=re.subn(r'(?m)^'+key+r'=.*$',key+'='+value,text)
         if count!=1:raise ValueError('Unit ohne eindeutige Zeile '+key+'. Nichts geaendert.')
+    text,count=re.subn(r'--limit-concurrency \d+',UNIT_CONCURRENCY,text)
+    if count!=1:raise ValueError('Unit ohne eindeutiges --limit-concurrency. Nichts geaendert.')
     return text
 
 
@@ -57,7 +61,7 @@ def health_version():
     try:
         with urllib.request.urlopen('http://127.0.0.1:8002/health',timeout=2) as response:
             data=json.load(response)
-            return data.get('api_version') if data.get('production_ready') is False else None
+            return data.get('api_version') if isinstance(data.get('production_ready'), bool) else None
     except (OSError,ValueError,urllib.error.URLError):
         return None
 
@@ -97,7 +101,7 @@ def update():
         try:
             if unit_after!=unit_before:
                 UNIT.write_text(unit_after);run(['systemctl','daemon-reload'])
-                print('Stufe-2-Unit: '+', '.join(k+'='+v for k,v in UNIT_LIMITS.items()),flush=True)
+                print('Stufe-2-Unit: '+', '.join(k+'='+v for k,v in UNIT_LIMITS.items())+', '+UNIT_CONCURRENCY,flush=True)
             run(['systemctl','restart',UNIT_NAME])
             if not wait_for(VERSION):raise ValueError('Neue Fassung wurde nicht erreichbar.')
             run(['sudo','-u','sonnenpfad_api','/usr/bin/python3','-B','-u','smoke_v2.py'],cwd=TARGET,timeout=300)
