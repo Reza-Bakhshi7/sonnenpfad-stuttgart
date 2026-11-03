@@ -1,5 +1,6 @@
 """Acceptance of the new local transport, not a repeat of core self-tests."""
 import json
+import pathlib
 import sys
 import time
 import urllib.error
@@ -25,9 +26,10 @@ def request(url, body=None):
 
 def main():
     status,health=request(BASE+'health')
-    assert status==200 and health['api_version']=='0.3.0-preview.1'
+    assert status==200 and health['api_version']=='0.3.0-preview.2'
     status,caps=request(BASE+'capabilities')
     assert status==200 and caps['production_ready'] is False and caps['shadow_model'] is None
+    gap=caps['gap_supplement'];assert gap and gap['atlasWays']>0 and gap['pieces']>0
     assert caps['mobility_profiles']==['standard','wheelchair','powerWheelchair']
     invalid=payload();invalid['unknown_field']=True
     status,error=request(BASE+'v1/route',invalid)
@@ -42,13 +44,18 @@ def main():
         assert p['relaxed_criteria']==[] and p['fallback_level']==0
         assert p['route_parts']==len(p['segments']) and p['shade'] is None
         assert p['time_model']['speedMpm']==(60 if profile=='wheelchair' else 75)
-        if profile=='standard':standard=p['distance_m']
+        if profile=='standard':standard=p
         print(json.dumps({'profile':profile,'transport':'PASS','distance_m':p['distance_m'],
                           'seconds':round(time.monotonic()-started,3)},ensure_ascii=False),flush=True)
     query=urllib.parse.urlencode(dict(start_lon=START[0],start_lat=START[1],end_lon=END[0],end_lat=END[1],profile='shortest',max_snap_m=50,include_segments='true'))
     status,old=request('http://127.0.0.1:8000/route?'+query)
-    assert status==200 and abs(old['properties']['distance_m']-standard)<=.02
-    print('PROFILE_V2_TRANSPORT_PASS: three profiles; Standard matches the unchanged API 0.2.',flush=True)
+    # API 0.2 lacks the gap ways: Standard may only be shorter, and only via a supplement edge.
+    base_max=json.loads(pathlib.Path(__file__).with_name('gap_supplement.json').read_text())['baseMaxEdge']
+    supplement_used=any(s['edge_id']>base_max for s in standard['segments'])
+    assert status==200 and standard['distance_m']<=old['properties']['distance_m']+.02
+    assert supplement_used or abs(old['properties']['distance_m']-standard['distance_m'])<=.02
+    print(json.dumps({'standard_m':standard['distance_m'],'api_0_2_m':old['properties']['distance_m'],'gap_ways_used':supplement_used}),flush=True)
+    print('PROFILE_V2_TRANSPORT_PASS: three profiles; Standard equals API 0.2 or is shorter via restored atlas ways.',flush=True)
     print('Local preview only. Citywide and public-browser acceptance remain open.',flush=True)
 
 

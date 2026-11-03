@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 import profile_api as core
 from sonnenpfad_profile_rules import relaxation_tiers, resolved_options
 
-VERSION = '0.3.0-preview.1'
+VERSION = '0.3.0-preview.2'
 MAX_BODY = 16384
 HEADERS = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'}
 
@@ -99,6 +99,8 @@ def capabilities():
                 preferences=['balanced'], shadow_model=None, strict_by_default=True,
                 explicit_relaxation=True, preset_overrides=False, max_snap_m=50,
                 deployment_stage='local-preview', production_ready=False, route_parity_verified=False,
+                gap_supplement=dict(core.SUPPLEMENT['stats'], routing_reference=core.SUPPLEMENT['routingReference'])
+                if core.SUPPLEMENT else None,
                 reference_commit=core.REFERENCE_COMMIT)
 
 

@@ -9,6 +9,7 @@ import contextlib
 import itertools
 import json
 import math
+import pathlib
 import socket
 import threading
 import time
@@ -23,6 +24,79 @@ MAX_PAIRS = 8
 MAX_BODY = 16384
 REQUEST_SECONDS = 30
 SLOTS = threading.BoundedSemaphore(1)
+SUPPLEMENT_COLUMNS = ['id', 'atlas_fid', 'f0', 'f1', 'source', 'target', 'length_m']
+
+
+def load_supplement(path=pathlib.Path(__file__).with_name('gap_supplement.json')):
+    """Atlas ways without a routing.walk_edges row (scripts/export_gap_supplement.py).
+
+    They join the graph request-locally; the database is never modified.
+    """
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text(encoding='utf-8'))
+    if data.get('version') != 1 or data.get('columns') != SUPPLEMENT_COLUMNS:
+        raise ValueError('Unexpected gap supplement format')
+    rows, ids = [], set()
+    for edge_id, fid, f0, f1, source, target, length in data['edges']:
+        if not (finite(f0) and finite(f1) and 0 <= f0 < f1 <= 1 and finite(length) and length > 0):
+            raise ValueError('Invalid gap supplement edge')
+        if not data['baseMaxEdge'] < int(edge_id) <= data['maxEdge'] or int(edge_id) in ids:
+            raise ValueError('Gap supplement edge id outside its reserved range')
+        ids.add(int(edge_id))
+        rows.append('(%d,%d,%r,%r,%d,%d,%r)' % (int(edge_id), int(fid), float(f0), float(f1), int(source), int(target), float(length)))
+    data['values'] = ','.join(rows)
+    if data.get('nodeColumns') != ['id', 'x', 'y'] or data.get('srid') != 25832:
+        raise ValueError('Unexpected gap supplement nodes')
+    nodes = []
+    for node_id, x, y in data['nodes']:
+        if not (finite(x) and finite(y) and data['baseMaxNode'] < int(node_id) <= data['maxNode']):
+            raise ValueError('Invalid gap supplement node')
+        nodes.append('(%d,%r,%r)' % (int(node_id), float(x), float(y)))
+    data['node_values'] = ','.join(nodes) or '(NULL::bigint,NULL::float8,NULL::float8)'
+    return data
+
+
+SUPPLEMENT = load_supplement()
+
+
+# Piece ends are pinned to their node (graph vertex or exported junction) so route
+# geometry stays continuous; the shift is at most the export's 0.5 m join tolerance.
+_NODE = ('COALESCE((SELECT v.geom FROM routing.osm_vertices v WHERE v.id=s.{0}),'
+         '(SELECT ST_SetSRID(ST_MakePoint(n.x,n.y),25832) FROM supplement_nodes n WHERE n.id=s.{0}))')
+SUPPLEMENT_GEOM = ('ST_SetPoint(ST_SetPoint(g.line,0,' + _NODE.format('source') + '),ST_NPoints(g.line)-1,'
+                   + _NODE.format('target') + ')')
+SUPPLEMENT_LINE = '\n CROSS JOIN LATERAL (SELECT ST_LineSubstring(a.geom,s.f0,s.f1) AS line) g'
+# Callers narrow the supplement here: snapping to nearby ways, geometry to used pieces.
+SUPPLEMENT_SCOPE = '/*SUPPLEMENT_SCOPE*/'
+
+
+def edges_cte():
+    """One edge source for graph, snapping and geometry: walk_edges plus the gap supplement."""
+    base = 'SELECT id,atlas_fid,source,target,length_m,geom,cost,reverse_cost FROM routing.walk_edges'
+    if not SUPPLEMENT:
+        return 'all_edges AS (' + base + ')'
+    return ('supplement(id,atlas_fid,f0,f1,source,target,length_m) AS (VALUES ' + SUPPLEMENT['values'] + '),\n'
+            'supplement_nodes(id,x,y) AS (VALUES ' + SUPPLEMENT['node_values'] + '),\n'
+            'all_edges AS (' + base + '\n UNION ALL SELECT s.id,s.atlas_fid,s.source,s.target,s.length_m::float8,'
+            + SUPPLEMENT_GEOM + ',s.length_m::float8,s.length_m::float8\n'
+            ' FROM supplement s JOIN routing.atlas_network a ON a.fid=s.atlas_fid' + SUPPLEMENT_LINE
+            + '\n WHERE TRUE ' + SUPPLEMENT_SCOPE + ')')
+
+
+def scope_supplement(sql, condition):
+    return sql.replace(SUPPLEMENT_SCOPE, 'AND ' + condition, 1) if SUPPLEMENT else sql
+
+
+def without_supplement_geometry(sql):
+    """The search graph needs topology and cost only; skip building supplement lines."""
+    if not SUPPLEMENT:
+        return sql
+    for old, new in ((SUPPLEMENT_GEOM, 'NULL::geometry'), (SUPPLEMENT_LINE, '')):
+        if sql.count(old) != 1:
+            raise ValueError('Unexpected supplement SQL')
+        sql = sql.replace(old, new, 1)
+    return sql
 
 
 class RouteError(Exception):
@@ -103,14 +177,14 @@ def policy_sql(options):
 # The display class is authoritative for stairs, with fclass as fallback.
 # Current source tags follow the existing exporter: JSON or semicolon key=value.
 NORMALIZED = r'''
-WITH raw AS (
+WITH __EDGES__, raw AS (
  SELECT e.*,a.elev_start,a.elev_end,a.slope_pct,a.geom AS atlas_geom,
   lower(trim(COALESCE(NULLIF(trim(a.fclass_display),''),a.fclass,''))) AS display_class,
   lower(COALESCE(NULLIF(a.highway_current,''),a.fclass,'')) AS highway,
   lower(COALESCE(a.surface_class,'')) AS surface_text,
   lower(COALESCE(a.wheelchair,'')) AS wheelchair_text,
   lower(COALESCE(NULLIF(a.osm_tags_current,''),a.routing_osm_tags,'')) AS tags
- FROM routing.walk_edges e
+ FROM all_edges e
  JOIN routing.atlas_network a ON a.fid=e.atlas_fid
  WHERE e.cost>=0 OR e.reverse_cost>=0
 ), flags AS (
@@ -138,7 +212,7 @@ WITH raw AS (
 
 def weighted_sql(options):
     allowed, multiplier = policy_sql(options)
-    return NORMALIZED + ''' , weighted AS (
+    return NORMALIZED.replace('__EDGES__', edges_cte(), 1) + ''' , weighted AS (
  SELECT id,source,target,atlas_fid,geom,length_m,steps,escalator,surface,wheelchair,way,sf,
   CASE WHEN cost<0 OR NOT (''' + allowed + ''') THEN -1.0 ELSE cost*''' + multiplier + ''' END AS cost,
   CASE WHEN reverse_cost<0 OR NOT (''' + allowed + ''') THEN -1.0 ELSE reverse_cost*''' + multiplier + ''' END AS reverse_cost
@@ -148,6 +222,7 @@ def weighted_sql(options):
 
 
 def search_graph_sql(prefix, virtual, replaced, optimize=False):
+    prefix = without_supplement_geometry(prefix)
     if optimize:
         # Only the full graph scan is materialized. Endpoint candidate queries
         # retain their original index-friendly plan. Project narrow rows so no
@@ -182,6 +257,9 @@ def connect():
 def candidates(cursor, prefix, point, radius, limit=CANDIDATES):
     # psycopg2 consumes percent signs when parameters are provided; the nested
     # pgRouting graph string is instead passed as a parameter unchanged.
+    # Supplement lines are only built near the point (indexed atlas geometry); values are validated floats.
+    prefix = scope_supplement(prefix, 'ST_DWithin(a.geom,ST_Transform(ST_SetSRID(ST_MakePoint(%r,%r),4326),25832),%r)'
+                              % (float(point[0]), float(point[1]), float(radius)))
     query = prefix.replace('%', '%%') + ''' , point AS (
  SELECT ST_Transform(ST_SetSRID(ST_MakePoint(%s,%s),4326),25832) AS geom
 )
@@ -198,13 +276,15 @@ ORDER BY ST_Distance(e.geom,p.geom),e.id LIMIT %s'''
 
 def geometry_rows(cursor, virtual, path):
     ids = [int(step['edge']) for step in path if step['edge'] != -1]
-    query = '''WITH virtual(id,parent_id,source,target,f0,f1,cost,reverse_cost) AS (VALUES ''' + values_sql(virtual) + '''),
+    used = sorted(set(ids) | {int(record['parent_id']) for record in virtual})
+    edges = scope_supplement(edges_cte(), 's.id IN (' + ','.join(map(str, used)) + ')' if used else 'FALSE')
+    query = '''WITH ''' + edges + ''', virtual(id,parent_id,source,target,f0,f1,cost,reverse_cost) AS (VALUES ''' + values_sql(virtual) + '''),
 parts AS (
  SELECT e.id,e.id AS parent_id,e.source,e.target,e.atlas_fid,e.geom
- FROM routing.walk_edges e WHERE e.id=ANY(%s)
+ FROM all_edges e WHERE e.id=ANY(%s)
  UNION ALL
  SELECT v.id,e.id,v.source,v.target,e.atlas_fid,ST_LineSubstring(e.geom,v.f0,v.f1)
- FROM virtual v JOIN routing.walk_edges e ON e.id=v.parent_id WHERE v.id=ANY(%s)
+ FROM virtual v JOIN all_edges e ON e.id=v.parent_id WHERE v.id=ANY(%s)
 )
 SELECT p.id,p.parent_id,p.source,p.target,p.atlas_fid,ST_Length(p.geom) AS length_m,
  ST_AsGeoJSON(ST_Transform(p.geom,4326),9)::jsonb AS geometry,
@@ -310,6 +390,11 @@ def calculate_route(body):
         maxima = cursor.fetchone()
         if maxima['max_node'] is None:
             raise RouteError(503, 'empty_graph', 'Routing graph unavailable')
+        if SUPPLEMENT:
+            # Supplement ids are reserved above the graph it was exported from; a rebuilt graph would collide.
+            if (maxima['max_edge'], maxima['max_node']) != (SUPPLEMENT['baseMaxEdge'], SUPPLEMENT['baseMaxNode']):
+                raise RouteError(503, 'gap_supplement_stale', 'Routing graph changed; the gap supplement must be regenerated')
+            maxima = dict(max_edge=SUPPLEMENT['maxEdge'], max_node=SUPPLEMENT['maxNode'])
         for level, tier in enumerate(tiers):
             budget()
             prefix = weighted_sql(tier['options'])
