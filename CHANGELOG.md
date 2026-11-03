@@ -1,12 +1,16 @@
 # Changelog
 
-## 0.14.2 — Development preview, 2 November 2026
+## 0.14.2 — 3 November 2026
 
 - Use Bordstein/Bordsteine throughout the German interface.
-- Keep route results concise; remove coverage percentages, snap diagnostics, profile exaggeration text and weather-weight labels.
+- Keep route results concise; remove snap diagnostics, profile exaggeration text and weather-weight labels.
+- Route notices for mobility profiles name every unknown suitability share (surface, gradient, wheelchair suitability) in percent; unknown sections are never shown as suitable.
+- Fix: a bench or shelter at 0 m no longer receives the maximum walking-aid/pushchair penalty.
+- The vision profile states that crossings without equipment data are not penalised; the walking-aid description names the escalators it avoids.
 - Restrict Explore selection to Atlas paths and POIs; buildings and trees are display-only.
 - Show = before walking time and simplify bilingual About text.
 - Identify Mohammadreza Bakhshi as author and owner; keep the MobiData BW acknowledgement in the repository.
+- Preview only: preview hosts with `?profileApi=v2` send balanced Standard, Wheelchair and Power wheelchair routes to the Stage-2 profile API, with a labelled browser fallback. Production hosts never call it; Standard Direct routes keep the API 0.2 path.
 
 
 ## 0.14.1 — mobile review corrections (preview)
