@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0 — 3 November 2026
+
+- Always a route: if a start or destination lies more than 50 m from the network (e.g. Hauptbahnhof search hits inside the construction site), the server widens the search up to 5 km and the app names the distance. Explicit access prohibitions are still never used.
+- If no route meets the profile, the best possible route is still shown with "Keine Route erfüllt dein Profil vollständig"; sections that break the profile (stairs, steep gradient, surface, wheelchair=no, escalators) are drawn in orange and named. Server API 0.3.1 reports `profile_violations` per segment and `snap_widened`.
+- New single black-and-white walking-aid icon (own drawing) replaces the combined Material icon.
+- README, architecture, security and release docs describe server routing, logging and fallback correctly; outdated "private repository" and NVBW contact notes removed.
+
 ## 0.15.0 — 3 November 2026
 
 - All routing runs on the Sonnenpfad server (Oracle VM): Standard Direct no longer uses API 0.2, other profiles and sun/shade no longer run in the browser.

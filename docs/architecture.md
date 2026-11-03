@@ -1,19 +1,14 @@
-# Architecture — version 0.12
+# Architecture — version 0.16
 
 ## Two application modes
 
 Routing starts with a quiet basemap, endpoint selection and route controls. It
 loads no Atlas paths, POIs, object attributes, DEM or shadow geometry merely to
-open or pan the map. Standard Direct requests the existing audited Oracle API and
-adapts its response immediately, including its oriented elevation/profile data.
-It no longer downloads shadow tiles or queues a shadow job before displaying the
-answer. Direct does not report an invented shade percentage.
-
-Other mobility profiles retain the established browser routing engine until the
-server profile contract is actually installed. Balanced profiles load the binary
-graph on first calculation but do not run unnecessary shadow work. Shade/Sun load
-the original Atlas obstacles for their calculation corridor. Their accessibility
-rules, partial-edge handling and relaxation warnings remain unchanged.
+open or pan the map. Every profile is calculated on the Sonnenpfad server
+(Stage 2, `services/profile-api-v1`), including shade and sun weighting; the
+browser only draws the answer, its orange profile violations and the elevation
+profile. The browser routing engine stays bundled as a fallback for a page load
+during which the server was unreachable at start-up.
 
 Explore retains camera/route state while exposing the Atlas themes and optional
 POIs. There is one selected theme, and only that theme's values are requested.
@@ -59,13 +54,9 @@ refreshing, retries after failures and refreshes on reconnect/return to the app.
 Sources, retrieval time and stale state stay explicit. Missing provider radiation
 is not fabricated; MET sun influence uses a labelled cloud-cover estimate.
 
-## Oracle role and next installation
+## Oracle role
 
-Oracle/PostGIS remains the home of the audited routing graph, Atlas attributes,
-elevation metadata and server routing calculations. Keep static application code
-and small display assets at the CDN. Moving raw JSON to Oracle would not remove
-browser parsing/drawing costs. Install the prepared profile/shadow contract there
-before moving the remaining browser profiles off devices. See
-`step8-profile-server-migration.md` for the explicit installation and acceptance
-requirements. No SSH, database migration or production merge was performed for
-this preview.
+Oracle/PostGIS holds the audited routing graph, Atlas attributes and elevation
+metadata. Stage 2 loads them read-only into memory at start and answers all route
+requests; see `server-routing-release.md` for limits, updates and rollback. Static
+application code and display assets stay at the CDN.

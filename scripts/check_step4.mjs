@@ -43,7 +43,10 @@ assert(appSource.includes("'icon-allow-overlap':true,'icon-ignore-placement':tru
 assert(appSource.includes('structureFlags[edgeId]')&&appSource.includes("'#aeb8bd'"), 'Bridge and tunnel segments must be visually neutral and arrow-free.');
 assert(appStyles.includes('.theme-option.selected'), 'Mandatory theme radio controls must be styled.');
 assert(workerSource.includes('if(d.routeAware)'), 'Only route-specific shade jobs may update edge weights.');
-for (const icon of ['shade-material.svg', 'walking-aid-material.svg']) {
+// The walking-aid profile uses one own symbol (person with rollator), not two combined icons.
+assert(fs.readFileSync(path.join(root, 'dist', 'style.css'), 'utf8').includes('.icon-walking-aid{--icon:url("./icons/walking-aid.svg")}'));
+assert(!fs.existsSync(path.join(root, 'dist', 'icons', 'walking-aid-material.svg')));
+for (const icon of ['shade-material.svg']) {
   const iconText = fs.readFileSync(path.join(root, 'dist', 'icons', icon), 'utf8');
   assert(iconText.includes('Google Material Symbols Rounded'), `Missing upstream attribution in ${icon}`);
 }

@@ -1,6 +1,6 @@
-# Sonnenpfad Stuttgart — Prototype 0.15.0
+# Sonnenpfad Stuttgart — Prototype 0.16.0
 
-A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the [Stuttgart Pedestrian Atlas](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart). German and English, desktop and mobile. Standard Direct routes use the Sonnenpfad HTTPS API backed by PostGIS/pgRouting on the Oracle server. Shade, Sun, custom and mobility profiles currently retain the browser engine. No paid routing API key is required.
+A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the [Stuttgart Pedestrian Atlas](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart). German and English, desktop and mobile. Every profile is routed on the Sonnenpfad server (Oracle VM, PostGIS graph, in-memory routing engine, same shadow model as the browser). No paid routing API key is required.
 
 Autor und Inhaber von Sonnenpfad Stuttgart und Fußgängeratlas Stuttgart ist Mohammadreza Bakhshi. Die Entwicklung erfolgte mit punktueller Unterstützung aus dem MobiData-BW-Team während seiner Tätigkeit als Werkstudent.
 
@@ -12,7 +12,7 @@ Project rules are documented in [GOVERNANCE.md](GOVERNANCE.md), [CONTRIBUTING.md
 
 Run `npm ci`, `npm run build`, and then serve `dist/` over HTTP (for example `python -m http.server 8080 --directory dist`). ES module workers do not run from `file://` URLs. Cloudflare Workers Static Assets uses `wrangler.jsonc`; `npm run deploy` performs a manual deployment. Cloudflare Builds should use `npm run build` as its build command and `npx wrangler deploy` as its deploy command.
 
-Prepared application data is split into size-bounded static chunks so the browser can load it reliably and Cloudflare can cache it efficiently. Visual tiles and 3D shadow-obstacle tiles are separate, allowing 2D to avoid building and tree payloads. The routing and shadow worker remains embedded as a Blob. The original GeoPackage is a local, read-only pipeline input and is not committed.
+Prepared application data is split into size-bounded static chunks so the browser can load it reliably and Cloudflare can cache it efficiently. Visual tiles and 3D shadow-obstacle tiles are separate, allowing 2D to avoid building and tree payloads. The shadow worker (and the browser routing engine, used only as fallback when the server is unreachable at start-up) is embedded as a Blob. The original GeoPackage is a local, read-only pipeline input and is not committed.
 
 ## Included
 
@@ -43,7 +43,7 @@ The script converts EPSG:25832 to WGS84, then to local equirectangular metres ar
 
 `python scripts/generate_terrain.py` reconstructs static Mapbox Terrain-RGB tiles at zooms 12–14 from the DEM-derived elevation values at network endpoints. It uses 8-neighbour inverse-distance interpolation followed by light smoothing. Run it before `python scripts/bundle_app.py`; the generated tiles are written to `dist/dem/` and need no external terrain API.
 
-For the browser routing profiles, every existing line vertex is a routing node. Exact coincident vertices connect; geometry-only intersections are not noded. No arbitrary network edges are inserted across gaps. Segment endpoint elevation and slope are inherited; elevation is interpolated along subedges. Source `atlas_id` is preserved per subedge.
+For the browser fallback engine, every existing line vertex is a routing node. Exact coincident vertices connect; geometry-only intersections are not noded. No arbitrary network edges are inserted across gaps. Segment endpoint elevation and slope are inherited; elevation is interpolated along subedges. Source `atlas_id` is preserved per subedge.
 
 ## Scientific limitations
 
@@ -55,24 +55,28 @@ This is not a validated heat-risk, accessibility or navigation service.
 - At solar elevations ≤2°, shade geometry is disabled; the UI suppresses percentage and uses direct weighting. Night is not represented as a sun/shade choice.
 - The selected instant applies to the whole route. Time-dependent arrival along a route is not modelled. Finite obstacle buffers can underestimate long shadows near the pilot edge.
 - Network centre lines can differ from actual sidewalks. Existing coincident vertices can still contain topology issues, especially at multi-level structures. Live access, closures and entrance availability are not verified.
-- Points search nearby network components within 30 m and use the closest component reachable from both endpoints. Dashed access lines make the short snap explicit and are excluded from route length; larger gaps are rejected instead of being bridged by an invented straight line.
+- Start and destination snap to the nearest walkable edge within 50 m. If none fits (for example a search hit inside a construction site or railway area), the server widens the search step by step up to 5 km and says so. Dashed access lines show the snap and are excluded from route length.
 - Walking time assumes 75 m/min plus 1 minute per 10 m of ascent. Elevation/slope inherit the atlas's uncertainties.
 - Shade/sun preference uses `length * (1 + 1.6 * undesired_exposure * solar_weight)`, where `solar_weight = clamp(direct_radiation / 500 W/m², 0, 1)` when a matching forecast hour exists and 1 otherwise. Mobility and safety rules are not weakened. This is a prototype heuristic, not a heat-risk model.
 - Live values are an hourly model forecast for one central-Stuttgart point, not station measurements or street-canyon conditions. No SOLWEIG or turn-by-turn guidance is included. The displayed UTCI line themes remain atlas snapshot indicators, not live measurements or individual heat-risk advice.
 
-## Oracle Direct routing
+## Server routing
 
-The standard Direct profile uses the audited Atlas network, matched against the local OSM reference from 2026-08-30T20:21:06Z, with 216,937 currently routable pieces. Connectivity follows OSM node identifiers, preserving distinct levels and excluding unresolved matches. The API snaps to the nearest walkable edge within 50 m and splits it for partial start/end routes. The response includes oriented original Atlas attributes; heights are interpolated along source segments, not new DEM measurements. The browser evaluates geometric shade along this actual route using the selected date/time. Unknown elevations and shadow payload failures remain unknown. Other profiles have not yet migrated to the server.
+All profiles (Direct, Shade, Sun, custom and mobility presets) run on the Sonnenpfad server, an Oracle Always Free VM, behind Nginx at `/profile-v2/`. The engine (`services/profile-api-v1/engine.py`) holds the audited Atlas graph (`routing.walk_edges`) plus restored Atlas ways in memory and evaluates shade with the same shadow model as the browser. The database is only read.
+
+If no route satisfies the selected profile, the server relaxes restrictions step by step and still returns the best possible route. Sections that break the profile (stairs, steep gradient, poor surface and so on) are drawn in orange and named in the result; the route is then not recommended. OSM ways with an explicit access prohibition are never used. Unknown attributes remain unknown, never accessible.
+
+Requests: two routes compute at once, further ones queue up to 10 s; Nginx limits each IP to 2 requests/s. If the server is unreachable when the app opens, production falls back to the browser engine. Operation and release steps are in [server routing](docs/server-routing-release.md).
 
 ## Verification
 
-`node scripts/check_engine.mjs` checks solar direction/elevation, a known shadow geometry, route continuity, varied sun/shade route choices, edge snapping, automatic fallback from isolated fragments, the elevation profile and out-of-area rejection. Recorded results are in `scripts/verification.json`. Static source/asset checks were also run. Browser rendering and device-specific WebGL performance have not yet been verified in this environment. Optional WebMCP state read-back is feature-detected; supported-browser registration validation was unavailable.
+`npm test` runs all static and behavioural checks; `python -m unittest` in `services/profile-api-v1` tests the server engine, adapter and shadow parity. `node scripts/check_engine.mjs` checks solar direction/elevation, a known shadow geometry, route continuity, varied sun/shade route choices, edge snapping, automatic fallback from isolated fragments, the elevation profile and out-of-area rejection. Recorded results are in `scripts/verification.json`. Static source/asset checks were also run. Browser rendering and device-specific WebGL performance have not yet been verified in this environment. Optional WebMCP state read-back is feature-detected; supported-browser registration validation was unavailable.
 
 Pull requests and pushes to `main` run `npm test` in GitHub Actions. Operational smoke tests and rollback instructions are documented in [`docs/operations-runbook.md`](docs/operations-runbook.md).
 
 ## Privacy and attribution
 
-Standard Direct routes transmit selected start and destination coordinates to the Sonnenpfad server at https://138.2.184.1 over HTTPS. Those coordinates may originate from clicked map points, selected addresses or a device location explicitly requested by the user. Shade, Sun, custom and mobility routes currently run locally in the browser. Location is requested only after a click. Shared URLs contain selected coordinates. External basemap providers receive tile requests (and associated IP/request metadata); Google Fonts is currently used with system-font fallback. Open-Meteo receives a fixed Stuttgart coordinate, never route endpoints or device location. No analytics, accounts or advertising.
+Every route request transmits start, destination, profile and selected time to the Sonnenpfad server at https://138.2.184.1 over HTTPS. Coordinates may originate from clicked map points, selected addresses or a device location explicitly requested by the user. The server does not store routes: Nginx and the API keep no access log, failures are logged only by error type. The Nginx error log can contain IP addresses (for example when the rate limit applies). Location is requested only after a click. Shared URLs contain selected coordinates. External basemap providers receive tile requests (and associated IP/request metadata); Google Fonts is currently used with system-font fallback. Open-Meteo receives a fixed Stuttgart coordinate, never route endpoints or device location. No analytics, accounts or advertising.
 
 Base map: OpenFreeMap / OpenMapTiles / © OpenStreetMap contributors. Weather: Open-Meteo, data under CC BY 4.0. MapLibre GL JS 5.6.2 is vendored under its BSD-3-Clause licence, see `dist/vendor/LICENSE-maplibre.txt`. Atlas-derived data retains its original source obligations; the code licence does not relicense geodata. The input package's full source documentation remains authoritative.
 

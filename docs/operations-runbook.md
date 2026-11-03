@@ -4,7 +4,7 @@
 
 - Application: `https://sonnenpfad-stuttgart.de/`
 - Cloudflare alias: `https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/`
-- Source: private GitHub repository `Reza-Bakhshi7/sonnenpfad-stuttgart`
+- Source: GitHub repository `Reza-Bakhshi7/sonnenpfad-stuttgart`
 - Production branch: `main`
 - Build: `npm run build`
 - Deploy: `npx wrangler deploy`
