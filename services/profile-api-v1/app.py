@@ -12,13 +12,13 @@ import engine
 import profile_api as core
 from sonnenpfad_profile_rules import relaxation_tiers, resolved_options
 
-VERSION = '0.3.0-preview.6'
+VERSION = '0.3.0'
 MAX_BODY = 16384
 # Two routes compute at once (two CPU cores); further requests wait briefly instead of failing.
 SLOTS = 2
 QUEUE_SECONDS = 10
 # Set to True only for the production release; production hosts use this server only then.
-PRODUCTION_READY = False
+PRODUCTION_READY = True
 HEADERS = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'}
 
 

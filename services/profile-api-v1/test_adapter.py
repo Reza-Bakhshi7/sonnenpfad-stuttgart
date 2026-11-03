@@ -117,7 +117,8 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_unaccepted_production_capability(self):
         status,data,_=await invoke(service.create_app(),method='GET',path='/capabilities')
-        self.assertEqual(status,200);self.assertFalse(data['production_ready'])
+        self.assertEqual(status,200);self.assertIs(data['production_ready'],service.PRODUCTION_READY)
+        self.assertEqual(data['deployment_stage'],'production' if service.PRODUCTION_READY else 'local-preview')
         self.assertEqual(data['preferences'],['balanced','shade','sun']);self.assertEqual(data['shadow_model'],'geometric-time-aware')
 
     async def test_body_limits_bad_json_and_type(self):

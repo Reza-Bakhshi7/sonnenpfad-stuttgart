@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — server-only routing (preview)
+## 0.15.0 — 3 November 2026
+
+- All routing runs on the Sonnenpfad server (Oracle VM): Standard Direct no longer uses API 0.2, other profiles and sun/shade no longer run in the browser.
 
 - Stage 2 routes every profile and option on the Oracle server (in-memory engine, equal to the reviewed pgRouting engine, 0.3–0.7 s per route) and includes 2,118 atlas ways (217 km) that were missing from the server graph, e.g. Augustenstraße.
 - Sun/shade routing and route shade shares on the server with the browser's shadow model (identical values on a real tile).
