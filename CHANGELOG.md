@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — access blocks (preview)
+
+- Browser routing no longer uses ways that the audited server graph blocks in both directions (21,670 of 248,725 edges: e.g. access=private, foot=no, foot=use_sidepath, motorroads, gates). The block list is exported read-only from `routing.walk_edges` (`scripts/export_access_blocks.py`, `scripts/access_blocks.mjs`) and applies to every profile without relaxation; 193 ambiguous edges stay open.
+- Known remaining difference: atlas ways without a confident OSM match (about 217 km) are missing from the server graph, so server routes can be longer than browser routes.
+
 ## 0.14.2 — 3 November 2026
 
 - Use Bordstein/Bordsteine throughout the German interface.

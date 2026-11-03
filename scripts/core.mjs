@@ -66,6 +66,8 @@ function signedEdgeSlope(e,forward=true){
  return raw===null?null:(forward?raw:-raw);
 }
 export function edgeAllowed(e,options={},forward=null){
+ // Access blocks from the audited server graph (private, foot=no, use_sidepath, motorways …) apply to every profile and are never relaxed.
+ if(e.accessBlocked)return false;
  if(options.avoidSteps&&e.steps)return false;
  if(options.avoidEscalators&&e.escalator)return false;
  if(options.avoidPoorSurface&&e.surface===3)return false;
