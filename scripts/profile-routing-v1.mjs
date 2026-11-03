@@ -36,7 +36,8 @@ export function adaptProfileV1Route(data,toLocal,request){
   return {...segment,atlas_attributes:a};
  })}};
  const route=adaptServerRoute(normalized,toLocal);if(route.error)return route;
- if(request.preference!=='balanced'||p.shade!==null)throw Error('Unsupported profile exposure');
+ // The server computes the shade share with the browser's shadow model; sun/shade routes must report it.
+ if((p.shade!==null&&!(Number.isFinite(p.shade)&&p.shade>=0&&p.shade<=1))||(request.preference!=='balanced'&&p.shade===null))throw Error('Invalid profile exposure');
  const options=p.effective_options,model=p.time_model;
  if(!same(model,{speedMpm:options.speedMpm,ascentMinutesPer10m:options.ascentMinutesPer10m,estimated:true}))throw Error('Invalid profile time model');
  const known=route.profile.length>0;
@@ -46,7 +47,7 @@ export function adaptProfileV1Route(data,toLocal,request){
  const coverage=p.attribute_coverage;
  if(!coverage||['surface','width','wheelchair','elevation'].some(key=>!Number.isFinite(coverage[key])||coverage[key]<0||coverage[key]>1+1e-9))throw Error('Invalid profile coverage');
  Object.assign(route.quality,{surfaceKnown:coverage.surface,widthKnown:coverage.width,wheelchairKnown:coverage.wheelchair,slopeKnown:coverage.elevation});
- return {...route,source:'server-profile-v1',minutes:p.estimated_minutes,ascent:p.ascent_m,descent:p.descent_m,
+ return {...route,source:'server-profile-v1',shade:p.shade,minutes:p.estimated_minutes,ascent:p.ascent_m,descent:p.descent_m,
   profile:p.elevation_profile,timeModel:model,criteria:options,effectiveOptions:options,
   requestedProfile:p.requested_profile,relaxedCriteria:p.relaxed_criteria,fallbackLevel:level};
 }

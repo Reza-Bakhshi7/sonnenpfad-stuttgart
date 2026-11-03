@@ -41,7 +41,6 @@ assert.equal(posted.allow_relaxation,false);assert.equal(posted.contract_version
 await assert.rejects(requestProfileV1([9,48],[9.001,48],{preference:'balanced',mobilityProfile:'wheelchair'},{baseURL:'http://127.0.0.1:8002/',preview:true,capabilities,fetchImpl:async()=>({ok:false,status:409,json:async()=>({error:'candidate_search_limited'})})}),error=>error.routeError==='serverSearchLimited');
 const bundle=fs.readFileSync(new URL('../scripts/build-cloudflare.mjs',import.meta.url),'utf8');assert.equal(bundle.match(/profile-routing-v1/g)?.length,1,'the adapter enters only the worker source');
 const {profileApiFor}=await import('./route-experience.mjs');
-for(const host of ['sonnenpfad-stuttgart.de','sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'])assert.equal(profileApiFor(host,'?profileApi=v2'),null,'production never uses the preview API');
-assert.equal(profileApiFor('oracle-profiles-v1-preview-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev',''),null,'preview needs the explicit opt-in');
-assert.equal(profileApiFor('oracle-profiles-v1-preview-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev','?profileApi=v2'),'https://138.2.184.1/profile-v2/');
-console.log('Profile V1 passed: Python/JS requests and actual response parity, profile times, unknown data, strict capability gate, no silent relaxation, preview-only opt-in gate.');
+for(const host of ['sonnenpfad-stuttgart.de','sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'])assert.equal(profileApiFor(host),null,'production never uses the preview API');
+assert.equal(profileApiFor('server-routing-preview-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev'),'https://138.2.184.1/profile-v2/');
+console.log('Profile V1 passed: Python/JS requests and actual response parity, profile times, unknown data, strict capability gate, no silent relaxation, preview-only server routing.');
