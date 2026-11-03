@@ -329,7 +329,7 @@ function isRoutingPreview(hostname='') {
  return /^(?:app09-mobile-finalization-preview|app09-ui-cleanup-preview|oracle-profiles-v1-preview|access-blocks-preview|server-routing-preview|[a-f0-9]{8})-sonnenpfad-stuttgart\.mohammadreza-bakhshi\.workers\.dev$/.test(hostname);
 }
 // Stage-2 routing server (Nginx /profile-v2/ -> 127.0.0.1:8002). Preview hosts route every
-// request there, with no browser fallback; production hosts never use it.
+// request there, with no browser fallback; production hosts use it once /capabilities reports production.
 const PROFILE_V2_API='https://138.2.184.1/profile-v2/';
 function profileApiFor(hostname=''){
  return isRoutingPreview(hostname)?PROFILE_V2_API:null;
