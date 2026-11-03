@@ -52,7 +52,7 @@ def health_version():
         return None
 
 
-def wait_for(version,seconds=20):
+def wait_for(version,seconds=120):
     for _ in range(seconds):
         if health_version()==version:return True
         time.sleep(1)
@@ -78,14 +78,14 @@ def update():
         for name,data in files.items():
             path=staged/name;path.write_bytes(data);path.chmod(0o644)
         print('Pruefe die neue Fassung im Staging.',flush=True)
-        run(['sudo','-u','sonnenpfad_api','/usr/bin/python3','-B','-m','unittest','-v','test_adapter'],cwd=staged,timeout=60)
+        run(['sudo','-u','sonnenpfad_api','/usr/bin/python3','-B','-m','unittest','-v','test_adapter','test_engine'],cwd=staged,timeout=120)
         TARGET.rename(backup)
         staged.rename(TARGET);staged=None
         print('Starte nur sonnenpfad-profile-v2.service neu. Sicherung: '+str(backup),flush=True)
         try:
             run(['systemctl','restart',UNIT_NAME])
             if not wait_for(VERSION):raise ValueError('Neue Fassung wurde nicht erreichbar.')
-            run(['sudo','-u','sonnenpfad_api','/usr/bin/python3','-B','-u','smoke_v2.py'],cwd=TARGET,timeout=180)
+            run(['sudo','-u','sonnenpfad_api','/usr/bin/python3','-B','-u','smoke_v2.py'],cwd=TARGET,timeout=300)
         except Exception:
             TARGET.rename(BASE/('api-stage2.failed-'+stamp));backup.rename(TARGET)
             subprocess.run(['systemctl','restart',UNIT_NAME],check=False)

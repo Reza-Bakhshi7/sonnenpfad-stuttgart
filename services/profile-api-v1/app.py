@@ -8,10 +8,11 @@ from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+import engine
 import profile_api as core
 from sonnenpfad_profile_rules import relaxation_tiers, resolved_options
 
-VERSION = '0.3.0-preview.2'
+VERSION = '0.3.0-preview.3'
 MAX_BODY = 16384
 HEADERS = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'}
 
@@ -41,7 +42,7 @@ def validate_contract(body):
         fail(422, 'unsupported_fields', 'Missing or unsupported versioned request fields')
     if type(body['contract_version']) is not int or body['contract_version'] != 1 or body['include_segments'] is not True:
         fail(422, 'unsupported_contract', 'Contract 1 with segment metadata is required')
-    legacy = core.validate_request({key: body[key] for key in ('start', 'end', 'max_snap_m', 'preference', 'mobility_profile')} | {'allow_relaxation': body.get('allow_relaxation', False)})
+    legacy = core.validate_request({key: body[key] for key in ('start', 'end', 'max_snap_m', 'preference', 'mobility_profile')} | {'allow_relaxation': body.get('allow_relaxation', False)}, engine.SUPPORTED)
     if body['timezone'] != 'Europe/Berlin' or type(body['leaf_on']) is not bool:
         fail(422, 'invalid_context', 'Invalid timezone or leaf state')
     if body['time'] is not None:
@@ -50,11 +51,18 @@ def validate_contract(body):
                 raise ValueError()
         except (ValueError, TypeError):
             fail(422, 'invalid_time', 'Time must be null or an ISO timestamp with offset')
-    expected = resolved_options({'mobilityProfile': legacy['mobility_profile'], 'preference': 'balanced'})
     options = body['options']
     if not isinstance(options, dict):
         fail(422, 'invalid_options', 'Expected preset options')
     options = dict(options)
+    if legacy['mobility_profile'] == 'custom':
+        # Only the user's own switches; every number stays fixed (engine.CUSTOM_FIXED).
+        if not all(type(options.get(key)) is bool for key in engine.CUSTOM_FLAGS) or options.get('slopeMode') not in ('none', 'uphill', 'downhill', 'both'):
+            fail(422, 'invalid_options', 'Custom settings need boolean switches and a known slope mode')
+        expected = {'mobilityProfile': 'custom', 'preference': 'balanced', 'slopeMode': options['slopeMode'],
+                    **{key: options[key] for key in engine.CUSTOM_FLAGS}, **engine.CUSTOM_FIXED}
+    else:
+        expected = resolved_options({'mobilityProfile': legacy['mobility_profile'], 'preference': 'balanced'})
     # solarWeight has no cost effect for balanced routes, but remains a known,
     # bounded field shared with the browser contract. It is never client SQL.
     if 'solarWeight' in options:
@@ -69,7 +77,7 @@ def validate_contract(body):
     expected_tiers = relaxation_tiers(expected_tier_options)
     if not identical(body['tiers'], expected_tiers):
         fail(422, 'invalid_tiers', 'Relaxation tiers do not match the preset')
-    return legacy
+    return legacy | {'options': expected, 'solar_weight': expected_tier_options.get('solarWeight')}
 
 
 def adapt_response(data, request):
@@ -77,7 +85,7 @@ def adapt_response(data, request):
     p = result.get('properties', {})
     if result.get('type') != 'FeatureCollection' or p.get('requested_profile') != request['mobility_profile'] or p.get('segment_metadata_version') != 1:
         raise ValueError('Invalid core route contract')
-    tiers = relaxation_tiers({'mobilityProfile': request['mobility_profile'], 'preference': 'balanced'})
+    tiers = relaxation_tiers(request.get('options') or {'mobilityProfile': request['mobility_profile'], 'preference': 'balanced'})
     level = p.get('fallback_level')
     if type(level) is not int or not 0 <= level < len(tiers) or (level and not request['allow_relaxation']):
         raise ValueError('Unpermitted relaxation')
@@ -95,7 +103,7 @@ def adapt_response(data, request):
 
 def capabilities():
     return dict(api_version=VERSION, profile_contract_version=1, segment_metadata_version=1,
-                topology='audited-osm-nodes', mobility_profiles=list(core.SUPPORTED),
+                topology='audited-osm-nodes', mobility_profiles=list(engine.SUPPORTED), routing_engine='in-memory',
                 preferences=['balanced'], shadow_model=None, strict_by_default=True,
                 explicit_relaxation=True, preset_overrides=False, max_snap_m=50,
                 deployment_stage='local-preview', production_ready=False, route_parity_verified=False,
@@ -117,10 +125,16 @@ def strict_json(data):
     return json.loads(data, object_pairs_hook=pairs, parse_constant=invalid)
 
 
-def create_app(calculator=core.calculate_route):
+def create_app(calculator=engine.calculate):
     app = FastAPI(title='Sonnenpfad profile preview', version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
     slot = threading.BoundedSemaphore(1)
     app.state.slot = slot
+
+    if calculator is engine.calculate:
+        @app.on_event('startup')
+        async def preload():
+            # Serve only once the graph is in memory; the first route must not pay the load.
+            await asyncio.get_running_loop().run_in_executor(None, engine.get_engine)
 
     @app.get('/health')
     async def health():

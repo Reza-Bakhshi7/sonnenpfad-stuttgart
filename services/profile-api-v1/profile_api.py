@@ -105,7 +105,7 @@ class RouteError(Exception):
         self.status, self.code = status, code
 
 
-def validate_request(body):
+def validate_request(body, supported=SUPPORTED):
     if not isinstance(body, dict):
         raise RouteError(422, 'invalid_request', 'Expected a JSON object')
     allowed = {'start', 'end', 'mobility_profile', 'preference', 'max_snap_m', 'allow_relaxation'}
@@ -118,8 +118,8 @@ def validate_request(body):
         if not (-180 <= point[0] <= 180 and -90 <= point[1] <= 90):
             raise RouteError(422, 'invalid_coordinates', 'Coordinates outside allowed range')
     profile = body.get('mobility_profile', 'standard')
-    if profile not in SUPPORTED:
-        raise RouteError(422, 'unsupported_profile', 'Only standard, wheelchair and powerWheelchair are available in this test')
+    if profile not in supported:
+        raise RouteError(422, 'unsupported_profile', 'Unsupported mobility profile')
     if body.get('preference', 'balanced') != 'balanced':
         raise RouteError(422, 'unsupported_preference', 'Sun/shade routing is not implemented by this test API')
     radius = body.get('max_snap_m', 30)

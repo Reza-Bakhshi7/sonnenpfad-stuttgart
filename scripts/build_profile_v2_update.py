@@ -10,7 +10,8 @@ SOURCE=ROOT/'services/profile-api-v1'
 TEMPLATE=ROOT/'scripts/profile_v2_update.template.py'
 OUTPUT=ROOT/'build/update_sonnenpfad_profile_v2.py'
 NAMES=['app.py','test_adapter.py','smoke_v2.py','inspect_sources.py','README.md',
-       'profile_api.py','routing_core.py','sonnenpfad_profile_rules.py','gap_supplement.json']
+       'profile_api.py','routing_core.py','sonnenpfad_profile_rules.py','gap_supplement.json',
+       'engine.py','test_engine.py','poi_points.json']
 
 
 def main():
