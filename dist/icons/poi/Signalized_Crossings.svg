@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+<title>Signalized crossing</title>
+<desc>Original geometric symbol prepared for Pedestrian Atlas Stuttgart, 27 October 2026. No imported third-party paths.</desc>
+<g fill="param(fill) #000000" fill-opacity="param(fill-opacity) 1"><path fill-rule="evenodd" d="M7 1h10v18H7zm2 2v14h6V3Z"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="10" r="1.5"/><circle cx="12" cy="15" r="1.5"/><path d="M11 19h2v4h-2z"/></g>
+</svg>

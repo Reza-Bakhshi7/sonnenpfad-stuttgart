@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+<title>Elevator</title>
+<desc>Original geometric symbol prepared for Pedestrian Atlas Stuttgart, 27 October 2026. No imported third-party paths.</desc>
+<g fill="param(fill) #000000" fill-opacity="param(fill-opacity) 1"><path fill-rule="evenodd" d="M2 2h20v20H2zm2 2v16h16V4Z"/><path d="m8 6-3 4h2v7h2v-7h2zm8 12 3-4h-2V7h-2v7h-2z"/></g>
+</svg>
