@@ -46,6 +46,9 @@ assert(workerSource.includes('if(d.routeAware)'), 'Only route-specific shade job
 // The walking-aid profile uses one own symbol (person with rollator), not two combined icons.
 assert(fs.readFileSync(path.join(root, 'dist', 'style.css'), 'utf8').includes('.icon-walking-aid{--icon:url("./icons/walking-aid.svg")}'));
 assert(!fs.existsSync(path.join(root, 'dist', 'icons', 'walking-aid-material.svg')));
+// The footer offers the guide; the author is named only in the About dialog.
+const indexHtml = fs.readFileSync(path.join(root, 'dist', 'index.html'), 'utf8'), footerHtml = indexHtml.slice(indexHtml.indexOf('<footer>'), indexHtml.indexOf('</footer>'));
+assert(footerHtml.includes('id="guide"') && !footerHtml.includes('Bakhshi') && indexHtml.includes('id="guide-dialog"') && indexHtml.includes('id="guide-mobile"'));
 // Shipped POI symbols must be the atlas's CC0 drawings, and every third-party licence must be listed.
 for (const [name, url] of Object.entries(JSON.parse(fs.readFileSync(path.join(root, 'dist', 'poi-icons.json'), 'utf8')))) assert.equal(Buffer.from(url.split(',')[1], 'base64').toString('utf8'), fs.readFileSync(path.join(root, 'dist', 'icons', 'poi', name), 'utf8'), name);
 assert(fs.readFileSync(path.join(root, 'SOURCES_AND_LICENCES.md'), 'utf8').includes('LICENSE-material-symbols.txt') && fs.existsSync(path.join(root, 'dist', 'icons', 'LICENSE-material-symbols.txt')));

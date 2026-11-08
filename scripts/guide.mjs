@@ -4,7 +4,7 @@ export function guideContent(lang) {
  const de = lang === 'de', el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
  const key = (...children) => { const n = el('span', 'guide-key'); n.setAttribute('aria-hidden', 'true'); n.append(...children); return n; };
  const K = {
-  text: text => key(text),
+  text: text => { const n = key(text); if ([...text].length === 1) n.classList.add('guide-glyph'); return n; },
   glyph: cls => key(el('span', 'choice-glyph ' + cls)),
   svg: selector => { const s = document.querySelector(selector); return key(s ? s.cloneNode(true) : ''); },
   map: control => { const wrap = el('span', 'maplibregl-ctrl guide-map-key'), b = el('button', 'maplibregl-ctrl-' + control); b.tabIndex = -1; b.append(el('span', 'maplibregl-ctrl-icon')); wrap.setAttribute('aria-hidden', 'true'); wrap.append(b); return wrap; },
@@ -40,7 +40,7 @@ export function guideContent(lang) {
    { direct: K.glyph('icon-direct'), shade: K.glyph('icon-shade'), sun: K.glyph('icon-sun') }],
   [de ? 'Für wen planst du?' : 'Who are you planning for?', de ? 'Tippe auf ein Symbol:' : 'Tap a symbol:', {}],
  ]));
- route.querySelector('.guide-steps li:last-child').append(list(profiles.map(([cls, name, text]) => ['{icon} ' + name + ': ' + text + '.', { icon: K.glyph(cls) }])),
+ route.querySelector('.guide-steps').lastElementChild.append(list(profiles.map(([cls, name, text]) => ['{icon} ' + name + ': ' + text + '.', { icon: K.glyph(cls) }])),
   line('p', de ? 'Bei {custom} wählst du: Steigung {flat} egal, {up} bergauf meiden, {down} bergab meiden, {both} beides meiden. Ein Haken bei {stairs} Treppen, {esc} Rolltreppen, {surface} schlechter Oberfläche oder {wheel} „Rollstuhl: nein“ heißt: diese Wege meiden.'
    : 'With {custom} you choose: gradient {flat} any, {up} avoid uphill, {down} avoid downhill, {both} avoid both. A tick at {stairs} stairs, {esc} escalators, {surface} poor surface or {wheel} “wheelchair: no” means: avoid these ways.',
    { custom: K.glyph('icon-settings'), flat: K.svg('[data-slope="none"] svg'), up: K.svg('[data-slope="uphill"] svg'), down: K.svg('[data-slope="downhill"] svg'), both: K.svg('[data-slope="both"] svg'), stairs: K.glyph('icon-stairs'), esc: K.glyph('icon-escalator'), surface: K.glyph('icon-surface'), wheel: K.glyph('icon-wheelchair') }));
@@ -72,14 +72,15 @@ export function guideContent(lang) {
    de ? 'Die Wege werden nach genau einem Thema eingefärbt. Eine Legende oben links erklärt die Farben:' : 'Paths are coloured by exactly one theme. A legend at the top left explains the colours:', {}],
  ]));
  const chips = d => { const n = el('span', 'guide-chips'); n.append(...(d.legend || []).map(([color]) => K.chip(color))); return n; };
- explore.querySelector('.guide-steps li:last-child').append(list(Object.values(THEME_DEFS).map(d => ['{chips} ' + d[lang] + ': ' + d[de ? 'deHelp' : 'enHelp'], { chips: chips(d) }])));
- explore.querySelector('.guide-steps').append(...steps([
+ explore.querySelector('.guide-steps').lastElementChild.append(list(Object.values(THEME_DEFS).map(d => ['{chips} ' + d[lang] + ': ' + d[de ? 'deHelp' : 'enHelp'], { chips: chips(d) }])));
+ const places = steps([
   [de ? 'Orte einblenden' : 'Show places',
    de ? 'Unter „Barrierefreiheit & Komfort“ hakst du an, was du sehen willst:' : 'Under “Accessibility & comfort”, tick what you want to see:', {}],
- ]).children);
- explore.querySelector('.guide-steps li:last-child').append(list(POI_DEFS.map(d => ['{icon} ' + d[lang], { icon: K.poi(d) }])),
-  line('p', de ? 'Ampeln haben vier Farben: ' : 'Signal crossings have four colours: '),
-  list(Object.values(CROSSING_CLASSES).map(c => ['{chip} ' + c[lang] + ': ' + c[de ? 'deRule' : 'enRule'], { chip: K.chip(c.color) }])));
+ ]);
+ places.lastElementChild.append(list(POI_DEFS.map(d => ['{icon} ' + d[lang], { icon: K.poi(d) }])),
+  line('p', de ? 'Ampeln haben vier Farben:' : 'Signal crossings have four colours:'),
+  list([3, 2, 1, 0].map(k => CROSSING_CLASSES[k]).map(c => ['{chip} ' + c[lang] + ': ' + c[de ? 'deRule' : 'enRule'], { chip: K.chip(c.color) }])));
+ explore.querySelector('.guide-steps').append(...places.children);
  explore.querySelector('.guide-steps').append(...steps([
   [de ? 'Details ansehen' : 'See details',
    de ? 'Klick auf einen Weg oder ein Symbol. Ein Fenster zeigt alles, was der Atlas dazu weiß, etwa Steigung, Belag, Breite oder Ausstattung einer Ampel. {close} schließt es.' : 'Click a path or a symbol. A window shows what the atlas knows, such as gradient, surface, width or the equipment of a crossing. {close} closes it.',
