@@ -37,10 +37,10 @@ Database licence: as a derived database of OpenStreetMap, the shipped data are m
 
 | Component | Licence | File |
 | --- | --- | --- |
-| MapLibre GL JS 5.6.2 | BSD-3-Clause | `dist/vendor/LICENSE-maplibre.txt` |
-| three.js | MIT | `dist/vendor/LICENSE-three.txt` |
+| MapLibre GL JS 6.12.0 | BSD-3-Clause | `dist/vendor/LICENSE-maplibre.txt` |
+| three.js 0.169.0 | MIT | `dist/vendor/LICENSE-three.txt` |
 | Google Material Symbols Rounded (`dist/icons/shade-material.svg`) | Apache License 2.0 | `dist/icons/LICENSE-material-symbols.txt` |
 | POI symbols (`dist/icons/poi/`, `dist/poi-icons.json`), newly drawn for the atlas | CC0 1.0 | `dist/icons/poi/README.md` |
-| Walking-aid icon (`dist/icons/walking-aid.svg`), own drawing | MIT with the code | — |
+| Interface icons in `dist/icons/` (all except `shade-material.svg`), made by the author with ChatGPT | MIT with the code | — |
 
 Python and Node packages used for building and the server are installed from their registries and keep their own licences (`package-lock.json`, `requirements-etl.txt`).

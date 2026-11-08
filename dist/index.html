@@ -8,8 +8,8 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./style.css?v=447110314df94d77">
-<script type="module" src="./app-v7.mjs?v=35afb5ee2da034d5">
+<link rel="stylesheet" href="./style.css?v=94c176d2cbf021f1">
+<script type="module" src="./app-v7.mjs?v=2beca835a3f95f71">
 </script>
 </head>
 <body>
@@ -252,10 +252,11 @@
 <button id="explore-layers" type="button">Kartenebenen wählen</button>
 <button id="explore-3d" type="button">Stadt in 3D ansehen</button>
 </section>
+<button type="button" id="guide-mobile" class="mobile-about" data-i="guide">So funktioniert’s</button>
 <button type="button" id="about-mobile" class="mobile-about" data-i="about">Über Sonnenpfad</button>
 </div>
 <footer>
-<span>Mohammadreza Bakhshi</span>
+<button id="guide" type="button" data-i="guide">So funktioniert’s</button>
 <button id="about" data-i="about">Über Sonnenpfad</button>
 </footer>
 </aside>
@@ -360,11 +361,19 @@
 </div>
 <dialog id="about-dialog">
 <button id="close-about" class="dialog-close" aria-label="Schließen">×</button>
-<span class="eyebrow">SONNENPFAD · 0.16.1</span>
+<span class="eyebrow">SONNENPFAD · 0.16.2</span>
 <h2 data-i="aboutTitle">Ein erster Schritt.</h2>
 <div id="about-content">
 </div>
 <button id="close-about-bottom" class="primary" data-i="understood">Verstanden</button>
+</dialog>
+<dialog id="guide-dialog" class="guide-dialog" aria-labelledby="guide-title">
+<button id="close-guide" class="dialog-close" aria-label="Schließen">×</button>
+<span class="eyebrow">SONNENPFAD</span>
+<h2 id="guide-title" data-i="guide">So funktioniert’s</h2>
+<div id="guide-content">
+</div>
+<button id="close-guide-bottom" class="primary" data-i="understood">Verstanden</button>
 </dialog>
 <noscript>Für diese interaktive Karte ist JavaScript erforderlich. / This interactive map requires JavaScript.</noscript>
 </body>

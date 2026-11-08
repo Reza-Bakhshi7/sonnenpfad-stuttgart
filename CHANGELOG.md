@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.2 — 8 November 2026
+
+- New "So funktioniert’s" guide (footer and mobile menu): every routing step, every profile, Explore themes and places, map tools, time and weather, each shown with the symbol the app uses.
+- The author name moved from the footer into the About dialog.
+- Sources list: interface icons made with ChatGPT; MapLibre 6.12.0 and three.js 0.169.0 versions corrected.
+
 ## 0.16.1 — 8 November 2026
 
 - New SOURCES_AND_LICENCES.md lists every data source, service, font and icon with licence and required credit; the shipped data are stated as an ODbL derived database.
