@@ -1,5 +1,10 @@
 # Changelog
 
+## Maintenance — 8 November 2026
+
+- Data pipeline: Pillow 10.4.0 → 13.0.0 (fixes all 52 Dependabot alerts; used only to write terrain PNG tiles, not shipped in the app or on the server).
+- SECURITY.md points to GitHub private vulnerability reporting.
+
 ## 0.17.1 — 8 November 2026
 
 - Public repository review: outdated internal notes removed (old roadmap, R2 plan, preview and migration logs, dated audit, one-off CORS repair script); operations runbook and server README rewritten for the current setup; ADR 0001 marked superseded.
