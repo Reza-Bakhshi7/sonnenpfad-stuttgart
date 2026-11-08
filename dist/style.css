@@ -311,3 +311,4 @@ body.is-exploring .maplibregl-canvas-container.maplibregl-interactive:active{cur
 .guide-chip{display:inline-block;width:16px;height:6px;border-radius:3px;margin-right:2px;vertical-align:middle}
 .guide-chips{display:inline-flex;gap:1px;margin-right:4px;vertical-align:middle}
 footer button#guide{color:var(--navy)}
+.guide-key.guide-glyph{font-size:19px;font-weight:500}
