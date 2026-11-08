@@ -18,7 +18,66 @@
   "sourceDate": "2026-09-15",
   "sourceSha256": "4c41fb6626386fe1a749419a5310cb137a3ee910175c9fcce6a539c82d5a706e",
   "network": {
-    "accessBlocked": {"file":"network/access-blocked.bin","count":21670,"ambiguousKeptOpen":193,"source":{"table":"routing.walk_edges","rule":"cost<0 and reverse_cost<0 within 0.3 m","routingReference":"2026-08-30T20:21:06Z","reasons":{"foot=use_sidepath":7078,"access=private":5458,"foot=no":1618,"motorroad":1029,"ambiguous_pedestrian_oneway_review":974,"barrier_review=gate":952,"access=customers":864,"access=destination":718,"highway_requires_explicit_foot=cycleway":588,"access=no":543,"barrier_review=lift_gate":450,"foot=discouraged":226,"foot=private":183,"foot=destination":113,"highway=motorway_link":107,"foot=impassable":103,"conveying_review":71,"locked":61,"foot=customers":59,"access=delivery":55,"barrier_review=block":54,"opening_hours_review":53,"barrier_review=log":50,"highway=trunk_link":44,"conditional_access_review":40,"highway=construction":29,"highway_requires_explicit_foot=road":18,"barrier_review=chain":14,"access=permit":13,"access=construction":12,"access=discouraged":12,"highway=motorway":10,"barrier_review=swing_gate":9,"access=forestry":9,"highway_requires_explicit_foot=bridleway":7,"access=unknown":7,"barrier_review=full-height_turnstile":6,"access=employees":6,"access=agricultural":5,"barrier_review=height_restrictor":5,"foot=emergency":3,"barrier_review=yes":3,"barrier_review=rock":2,"barrier_review=hampshire_gate":2,"barrier_review=tree":2,"access=private;customers":2,"barrier_review=fence":2,"access=conditional":1}}},
+    "accessBlocked": {
+      "file": "network/access-blocked.bin",
+      "count": 21670,
+      "ambiguousKeptOpen": 193,
+      "source": {
+        "table": "routing.walk_edges",
+        "rule": "cost<0 and reverse_cost<0 within 0.3 m",
+        "routingReference": "2026-08-30T20:21:06Z",
+        "reasons": {
+          "foot=use_sidepath": 7078,
+          "access=private": 5458,
+          "foot=no": 1618,
+          "motorroad": 1029,
+          "ambiguous_pedestrian_oneway_review": 974,
+          "barrier_review=gate": 952,
+          "access=customers": 864,
+          "access=destination": 718,
+          "highway_requires_explicit_foot=cycleway": 588,
+          "access=no": 543,
+          "barrier_review=lift_gate": 450,
+          "foot=discouraged": 226,
+          "foot=private": 183,
+          "foot=destination": 113,
+          "highway=motorway_link": 107,
+          "foot=impassable": 103,
+          "conveying_review": 71,
+          "locked": 61,
+          "foot=customers": 59,
+          "access=delivery": 55,
+          "barrier_review=block": 54,
+          "opening_hours_review": 53,
+          "barrier_review=log": 50,
+          "highway=trunk_link": 44,
+          "conditional_access_review": 40,
+          "highway=construction": 29,
+          "highway_requires_explicit_foot=road": 18,
+          "barrier_review=chain": 14,
+          "access=permit": 13,
+          "access=construction": 12,
+          "access=discouraged": 12,
+          "highway=motorway": 10,
+          "barrier_review=swing_gate": 9,
+          "access=forestry": 9,
+          "highway_requires_explicit_foot=bridleway": 7,
+          "access=unknown": 7,
+          "barrier_review=full-height_turnstile": 6,
+          "access=employees": 6,
+          "access=agricultural": 5,
+          "barrier_review=height_restrictor": 5,
+          "foot=emergency": 3,
+          "barrier_review=yes": 3,
+          "barrier_review=rock": 2,
+          "barrier_review=hampshire_gate": 2,
+          "barrier_review=tree": 2,
+          "access=private;customers": 2,
+          "barrier_review=fence": 2,
+          "access=conditional": 1
+        }
+      }
+    },
     "nodes": [
       "network/nodes-000.bin",
       "network/nodes-001.bin",
@@ -2723,6 +2782,55 @@
       "8": "Bordstein_erhoeht",
       "9": "Sitzbaenke",
       "10": "Unterstande"
+    }
+  },
+  "routingNetwork": {
+    "nodes": [
+      "routing/nodes-000.bin",
+      "routing/nodes-001.bin",
+      "routing/nodes-002.bin",
+      "routing/nodes-003.bin"
+    ],
+    "nodeCount": 211190,
+    "nodeStride": 8,
+    "edges": [
+      "routing/edges-000.bin",
+      "routing/edges-001.bin",
+      "routing/edges-002.bin",
+      "routing/edges-003.bin",
+      "routing/edges-004.bin",
+      "routing/edges-005.bin",
+      "routing/edges-006.bin",
+      "routing/edges-007.bin",
+      "routing/edges-008.bin",
+      "routing/edges-009.bin",
+      "routing/edges-010.bin",
+      "routing/edges-011.bin",
+      "routing/edges-012.bin",
+      "routing/edges-013.bin",
+      "routing/edges-014.bin",
+      "routing/edges-015.bin",
+      "routing/edges-016.bin",
+      "routing/edges-017.bin",
+      "routing/edges-018.bin",
+      "routing/edges-019.bin",
+      "routing/edges-020.bin",
+      "routing/edges-021.bin"
+    ],
+    "edgeCount": 231850,
+    "edgeStride": 48,
+    "snapIndex": [
+      "routing/snap-index-000.json",
+      "routing/snap-index-001.json",
+      "routing/snap-index-002.json",
+      "routing/snap-index-003.json",
+      "routing/snap-index-004.json"
+    ],
+    "snapGrid": 500,
+    "source": {
+      "graph": "routing.walk_edges + gap_supplement (Stage 2)",
+      "serverEdges": 221995,
+      "routingReference": "2026-08-30T20:21:06Z"
     }
   }
 }

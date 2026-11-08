@@ -34,5 +34,7 @@ await self.onmessage({data:{type:'initCity',manifest,base:root.href}});
 const local=p=>[(p[0]-manifest.origin[0])*manifest.scale[0],(p[1]-manifest.origin[1])*manifest.scale[1]];
 await self.onmessage({data:{type:'route',id:1,start:local([9.17935,48.77845]),end:local([9.1661,48.7705]),options:{mobilityProfile:'standard',preference:'balanced'}}});
 const result=messages.at(-1).result;assert(!result.error,JSON.stringify(result.error));
-assert(result.path.every(part=>!isBlocked(part.i)),'a city route must not use a blocked edge');
+// The browser routes on the server's own graph, which leaves blocked ways out entirely.
+assert(manifest.routingNetwork?.source?.graph.startsWith('routing.walk_edges')&&manifest.routingNetwork.edgeCount>200000,'browser routing uses the exported server graph');
+assert(result.path.every(part=>part.i<manifest.routingNetwork.edgeCount));
 console.log(`Access blocks passed: ${count} edges from the audited server graph, OSM-checked samples, hard filter for every profile, no relaxation, real worker load.`);

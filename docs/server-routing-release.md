@@ -27,3 +27,11 @@
 - The gap supplement and access blocks depend on the current `routing.walk_edges`; after a rebuild, regenerate `gap_supplement.json` (`scripts/export_gap_supplement.py`) and `access-blocked.bin`. Stage 2 stops with `gap_supplement_stale` instead of routing on mismatched ids.
 - Shade outside the route corridor (start–end line plus 2 km) counts as 0, exactly as in the browser.
 - The vision profile cannot tell crossings without equipment data from no crossing (data limit, labelled in the app).
+
+## Emergency: route in the browser
+
+The browser carries the server's own graph (`dist/city/routing/`, exported read-only by `scripts/export_server_network.py`) and the same rules, search radii and orange markings. Compared on 8 November 2026 for 5 routes × 7 profiles: identical distances except up to 1.5 % where a far-away start snaps to a neighbouring piece.
+
+- Automatic: if `/capabilities` does not answer when the app opens, production routes in the browser for that page load.
+- Manual switch: set `"serverRouting": false` in `dist/city-config.json`, merge to `main`; Cloudflare deploys in about a minute and the file is served without cache. Set it back to `true` when the server is healthy.
+- After a rebuild of `routing.walk_edges` or the gap supplement, rerun the export (as `sonnenpfad_api` in the Stage-2 directory) and replace `dist/city/routing/` and `routingNetwork` in `dist/city/manifest.json`.

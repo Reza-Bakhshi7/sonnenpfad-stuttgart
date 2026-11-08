@@ -16,7 +16,7 @@ async function profileV2Route({profileApi,lonlat,options,iso,serverPreview=true}
   return {result,shortest:shortest.error?result:shortest};
  }catch(error){return {result:{error:error.routeError||'serverUnavailable'}};}
 }
-let network,obstacles={buildings:[],trees:[]},activeEdgeIds=null,meta,adj,componentCache=new Map(),shades=[];
+let network,obstacles={buildings:[],trees:[]},activeEdgeIds=null,activeTiles=null,meta,adj,componentCache=new Map(),shades=[];
 
 let cityLoadPromise=null,cityInit=null;
 async function ensureNetwork(){if(!cityInit)return;if(!cityLoadPromise)cityLoadPromise=loadCity(cityInit.manifest,cityInit.base).catch(error=>{cityLoadPromise=null;throw error;});await cityLoadPromise;}
@@ -36,27 +36,30 @@ async function fetchMapping(files,base,label){
 
 async function loadCity(manifest,base){
  meta=manifest;
- const blockedFile=manifest.network.accessBlocked?.file,[nodeBuffer,edgeBuffer,snapIndex,blockedBuffer]=await Promise.all([
-  fetchBinary(manifest.network.nodes,base,'nodes'),
-  fetchBinary(manifest.network.edges,base,'edges'),
-  fetchMapping(manifest.network.snapIndex,base,'snap index'),
+ // The server's own graph (scripts/export_server_network.py) when published: blocked ways are already left out.
+ const graph=manifest.routingNetwork||manifest.network,blockedFile=manifest.routingNetwork?null:graph.accessBlocked?.file,[nodeBuffer,edgeBuffer,snapIndex,blockedBuffer]=await Promise.all([
+  fetchBinary(graph.nodes,base,'nodes'),
+  fetchBinary(graph.edges,base,'edges'),
+  fetchMapping(graph.snapIndex,base,'snap index'),
   blockedFile?fetchBinary(blockedFile,base,'access blocks'):null,
  ]);
  // A declared but unusable block list must fail loudly, never route through blocked ways.
- const blocked=blockedBuffer&&new Uint8Array(blockedBuffer);if(blockedFile&&blocked.length!==Math.ceil(manifest.network.edgeCount/8))throw Error('access blocks');
- const nodeView=new DataView(nodeBuffer),edgeView=new DataView(edgeBuffer),nodes=new Array(manifest.network.nodeCount),edges=new Array(manifest.network.edgeCount);
+ const blocked=blockedBuffer&&new Uint8Array(blockedBuffer);if(blockedFile&&blocked.length!==Math.ceil(graph.edgeCount/8))throw Error('access blocks');
+ const nodeView=new DataView(nodeBuffer),edgeView=new DataView(edgeBuffer),nodes=new Array(graph.nodeCount),edges=new Array(graph.edgeCount);
  for(let i=0;i<nodes.length;i++){const o=i*8;nodes[i]=[nodeView.getFloat32(o,true),nodeView.getFloat32(o+4,true)];}
- const stride=manifest.network.edgeStride||32;
+ const stride=graph.edgeStride||32;
  for(let i=0;i<edges.length;i++){const o=i*stride,a=edgeView.getUint32(o,true),b=edgeView.getUint32(o+4,true),flags=edgeView.getUint8(o+29),sf=edgeView.getFloat32(o+16,true),mobility=stride>=48?edgeView.getUint16(o+32,true):0;edges[i]={a,b,c:[nodes[a],nodes[b]],l:edgeView.getFloat32(o+8,true),s:edgeView.getFloat32(o+12,true),sf:Number.isNaN(sf)?null:sf,z0:edgeView.getFloat32(o+20,true),z1:edgeView.getFloat32(o+24,true),dz:edgeView.getFloat32(o+24,true)-edgeView.getFloat32(o+20,true),dir:edgeView.getInt8(o+28),steps:Boolean(flags&1),covered:Boolean(flags&2),sq:edgeView.getUint8(o+30),tactile:Boolean(mobility&1),handrail:Boolean(mobility&2),ramp:Boolean(mobility&4),escalator:Boolean(mobility&8),surface:stride>=48?edgeView.getUint8(o+34):0,way:stride>=48?edgeView.getUint8(o+35):0,width:stride>=48?edgeView.getUint16(o+36,true)/10:0,bench:stride>=48?edgeView.getUint16(o+38,true):65535,shelter:stride>=48?edgeView.getUint16(o+40,true):65535,crossing:stride>=48?edgeView.getUint8(o+42):0,wheelchair:stride>=48?edgeView.getUint8(o+43):0,accessBlocked:Boolean(blocked&&blocked[i>>3]&1<<(i&7))};}
- network={nodes,edges,snapIndex,snapGrid:manifest.network.snapGrid};finishNetwork();
+ network={nodes,edges,snapIndex,snapGrid:graph.snapGrid};finishNetwork();
 }
 
 self.onmessage=async({data:d})=>{try{
  if(d.type==='init'){({network,obstacles,meta}=d);finishNetwork();return;}
  if(d.type==='initCity'){cityInit=d;meta=d.manifest;network={nodes:[],edges:[]};self.postMessage({type:'ready'});return;}
- if(d.type==='obstacles'){obstacles=d.obstacles;activeEdgeIds=d.edgeIds||null;return;}
+ if(d.type==='obstacles'){obstacles=d.obstacles;activeTiles=d.tiles||null;activeEdgeIds=d.edgeIds||null;return;}
  if(d.type==='shade'){if(d.routeAware)await ensureNetwork();
  const center=d.center||[meta.origin[0],meta.origin[1]],sun=sunPosition(new Date(d.iso),center[1],center[0]),polys=makeShadows(obstacles,sun,d.leafOn,d.preview?{preview:true,treeSteps:8}:undefined);
+ // Tile edge ids belong to the display network; with the server graph the corridor is chosen by edge midpoint tile, as on the server.
+ if(d.routeAware&&meta.routingNetwork&&activeTiles){const grid=+meta.obstacles.grid,keys=new Set(activeTiles);activeEdgeIds=[];network.edges.forEach((e,i)=>{if(keys.has(`${Math.floor((e.c[0][0]+e.c[1][0])/2/grid)}_${Math.floor((e.c[0][1]+e.c[1][1])/2/grid)}`))activeEdgeIds.push(i);});}
  if(d.routeAware){if(activeEdgeIds){const visibleEdges=activeEdgeIds.map(i=>network.edges[i]),visibleShades=edgeShades(visibleEdges,polys,sun.altitude<=0),next=new Float32Array(network.edges.length);activeEdgeIds.forEach((edgeId,index)=>{next[edgeId]=visibleShades[index];});shades=next;}else shades=edgeShades(network.edges,polys,sun.altitude<=0);}
  const bounds=d.bounds||meta.bounds,maxRaster=d.preview?384:1024,aspect=(bounds[3]-bounds[1])*meta.scale[1]/((bounds[2]-bounds[0])*meta.scale[0]);let width=maxRaster,height=Math.max(1,Math.round(width*aspect));if(height>maxRaster){height=maxRaster;width=Math.max(1,Math.round(height/aspect));}
  const canvas=new OffscreenCanvas(width,height),ctx=canvas.getContext('2d');ctx.fillStyle='#24364f';

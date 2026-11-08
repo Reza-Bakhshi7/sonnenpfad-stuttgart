@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.17.0 — 8 November 2026
+
+- Emergency routing: the browser now routes on an exact copy of the server graph (221,995 server edges) with the server's search radii (50 m to 5 km) and orange profile markings; all seven profiles match the server.
+- Emergency switch `"serverRouting": false` in `city-config.json` (served without cache) sends every route to the browser.
+
 ## 0.16.2 — 8 November 2026
 
 - New "So funktioniert’s" guide (footer and mobile menu): every routing step, every profile, Explore themes and places, map tools, time and weather, each shown with the symbol the app uses.
