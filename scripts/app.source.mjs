@@ -1,4 +1,4 @@
-let serverRouteController=null,serverRoutingPending=false,serverRoutingReady=false;
+let serverRouteController=null,serverRoutingPending=false,serverRoutingReady=false,browserRoutingOnly=false;
 let exploreMode=false,citySceneLayer=null,profileMarker=null,routeMeasureCache=null,previewFrame=0,previewState=null,previewPreparing=false,previewRequestId=0;
 const cityFetchPending=new Map();
 let displayManifest=null,displayManifestPending=null,displayStore=null,featurePopup=null,featureRequestId=0,poiImagesPending=null,cityScenePending=null;
@@ -74,7 +74,7 @@ function status(k){statusKey=k;$('status').textContent=t(k);}
 Object.assign(strings.de,{choosePoints:'Wähle zuerst Start und Ziel.',planRoute:'Route planen',closePanel:'Karte anzeigen'});
 Object.assign(strings.en,{choosePoints:'Choose a start and destination first.',planRoute:'Plan a route',closePanel:'Show map'});
 async function loadChunkedData(){
- const configResponse=await fetch('./city-config.json').catch(()=>null),config=configResponse?.ok?await configResponse.json().catch(()=>null):null;if(typeof config?.base==='string')cityBaseURL=new URL(config.base,location.href);
+ const configResponse=await fetch('./city-config.json').catch(()=>null),config=configResponse?.ok?await configResponse.json().catch(()=>null):null;if(typeof config?.base==='string')cityBaseURL=new URL(config.base,location.href);browserRoutingOnly=config?.serverRouting===false;
  const cityResponse=await fetch(new URL('manifest.json',cityBaseURL)).catch(()=>null);
  const cityCandidate=cityResponse?.ok?parseCityManifest(await cityResponse.text().catch(()=>'')):null;
  if(cityCandidate){cityManifest=cityCandidate;cityManifest.edges=cityManifest.network.edgeCount;return [cityManifest,{nodes:[],edges:[]},{buildings:[],trees:[]}];}
@@ -241,7 +241,8 @@ async function calculateServerRoute(){
 }
 
 // Preview hosts always route on the Stage-2 server; production hosts only once it declares production readiness.
-function routingServer(){return isRoutingPreview(location.hostname)||serverRoutingReady?PROFILE_V2_API:null;}
+// Emergency switch: "serverRouting": false in city-config.json routes every request in the browser.
+function routingServer(){return !browserRoutingOnly&&(isRoutingPreview(location.hostname)||serverRoutingReady)?PROFILE_V2_API:null;}
 
 async function calculate(){finishPickMode(null);stopRoutePreview(false);hideRoutePosition();if(points.some(p=>!p)){status('choosePoints');return;}if(points.some(p=>!inPilot(p))){$('result').hidden=true;if(map?.getSource('route'))map.getSource('route').setData(fc([]));status('outsidePilot');return;}routeId++;serverRouteController?.abort();const server=routingServer();if(server){serverRoutingPending=false;status('routing');$('calculate').disabled=true;worker.postMessage({type:'route',id:++routeId,start:local(points[0]),end:local(points[1]),lonlat:[points[0].slice(),points[1].slice()],profileApi:server,serverPreview:isRoutingPreview(location.hostname),iso:selectedISO(),options:routeOptions()});return;}if(!isRoutingPreview(location.hostname)&&usesServerRouting({...routeOptions(),preference})){await calculateServerRoute();return;}serverRoutingPending=false;if(cityManifest&&preference!=='balanced'){try{if(!await prepareRouteShade())return;}catch(error){console.error(error);status('modelFailed');$('calculate').disabled=false;return;}}else if(!shadeReady&&map?.getZoom()>=14.5){autoRoute=true;return;}status('routing');$('calculate').disabled=true;worker.postMessage({type:'route',id:++routeId,start:local(points[0]),end:local(points[1]),lonlat:[points[0].slice(),points[1].slice()],profileApi:null,iso:selectedISO(),options:routeOptions()});}
 function routePoiCounts(maxDistance=12){const counts={};if(!result?.coords?.length||!routePois.length)return counts;const segmentDistance=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],den=dx*dx+dy*dy,t=den?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/den)):0;return Math.hypot(p[0]-(a[0]+t*dx),p[1]-(a[1]+t*dy));};for(const poi of routePois){if(![6,7,8].includes(poi.k))continue;for(let i=1;i<result.coords.length;i++)if(segmentDistance(poi.p,result.coords[i-1],result.coords[i])<=maxDistance){counts[poi.k]=(counts[poi.k]||0)+1;break;}}return counts;}

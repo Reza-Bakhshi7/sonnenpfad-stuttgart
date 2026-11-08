@@ -112,7 +112,7 @@ function snapCandidates(network,p,maxSnap){
 function nearestByComponent(network,p,components,options,maxSnap){
  const candidates=snapCandidates(network,p,maxSnap)||network.edges.keys(),best=new Map();for(const i of candidates){const e=network.edges[i];if(!edgeAllowed(e,options))continue;const component=components[e.a];if(component<0)continue;const projection=edgeProjection(e,p),old=best.get(component);if(!old||projection.distance<old.distance)best.set(component,{i,component,...projection});}return best;
 }
-function sharedSnapExists(network,start,end,maxSnap){const components=buildComponents(network,{}),starts=nearestByComponent(network,start,components,{},maxSnap),ends=nearestByComponent(network,end,components,{},maxSnap);for(const [component,a] of starts){const b=ends.get(component);if(b&&a.distance<=maxSnap&&b.distance<=maxSnap)return true;}return false;}
+function sharedSnapExists(network,start,end,maxSnap){const components=network.baseComponents||=buildComponents(network,{}),starts=nearestByComponent(network,start,components,{},maxSnap),ends=nearestByComponent(network,end,components,{},maxSnap);for(const [component,a] of starts){const b=ends.get(component);if(b&&a.distance<=maxSnap&&b.distance<=maxSnap)return true;}return false;}
 export function route(network,adj,shades,start,end,options={}){
  options=resolvedOptions(options);const {preference='balanced',gentle=false}=options,slopeMode=options.slopeMode||(gentle?'both':'none'),components=options.components||buildComponents(network,options),maxSnap=options.maxSnap||30;
  const starts=nearestByComponent(network,start,components,options,maxSnap),ends=nearestByComponent(network,end,components,options,maxSnap);let a=null,b=null,bestSnap=Infinity;
@@ -160,14 +160,35 @@ export function relaxationTiers(options={}){
  return tiers;
 }
 
+// Same search radii as the server (engine.py SNAP_STEPS): a point inside a construction site still gets a route.
+export const SNAP_STEPS=[50,300,1500,5000];
+// Requirements of the requested profile that edge e breaks in this direction (engine.py violations, drawn in orange).
+export function edgeViolations(e,forward,options={}){
+ const found=[],slope=signedEdgeSlope(e,forward);
+ if(options.avoidSteps&&e.steps)found.push('steps');
+ if(options.avoidEscalators&&e.escalator)found.push('escalator');
+ if(options.avoidPoorSurface&&e.surface===3)found.push('poorSurface');
+ if(options.avoidWheelchairNo&&e.wheelchair===3)found.push('wheelchairNo');
+ if(options.maxSlope&&slope!==null&&Math.abs(slope)>options.maxSlope)found.push('maxSlope');
+ return found;
+}
 export function bestAvailableRoute(network,adj,shades,start,end,options={},componentResolver=null){
  const requestedProfile=options.mobilityProfile||'standard',tiers=relaxationTiers(options);let last={error:'outside'},usedOptions=tiers[0].options;
- for(let level=0;level<tiers.length;level++){
-  const tier=tiers[level],candidateOptions={...tier.options};
-  if(componentResolver)candidateOptions.components=componentResolver(candidateOptions);
-  const candidate=route(network,adj,shades,start,end,candidateOptions);last=candidate;usedOptions=candidateOptions;
-  if(!candidate.error){candidate.fallbackLevel=level;candidate.relaxedCriteria=tier.relaxed;candidate.requestedProfile=requestedProfile;return {result:candidate,usedOptions};}
-  if(candidate.error!=='profileBlocked')break;
+ for(const [step,radius] of SNAP_STEPS.entries()){
+  const maxSnap=Math.max(radius,options.maxSnap||0);
+  for(let level=0;level<tiers.length;level++){
+   const tier=tiers[level],candidateOptions={...tier.options,maxSnap};
+   if(componentResolver)candidateOptions.components=componentResolver(candidateOptions);
+   const candidate=route(network,adj,shades,start,end,candidateOptions);if(step===0||candidate.error!=='outside')last=candidate;usedOptions=candidateOptions;
+   if(!candidate.error){
+    candidate.fallbackLevel=level;candidate.relaxedCriteria=tier.relaxed;candidate.requestedProfile=requestedProfile;candidate.snapWidened=step>0;
+    candidate.warnings=candidate.path.map(part=>({part,reasons:edgeViolations(network.edges[part.i],part.forward,tiers[0].options)})).filter(w=>w.reasons.length)
+     .map(({part,reasons})=>({coords:part.coords||(part.forward?network.edges[part.i].c:network.edges[part.i].c.slice().reverse()),reasons}));
+    return {result:candidate,usedOptions};
+   }
+   if(candidate.error==='same')return {result:candidate,usedOptions};
+   if(candidate.error!=='profileBlocked')break;
+  }
  }
  return {result:last,usedOptions};
 }

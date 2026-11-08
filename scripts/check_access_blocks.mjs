@@ -19,7 +19,12 @@ const network={nodes,edges:[edge(0,1),edge(1,2,{accessBlocked:true}),edge(1,3),e
 for(const mobilityProfile of ['standard','wheelchair','vision','custom'])assert(!uses(route(network,adj,shades,[1,0],[19,0],{mobilityProfile})),`${mobilityProfile} must avoid a blocked edge`);
 const far={nodes:[[0,0],[10,0],[100,0]],edges:[]};far.edges=[{...edge(0,1),c:[far.nodes[0],far.nodes[1]]},{...edge(0,1),a:1,b:2,c:[far.nodes[1],far.nodes[2]],l:90,accessBlocked:true}];
 const blockedOnly=bestAvailableRoute(far,buildAdj(far),[0,0],[1,0],[99,0],{mobilityProfile:'wheelchair'}).result;
-assert(blockedOnly.error||!blockedOnly.path.some(part=>part.i===1),'neither snapping nor relaxation may use an access block');assert(blockedOnly.error,'a destination reachable only via a blocked way has no route');
+// Like the server, the wider search ends at the nearest allowed way (89 m away) instead of crossing the block.
+// Orange like the server: a relaxed wheelchair route over the only stairs flags exactly that piece.
+const stairs={nodes:[[0,0],[10,0],[200,0]],edges:[]};stairs.edges=[{...edge(0,1),c:[stairs.nodes[0],stairs.nodes[1]]},{...edge(1,2),c:[stairs.nodes[1],stairs.nodes[2]],l:190,steps:true}];
+const relaxed=bestAvailableRoute(stairs,buildAdj(stairs),[0,0],[1,0],[199,0],{mobilityProfile:'wheelchair'}).result;
+assert.equal(relaxed.relaxedCriteria.at(-1),'steps');assert.deepEqual(relaxed.warnings.map(w=>w.reasons),[['steps']]);assert.equal(relaxed.snapWidened,false);
+assert(!blockedOnly.error&&!blockedOnly.path.some(part=>part.i===1),'neither snapping nor relaxation may use an access block');assert(blockedOnly.snapWidened&&Math.round(blockedOnly.snapDistances[1])===89,'the destination snaps to the nearest allowed way');
 
 // Worker: the real city load marks exactly the declared edges.
 globalThis.self={postMessage:message=>messages.push(message)};const messages=[];
