@@ -6,7 +6,7 @@ Only the current production release on `main` is supported.
 
 ## Reporting
 
-Do not publish credentials, private source data, precise personal locations or security-sensitive logs in a public issue. Report a suspected vulnerability privately to the repository owner (GitHub: Reza-Bakhshi7), not in a public issue.
+Do not publish credentials, private source data, precise personal locations or security-sensitive logs in a public issue. Report a suspected vulnerability privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability** (https://github.com/Reza-Bakhshi7/sonnenpfad-stuttgart/security/advisories/new). Only the repository owner sees the report. Please do not open a public issue for it. This also applies to the [Fußgängeratlas Stuttgart](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart/security/advisories/new).
 
 ## Secrets
 
