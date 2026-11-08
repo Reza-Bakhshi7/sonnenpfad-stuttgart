@@ -7,7 +7,7 @@ export function guideContent(lang) {
   text: text => { const n = key(text); if ([...text].length === 1) n.classList.add('guide-glyph'); return n; },
   glyph: cls => key(el('span', 'choice-glyph ' + cls)),
   svg: selector => { const s = document.querySelector(selector); return key(s ? s.cloneNode(true) : ''); },
-  map: control => { const wrap = el('span', 'maplibregl-ctrl guide-map-key'), b = el('button', 'maplibregl-ctrl-' + control); b.tabIndex = -1; b.append(el('span', 'maplibregl-ctrl-icon')); wrap.setAttribute('aria-hidden', 'true'); wrap.append(b); return wrap; },
+  map: control => { const wrap = el('span', 'maplibregl-ctrl maplibregl-ctrl-group guide-map-key'), b = el('button', 'maplibregl-ctrl-' + control); b.tabIndex = -1; b.append(el('span', 'maplibregl-ctrl-icon')); wrap.setAttribute('aria-hidden', 'true'); wrap.append(b); return wrap; },
   point: end => { const n = el('span', 'point ' + (end ? 'end' : 'start'), end ? 'B' : 'A'); n.classList.add('guide-point'); n.setAttribute('aria-hidden', 'true'); return n; },
   poi: d => { const n = el('span', 'guide-poi'); n.style.background = d.color; const img = el('img'); img.alt = ''; img.src = poiIcons[d.icon] || ''; n.append(img); n.setAttribute('aria-hidden', 'true'); return n; },
   chip: color => { const n = el('span', 'guide-chip'); n.style.background = color; return n; },
@@ -16,13 +16,11 @@ export function guideContent(lang) {
  const line = (tag, text, keys = {}) => { const n = el(tag); for (const part of text.split(/(\{\w+\})/)) { const m = part.match(/^\{(\w+)\}$/); n.append(m && keys[m[1]] ? keys[m[1]] : part); } return n; };
  const steps = items => { const ol = el('ol', 'guide-steps'); for (const [title, text, keys] of items) { const li = el('li'); li.append(el('strong', '', title), line('p', text, keys)); ol.append(li); } return ol; };
  const list = items => { const ul = el('ul', 'guide-list'); for (const [text, keys] of items) ul.append(line('li', text, keys)); return ul; };
- const profiles = [['icon-walk', de ? 'Standard' : 'Standard', de ? 'normale Fußwege' : 'regular walking'],
-  ['icon-wheelchair', de ? 'Rollstuhl' : 'Wheelchair', de ? 'ohne Treppen, Rolltreppen und Steigungen über 6 %' : 'no stairs, escalators or gradients above 6 %'],
-  ['icon-power-wheelchair', de ? 'Elektrorollstuhl' : 'Power wheelchair', de ? 'wie Rollstuhl, verträgt etwas mehr Steigung' : 'like wheelchair, handles a little more gradient'],
-  ['icon-walking-aid', de ? 'Stock oder Rollator' : 'Cane or walker', de ? 'flachere Wege, Bänke zum Ausruhen werden bevorzugt' : 'flatter paths, prefers benches for a rest'],
-  ['icon-blind', de ? 'Blind oder sehbehindert' : 'Blind or low vision', de ? 'bevorzugt Ampeln mit Ton, Vibration oder Leitsystem' : 'prefers crossings with sound, vibration or tactile paving'],
-  ['icon-stroller', de ? 'Kinderwagen' : 'Pushchair', de ? 'ohne Treppen, möglichst glatter Belag' : 'no stairs, smooth surfaces where possible'],
-  ['icon-settings', de ? 'Eigene Einstellungen' : 'Custom settings', de ? 'du legst selbst fest, was gemieden wird' : 'you choose what to avoid']];
+ // Profile texts come from the app's own descriptions, so guide and route panel always agree.
+ const profiles = [['icon-walk', 'standard', de ? 'Standard' : 'Standard'], ['icon-wheelchair', 'wheelchair', de ? 'Rollstuhl' : 'Wheelchair'],
+  ['icon-power-wheelchair', 'powerWheelchair', de ? 'Elektrorollstuhl' : 'Power wheelchair'], ['icon-walking-aid', 'walkingAid', de ? 'Stock oder Rollator' : 'Cane or walker'],
+  ['icon-blind', 'vision', de ? 'Blind oder sehbehindert' : 'Blind or low vision'], ['icon-stroller', 'stroller', de ? 'Kinderwagen' : 'Pushchair'],
+  ['icon-settings', 'custom', de ? 'Eigene Einstellungen' : 'Custom settings']].map(([cls, k, name]) => [cls, name, (profileDescriptions[lang] || profileDescriptions.de)[k] || ''])
 
  const route = el('div', 'guide-pane');
  route.append(steps([
@@ -40,7 +38,7 @@ export function guideContent(lang) {
    { direct: K.glyph('icon-direct'), shade: K.glyph('icon-shade'), sun: K.glyph('icon-sun') }],
   [de ? 'Für wen planst du?' : 'Who are you planning for?', de ? 'Tippe auf ein Symbol:' : 'Tap a symbol:', {}],
  ]));
- route.querySelector('.guide-steps').lastElementChild.append(list(profiles.map(([cls, name, text]) => ['{icon} ' + name + ': ' + text + '.', { icon: K.glyph(cls) }])),
+ route.querySelector('.guide-steps').lastElementChild.append(list(profiles.map(([cls, name, text]) => ['{icon} ' + name + ': ' + text, { icon: K.glyph(cls) }])),
   line('p', de ? 'Bei {custom} wählst du: Steigung {flat} egal, {up} bergauf meiden, {down} bergab meiden, {both} beides meiden. Ein Haken bei {stairs} Treppen, {esc} Rolltreppen, {surface} schlechter Oberfläche oder {wheel} „Rollstuhl: nein“ heißt: diese Wege meiden.'
    : 'With {custom} you choose: gradient {flat} any, {up} avoid uphill, {down} avoid downhill, {both} avoid both. A tick at {stairs} stairs, {esc} escalators, {surface} poor surface or {wheel} “wheelchair: no” means: avoid these ways.',
    { custom: K.glyph('icon-settings'), flat: K.svg('[data-slope="none"] svg'), up: K.svg('[data-slope="uphill"] svg'), down: K.svg('[data-slope="downhill"] svg'), both: K.svg('[data-slope="both"] svg'), stairs: K.glyph('icon-stairs'), esc: K.glyph('icon-escalator'), surface: K.glyph('icon-surface'), wheel: K.glyph('icon-wheelchair') }));
