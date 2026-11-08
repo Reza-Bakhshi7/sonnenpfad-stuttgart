@@ -4,7 +4,7 @@ Status: 8 November 2026. This file lists every external source that Sonnenpfad S
 
 ## Data shipped in this repository
 
-The prepared data in `dist/city/`, `dist/data/`, `dist/dem/` and `services/profile-api-v1/*.json`, as well as the server routing graph, are derived from the [Fußgängeratlas Stuttgart](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart) (Mohammadreza Bakhshi, data status 15 September 2026). Its [SOURCES_AND_RIGHTS.md](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart/blob/main/SOURCES_AND_RIGHTS.md) holds the full evidence. All atlas sources and their credits:
+The prepared data in `dist/city/` (including `dist/city/routing/`, a read-only export of the server routing graph), `dist/data/`, `dist/dem/` and `services/profile-api-v1/*.json`, as well as the server routing graph itself, are derived from the [Fußgängeratlas Stuttgart](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart) (Mohammadreza Bakhshi, data status 15 September 2026). Its [SOURCES_AND_RIGHTS.md](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart/blob/main/SOURCES_AND_RIGHTS.md) holds the full evidence. All atlas sources and their credits:
 
 | Source | Used for | Licence | Required credit |
 | --- | --- | --- | --- |

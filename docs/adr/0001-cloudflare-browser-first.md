@@ -1,6 +1,6 @@
 # ADR 0001: Cloudflare hosting with browser-first geospatial processing
 
-- Status: accepted
+- Status: superseded in 0.15.0 (routing moved to the Sonnenpfad server; the browser keeps an identical emergency copy, see `docs/server-routing-release.md`)
 - Date: 2026-09-18
 
 ## Context

@@ -2,7 +2,7 @@ import {weatherUrl,normalizeWeather,normalizeMetWeather,usableWeatherCache,WEATH
 
 const inFlight=new Map();
 const metURL='https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=48.778&lon=9.180';
-const agent='Sonnenpfad-Stuttgart/0.12 (https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev; https://github.com/Reza-Bakhshi7)';
+const agent='Sonnenpfad-Stuttgart (https://sonnenpfad-stuttgart.de; https://github.com/Reza-Bakhshi7/sonnenpfad-stuttgart)';
 const json=(model,cacheState)=>new Response(JSON.stringify(model),{headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Weather-Cache':cacheState,'X-Content-Type-Options':'nosniff'}});
 
 export async function fetchProviderWeather({fetchImpl=fetch,now=Date.now,hedgeMs=1800}={}) {

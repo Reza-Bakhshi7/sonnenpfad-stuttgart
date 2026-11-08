@@ -1,4 +1,4 @@
-# Sonnenpfad Stuttgart — Prototype 0.16.0
+# Sonnenpfad Stuttgart — Prototype 0.17.1
 
 A sun/shade-aware pedestrian routing prototype developed by Mohammadreza Bakhshi and built from the [Stuttgart Pedestrian Atlas](https://github.com/Reza-Bakhshi7/fussgaengeratlas-stuttgart). German and English, desktop and mobile. Every profile is routed on the Sonnenpfad server (Oracle VM, PostGIS graph, in-memory routing engine, same shadow model as the browser). No paid routing API key is required.
 
@@ -6,19 +6,19 @@ Autor und Inhaber von Sonnenpfad Stuttgart und Fußgängeratlas Stuttgart ist Mo
 
 Production: <https://sonnenpfad-stuttgart.de/> (Cloudflare alias: <https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/>)
 
-Project rules are documented in [GOVERNANCE.md](GOVERNANCE.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [release process](docs/release-process.md). The current architecture and eight-step roadmap are in `docs/`.
+Project rules are documented in [GOVERNANCE.md](GOVERNANCE.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [release process](docs/release-process.md). Architecture, operation and the server routing are described in `docs/`; all sources and licences in [SOURCES_AND_LICENCES.md](SOURCES_AND_LICENCES.md).
 
 ## Run and deploy
 
 Run `npm ci`, `npm run build`, and then serve `dist/` over HTTP (for example `python -m http.server 8080 --directory dist`). ES module workers do not run from `file://` URLs. Cloudflare Workers Static Assets uses `wrangler.jsonc`; `npm run deploy` performs a manual deployment. Cloudflare Builds should use `npm run build` as its build command and `npx wrangler deploy` as its deploy command.
 
-Prepared application data is split into size-bounded static chunks so the browser can load it reliably and Cloudflare can cache it efficiently. Visual tiles and 3D shadow-obstacle tiles are separate, allowing 2D to avoid building and tree payloads. The shadow worker (and the browser routing engine, used only as fallback when the server is unreachable at start-up) is embedded as a Blob. The original GeoPackage is a local, read-only pipeline input and is not committed.
+Prepared application data is split into size-bounded static chunks so the browser can load it reliably and Cloudflare can cache it efficiently. Visual tiles and 3D shadow-obstacle tiles are separate, allowing 2D to avoid building and tree payloads. The shadow worker and the browser routing engine are embedded as a Blob. The browser engine is the emergency fallback and routes on an identical copy of the server graph (`dist/city/routing/`). The original GeoPackage is a local, read-only pipeline input and is not committed.
 
 ## Included
 
-- Full-municipality Stuttgart network, building footprints/heights and trees when the versioned city assets are published; robust pilot fallback otherwise.
+- Full-municipality Stuttgart walking network, building footprints and heights, and trees.
 - Direct, shade-preferring and sun-preferring Dijkstra routes with separate uphill/downhill treatment.
-- Mobility presets for manual wheelchair, power wheelchair, cane/walker, blind or low-vision pedestrians and pushchairs. Known barriers are hard exclusions, unknown attributes remain routable but visible, and custom controls expose width, gradient, surface, stair, escalator and wheelchair restrictions. The exact assumptions are documented in [Step 5 routing profiles](docs/step5-routing-profiles.md).
+- Mobility presets for manual wheelchair, power wheelchair, cane/walker, blind or low-vision pedestrians and pushchairs. Known barriers are hard exclusions, unknown attributes remain routable but visible, and custom settings choose gradient direction and avoid stairs, escalators, poor surfaces or ways marked unsuitable for wheelchairs. The exact assumptions are documented in [Step 5 routing profiles](docs/step5-routing-profiles.md).
 - Photon-backed Stuttgart place/address search with explicit map picking and confirmed mobile endpoints.
 - Changing date/time updates solar geometry, the 3D shadow display and route weighting. The solar compass responds immediately while the time slider is dragged; automatic time animation is intentionally disabled.
 - Hourly Open-Meteo weather for a fixed Stuttgart reference point: condition, temperature, cloud cover, direct radiation, 10 m wind, forecast-valid time and retrieval time. Direct radiation transparently scales the optional sun/shade preference; details and limitations are documented in [Step 6 live weather](docs/step6-live-weather.md).
@@ -28,7 +28,7 @@ Prepared application data is split into size-bounded static chunks so the browse
 - Ten switchable citywide accessibility and comfort POI categories: signal crossings, elevators, ramps, escalators, stairs, barriers/gates, lowered and raised kerbs, benches and shelters. Signal crossings keep one layer toggle but use the atlas's four accessibility colours and expose sound, vibration, tactile, wheelchair and kerb attributes in their detail popup.
 - Display tiles are separated from heavier building/tree shadow tiles. 2D downloads only paths, themes and POIs; 3D loads the second payload lazily. Nearby buildings and rounded tree crowns receive progressively richer budgets, identical views are not rebuilt, and one exact shadow refresh runs only after the camera has settled.
 - Elevation profile with absolute route heights, ascent and descent.
-- DE/EN interface and explicit out-of-area feedback.
+- DE/EN interface, explicit out-of-area feedback and a step-by-step “How it works” guide showing every control with its real symbol.
 
 ## Data pipeline
 
@@ -70,7 +70,7 @@ Requests: two routes compute at once, further ones queue up to 10 s; Nginx limit
 
 ## Verification
 
-`npm test` runs all static and behavioural checks; `python -m unittest` in `services/profile-api-v1` tests the server engine, adapter and shadow parity. `node scripts/check_engine.mjs` checks solar direction/elevation, a known shadow geometry, route continuity, varied sun/shade route choices, edge snapping, automatic fallback from isolated fragments, the elevation profile and out-of-area rejection. Recorded results are in `scripts/verification.json`. Static source/asset checks were also run. Browser rendering and device-specific WebGL performance have not yet been verified in this environment. Optional WebMCP state read-back is feature-detected; supported-browser registration validation was unavailable.
+`npm test` runs all static and behavioural checks; `python -m unittest` in `services/profile-api-v1` tests the server engine, adapter and shadow parity. `node scripts/check_engine.mjs` checks solar direction/elevation, a known shadow geometry, route continuity, varied sun/shade route choices, edge snapping, automatic fallback from isolated fragments, the elevation profile and out-of-area rejection. Recorded results are in `scripts/verification.json`. Browser and server routes were compared for all seven profiles and for shade/sun routing (identical distances and shade shares). Rendering was checked in current desktop and mobile browsers; device-specific WebGL performance varies.
 
 Pull requests and pushes to `main` run `npm test` in GitHub Actions. Operational smoke tests and rollback instructions are documented in [`docs/operations-runbook.md`](docs/operations-runbook.md).
 
@@ -82,8 +82,7 @@ Every data source, service, font and icon with its licence and required credit i
 
 ## Next useful increments
 
-1. Inspect the pilot visually and validate a few known route/shadow cases in the field.
-2. Replace the interpolated display terrain with an authoritative raster DEM when redistribution and hosting terms are confirmed; audit sidewalk alignment and topology.
-3. Validate weather-aware route choices against representative clear and overcast days; decide whether animated spatial cloud rendering adds enough value for its performance cost.
-4. Add a user detour budget and expand coverage after performance measurements.
-
+1. Validate routes for wheelchair, walker, low-vision and pushchair users in the field, together with the people concerned.
+2. Replace the interpolated display terrain with an authoritative raster DEM when redistribution terms are confirmed.
+3. Validate weather-aware route choices against representative clear and overcast days.
+4. Refresh the OSM reference and the atlas, then re-export the server graph and the browser copy.

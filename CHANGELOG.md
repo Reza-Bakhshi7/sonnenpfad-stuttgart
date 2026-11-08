@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.1 — 8 November 2026
+
+- Public repository review: outdated internal notes removed (old roadmap, R2 plan, preview and migration logs, dated audit, one-off CORS repair script); operations runbook and server README rewritten for the current setup; ADR 0001 marked superseded.
+- Security: HSTS header, wrangler 4.157.0 (no known vulnerabilities in `npm audit`), weather provider user agent updated.
+- README corrected (custom settings, verification, next steps); sources list names the browser copy of the server graph.
+
 ## 0.17.0 — 8 November 2026
 
 - Emergency routing: the browser now routes on an exact copy of the server graph (221,995 server edges) with the server's search radii (50 m to 5 km) and orange profile markings; all seven profiles match the server.
