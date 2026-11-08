@@ -291,3 +291,23 @@ body.is-exploring .maplibregl-canvas-container.maplibregl-interactive:active{cur
 
 
 .profile-readout{justify-content:flex-end;min-height:0;margin:2px 0}.profile-readout:has(#elevation-position:empty){display:none}
+
+/* So funktioniert's */
+.guide-dialog{max-width:640px}
+.guide-intro{margin-top:4px}
+.guide-tabs{margin:14px 0 6px}
+.guide-steps{padding-left:22px;margin:12px 0}
+.guide-steps>li{margin-bottom:16px;font-size:14px;color:var(--ink)}
+.guide-steps>li>strong{display:block;font-size:15px;margin-bottom:2px}
+.guide-steps p,.guide-list li{margin:4px 0}
+.guide-list{padding-left:4px;list-style:none}
+.guide-key{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:26px;height:26px;padding:0 6px;margin:0 2px;border:1px solid #cfd9df;border-radius:8px;background:#fff;color:var(--navy);font-size:13px;font-weight:650;line-height:1;vertical-align:middle;box-shadow:0 1px 2px #14395914}
+.guide-key svg,.guide-key .choice-glyph{width:18px;height:18px;color:var(--navy)}
+.guide-point{display:inline-flex;width:22px;height:22px;vertical-align:middle;margin:0 2px}
+.guide-map-key{display:inline-block;vertical-align:middle;margin:0 2px;border-radius:6px;box-shadow:0 0 0 1px #cfd9df;background:#fff;overflow:hidden}
+.guide-map-key button{pointer-events:none}
+.guide-poi{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:4px}
+.guide-poi img{width:16px;height:16px}
+.guide-chip{display:inline-block;width:16px;height:6px;border-radius:3px;margin-right:2px;vertical-align:middle}
+.guide-chips{display:inline-flex;gap:1px;margin-right:4px;vertical-align:middle}
+footer button#guide{color:var(--navy)}
