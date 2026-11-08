@@ -15,7 +15,8 @@
     "source_is_committed_to_git": false,
     "public_outputs_contain_selected_fields_only": true,
     "stable_feature_key": "atlas_id",
-    "geometry_column": "geom"
+    "geometry_column": "geom",
+    "sources_and_licences": "SOURCES_AND_LICENCES.md"
   },
   "layers": [
     {
@@ -24,8 +25,8 @@
       "geometry": "LINESTRING",
       "baseline_count": 69769,
       "required_fields": ["fid", "geom", "atlas_id", "fclass", "length_m", "elev_start", "elev_end", "slope_pct", "tunnel", "display_name", "highway_current", "access_current", "foot_current", "indoor_current", "covered_current", "osm_tags_current"],
-      "provenance": "Derived pedestrian network, primarily from OpenStreetMap/Geofabrik with documented manual and analytical corrections",
-      "license_status": "documented_in_project"
+      "provenance": "OpenStreetMap/Geofabrik walking network with LGL DGM1 endpoint elevations and documented corrections",
+      "license_status": "ODbL 1.0; LGL dl-de/by-2-0"
     },
     {
       "name": "Buildings",
@@ -33,8 +34,8 @@
       "geometry": "MULTIPOLYGON",
       "baseline_count": 105521,
       "required_fields": ["fid", "geom", "atlas_id", "hoehe_m"],
-      "provenance": "Building footprints and derived/estimated heights from the atlas production workflow",
-      "license_status": "source_metadata_to_be_consolidated"
+      "provenance": "OpenStreetMap building footprints with heights from OSM tags or LGL nDOM1 estimates",
+      "license_status": "ODbL 1.0; LGL dl-de/by-2-0"
     },
     {
       "name": "Trees",
@@ -42,8 +43,8 @@
       "geometry": "POINT",
       "baseline_count": 23486,
       "required_fields": ["fid", "geom", "atlas_id", "height_calculated", "crown_radius", "leaf_cycle"],
-      "provenance": "OpenStreetMap tree positions enriched with nDOM1-derived height and crown estimates",
-      "license_status": "source_metadata_to_be_consolidated"
+      "provenance": "OpenStreetMap tree positions enriched with LGL nDOM1-derived height and crown estimates",
+      "license_status": "ODbL 1.0; LGL dl-de/by-2-0"
     },
     {
       "name": "Stuttgart_Municipality",
@@ -51,8 +52,8 @@
       "geometry": "MULTIPOLYGON",
       "baseline_count": 1,
       "required_fields": ["fid", "geom", "atlas_id", "Gemeindeschlüssel_AGS"],
-      "provenance": "Official Stuttgart municipal boundary included in the final atlas package",
-      "license_status": "source_metadata_to_be_consolidated"
+      "provenance": "BKG Verwaltungsgebiete 1:25 000 (VG25), Stuttgart selected",
+      "license_status": "CC BY 4.0"
     },
     {
       "name": "Surface",
@@ -71,8 +72,8 @@
       "baseline_count": 69769,
       "required_fields": ["fid", "geom", "atlas_id", "noise_db", "noise_class"],
       "must_match_network_atlas_ids": true,
-      "provenance": "Derived from Stuttgart INSPIRE road, rail and industrial noise layers",
-      "license_status": "documented_in_project"
+      "provenance": "Derived from Landeshauptstadt Stuttgart INSPIRE road, rail and industrial noise mapping",
+      "license_status": "CC BY 4.0"
     },
     {
       "name": "Shade_Summer",
@@ -121,8 +122,8 @@
       "baseline_count": 69769,
       "required_fields": ["fid", "geom", "atlas_id", "wind_exposure_index", "wind_exposure_class", "wind_comfort_summer", "wind_comfort_winter"],
       "must_match_network_atlas_ids": true,
-      "provenance": "Derived relative wind-exposure indicator; not a physical wind-speed product",
-      "license_status": "derived"
+      "provenance": "Derived relative wind-exposure indicator from the LUBW Klimaatlas BW wind field (1,000 m); not a physical wind-speed product",
+      "license_status": "dl-de/by-2-0"
     },
     {
       "name": "Signalized_Crossings",

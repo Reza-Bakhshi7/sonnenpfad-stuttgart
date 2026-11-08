@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.1 — 8 November 2026
+
+- New SOURCES_AND_LICENCES.md lists every data source, service, font and icon with licence and required credit; the shipped data are stated as an ODbL derived database.
+- The About dialog names all data sources with their licences (OSM, LGL, Stuttgart noise mapping, LUBW Klimaatlas BW, BKG VG25, MobiData BW / NVBW).
+- POI symbols replaced by the atlas's newly drawn CC0 symbols; the earlier working icons (partly Icons8) are no longer shipped.
+- Apache 2.0 licence text added for the Material Symbols shade icon; data catalogue provenance and licences completed.
+
 ## 0.16.0 — 3 November 2026
 
 - Always a route: if a start or destination lies more than 50 m from the network (e.g. Hauptbahnhof search hits inside the construction site), the server widens the search up to 5 km and the app names the distance. Explicit access prohibitions are still never used.
