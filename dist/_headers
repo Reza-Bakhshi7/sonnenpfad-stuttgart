@@ -13,6 +13,10 @@
 /city/*
   Cache-Control: public, max-age=86400, must-revalidate
 
+/city/manifest.json
+  ! Cache-Control
+  Cache-Control: no-cache
+
 /dem/*
   Cache-Control: public, max-age=604800, must-revalidate
 
