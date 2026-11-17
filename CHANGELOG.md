@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.0 — 17 November 2026
+
+- Desktop: zoom out to the whole city with a margin; in Explore, paths, themes and places stay visible down to zoom 10 with smaller symbols and lines.
+- Feature details open only from zoom 14.5, as before; phones keep the previous zoom limits and loading.
+
 ## Maintenance — 8 November 2026
 
 - Data pipeline: Pillow 10.4.0 → 13.0.0 (fixes all 52 Dependabot alerts; used only to write terrain PNG tiles, not shipped in the app or on the server).

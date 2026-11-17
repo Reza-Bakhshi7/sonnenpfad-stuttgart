@@ -2,8 +2,10 @@
 export const DISPLAY_THEME_KEYS=['sl','su','ss','sw','us','uw','n','w'];
 export const DISPLAY_THEME_NAMES=['slope','surface','shadeSummer','shadeWinter','utciSummer','utciWinter','noise','wind'];
 
-export function displayDemand({explore=false,threeD=false,zoom=0,pois=false,theme='slope'}={}) {
- return {paths:explore&&zoom>=10,theme:explore&&zoom>=10&&DISPLAY_THEME_NAMES.includes(theme)?theme:null,pois:explore&&pois&&zoom>=10,trees:threeD&&zoom>=14,details:false,dem:false,obstacles:false};
+// Desktop shows the whole city from zoom 10; phones keep the lighter 14.45 threshold.
+export function displayDemand({explore=false,threeD=false,zoom=0,pois=false,theme='slope',wide=false}={}) {
+ const min=wide?10:14.45;
+ return {paths:explore&&zoom>=min,theme:explore&&zoom>=min&&DISPLAY_THEME_NAMES.includes(theme)?theme:null,pois:explore&&pois&&zoom>=min,trees:threeD&&zoom>=14,details:false,dem:false,obstacles:false};
 }
 
 export function selectDisplayTiles(manifest,meta,bounds,center,{limit=18,padding=1,bearing=0}={}) {
