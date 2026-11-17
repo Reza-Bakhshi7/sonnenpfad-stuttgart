@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — planned large update
+## 0.19.0 — 17 November 2026
 
 - Explore mode: boundaries of the 23 Stuttgart districts, multi-selection of districts and a gradient filter on the thesis working network (ways cut at district borders, gradient regardless of direction, stairs and missing values shown on request). Active selection shown on the map and resettable with one tap. Test case: Wangen and Hedelfingen above 5 % = 710 sections (16 without a value).
 - Unrealistic gradients above 30 % (terrain-model errors) are removed from the explore display and the district data.
