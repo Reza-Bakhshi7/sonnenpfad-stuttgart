@@ -3,7 +3,7 @@ export const DISPLAY_THEME_KEYS=['sl','su','ss','sw','us','uw','n','w'];
 export const DISPLAY_THEME_NAMES=['slope','surface','shadeSummer','shadeWinter','utciSummer','utciWinter','noise','wind'];
 
 export function displayDemand({explore=false,threeD=false,zoom=0,pois=false,theme='slope'}={}) {
- return {paths:explore&&zoom>=14.45,theme:explore&&zoom>=14.45&&DISPLAY_THEME_NAMES.includes(theme)?theme:null,pois:explore&&pois&&zoom>=14.45,trees:threeD&&zoom>=14,details:false,dem:false,obstacles:false};
+ return {paths:explore&&zoom>=10,theme:explore&&zoom>=10&&DISPLAY_THEME_NAMES.includes(theme)?theme:null,pois:explore&&pois&&zoom>=10,trees:threeD&&zoom>=14,details:false,dem:false,obstacles:false};
 }
 
 export function selectDisplayTiles(manifest,meta,bounds,center,{limit=18,padding=1,bearing=0}={}) {
