@@ -370,7 +370,7 @@ function createDisplayStore({baseURL,fetchImpl=fetch,maxEntries=96}={}) {
   if(cache.has(key)){const value=cache.get(key);cache.delete(key);cache.set(key,value);return value;}
   if(pending.has(key))return pending.get(key);
   const url=new URL(file,baseURL);if(revision)url.searchParams.set('v',revision);
-  const request=(async()=>{const response=await fetchImpl(url,{signal:AbortSignal.timeout(9000)});if(!response.ok)throw Error(`Display asset ${response.status}: ${file}`);const value=await response.json();cache.set(key,value);while(cache.size>maxEntries)cache.delete(cache.keys().next().value);return value;})().finally(()=>pending.delete(key));
+  const request=(async()=>{const response=await fetchImpl(url,{signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error(`Display asset ${response.status}: ${file}`);const value=await response.json();cache.set(key,value);while(cache.size>maxEntries)cache.delete(cache.keys().next().value);return value;})().finally(()=>pending.delete(key));
   pending.set(key,request);return request;
  };
  return {get,snapshot:()=>({cached:cache.size,pending:pending.size})};
