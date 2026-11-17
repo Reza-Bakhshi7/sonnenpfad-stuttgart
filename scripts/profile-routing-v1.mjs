@@ -49,7 +49,7 @@ export function adaptProfileV1Route(data,toLocal,request){
  Object.assign(route.quality,{surfaceKnown:coverage.surface,widthKnown:coverage.width,wheelchairKnown:coverage.wheelchair,slopeKnown:coverage.elevation});
  // Pieces that break the requested profile (after relaxation) are drawn in orange.
  const warnings=(p.segments||[]).filter(segment=>Array.isArray(segment.profile_violations)&&segment.profile_violations.length)
-  .map(segment=>({coords:segment.geometry.coordinates.map(toLocal),reasons:segment.profile_violations}));
+  .map(segment=>{const a=segment.atlas_attributes||{},slope=a.slope_pct===null||a.slope_pct===undefined?NaN:Math.abs(+a.slope_pct);return {coords:segment.geometry.coordinates.map(toLocal),reasons:segment.profile_violations,slope:Number.isFinite(slope)?slope:null,surface:a.surface||null,name:a.display_name||a.name||null,limit:request.tiers?.[0]?.options?.maxSlope||null};});
  return {...route,source:'server-profile-v1',shade:p.shade,warnings,snapWidened:p.snap_widened===true,minutes:p.estimated_minutes,ascent:p.ascent_m,descent:p.descent_m,
   profile:p.elevation_profile,timeModel:model,criteria:options,effectiveOptions:options,
   requestedProfile:p.requested_profile,relaxedCriteria:p.relaxed_criteria,fallbackLevel:level};

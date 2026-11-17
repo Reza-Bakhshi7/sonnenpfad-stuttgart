@@ -183,7 +183,7 @@ export function bestAvailableRoute(network,adj,shades,start,end,options={},compo
    if(!candidate.error){
     candidate.fallbackLevel=level;candidate.relaxedCriteria=tier.relaxed;candidate.requestedProfile=requestedProfile;candidate.snapWidened=step>0;
     candidate.warnings=candidate.path.map(part=>({part,reasons:edgeViolations(network.edges[part.i],part.forward,tiers[0].options)})).filter(w=>w.reasons.length)
-     .map(({part,reasons})=>({coords:part.coords||(part.forward?network.edges[part.i].c:network.edges[part.i].c.slice().reverse()),reasons}));
+     .map(({part,reasons})=>{const slope=signedEdgeSlope(network.edges[part.i],part.forward);return {coords:part.coords||(part.forward?network.edges[part.i].c:network.edges[part.i].c.slice().reverse()),reasons,slope:slope===null?null:Math.abs(slope),limit:tiers[0].options.maxSlope||null};});
     return {result:candidate,usedOptions};
    }
    if(candidate.error==='same')return {result:candidate,usedOptions};

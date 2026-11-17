@@ -8,8 +8,8 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./style.css?v=1c381d814ce4af61">
-<script type="module" src="./app-v7.mjs?v=5835f3782cd6bae1">
+<link rel="stylesheet" href="./style.css?v=6ea3208a7738a696">
+<script type="module" src="./app-v7.mjs?v=93c2227eca8f7c0a">
 </script>
 </head>
 <body>
@@ -289,6 +289,24 @@
 <strong id="layers-title" data-i="layersTitle">Kartenebenen</strong>
 <button id="layers-close" data-i-aria="close" type="button" aria-label="Schließen">×</button>
 </div>
+<section id="planner" class="planner" aria-labelledby="planner-title" hidden>
+<h3 id="planner-title">Bezirke prüfen</h3>
+<details id="district-picker" class="district-picker">
+<summary id="district-summary">Alle Stadtbezirke</summary>
+<div class="district-actions"><button type="button" id="district-all">Alle</button><button type="button" id="district-none">Keine</button></div>
+<div id="district-options" class="district-options"></div>
+</details>
+<div class="slope-filter">
+<label class="planner-check"><input type="checkbox" id="slope-filter"><span id="slope-filter-label">Nur Steigung über</span></label>
+<span class="slope-value"><input type="number" id="slope-min" min="0" max="30" step="0.5" value="5" aria-labelledby="slope-filter-label"> %</span>
+<input type="range" id="slope-range" min="0" max="30" step="0.5" value="5" aria-labelledby="slope-filter-label">
+</div>
+<label class="planner-check"><input type="checkbox" id="planner-missing" checked><span id="planner-missing-label">Abschnitte ohne Wert zeigen (grau)</span></label>
+<label class="planner-check"><input type="checkbox" id="planner-stairs"><span id="planner-stairs-label">Treppen einblenden</span></label>
+<p id="planner-result" class="planner-result" role="status" aria-live="polite" hidden></p>
+<button type="button" id="planner-reset" class="text-button" hidden>Zurücksetzen</button>
+<p id="planner-source" class="micro"></p>
+</section>
 <label for="theme" data-i="themeLabel">Linienthema</label>
 <select id="theme" data-i-aria="themeLabel" class="visually-hidden-select" aria-label="Linienthema">
 <option value="slope">Steigung</option><option value="surface">Oberfläche</option><option value="shadeSummer">Schatten · Sommer</option><option value="shadeWinter">Schatten · Winter</option><option value="utciSummer">UTCI · Sommer</option><option value="utciWinter">UTCI · Winter</option><option value="noise">Lärm</option><option value="wind">Wind</option>
@@ -303,6 +321,7 @@
 </fieldset>
 </section>
 <aside class="theme-legend" id="theme-legend" hidden aria-live="polite"></aside>
+<div class="planner-chip" id="planner-chip" hidden><button type="button" id="planner-chip-open"></button><button type="button" id="planner-chip-clear" aria-label="Auswahl und Filter zurücksetzen">×</button></div>
 <div class="map-toast" id="map-toast" hidden role="status" aria-live="polite">
 <span id="map-toast-text"></span>
 <button id="map-toast-close" data-i-aria="close" type="button" aria-label="Schließen">×</button>

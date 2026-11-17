@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {DISPLAY_THEME_KEYS,DISPLAY_THEME_NAMES} from './display-data.mjs';
 
+const DISPLAY_SLOPE_CAP=30;
 // Run against the checked-out authoritative assets on every build. The original
 // manifest, graph, DEM, POI details and shadow tiles are deliberately immutable.
 export function buildDisplayAssets(cityDirectory) {
@@ -14,8 +15,10 @@ export function buildDisplayAssets(cityDirectory) {
  const hash=crypto.createHash('sha256'),stats={paths:0,trees:0,pois:0,detailRecords:0,displayBytes:0,sceneBytes:0,oldSceneBytes:0,themeBytes:0,detailBytes:0},tiles={};
  const write=(file,data)=>{const content=JSON.stringify(data),filename=path.join(cityDirectory,file);fs.mkdirSync(path.dirname(filename),{recursive:true});fs.writeFileSync(filename,content);hash.update(file).update(content);return Buffer.byteLength(content);};
  for(const [key,definition] of Object.entries(manifest.obstacles.tiles)) {
-  const display=read(definition.displayFile||definition.file),shade=read(definition.shadeFile||definition.file),edgeIds=display.edgeIds||[],themes=display.themes||[],pathsFile=`visual/paths/${key}.json`,sceneFile=`visual/scene/${key}.json`,poiFile=`visual/pois/${key}.json`,detailFile=`visual/details/${key}.json`,themeFiles={};
+  const display=read(definition.displayFile||definition.file),shade=read(definition.shadeFile||definition.file),edgeIds=display.edgeIds||[],rawThemes=display.themes||[],pathsFile=`visual/paths/${key}.json`,sceneFile=`visual/scene/${key}.json`,poiFile=`visual/pois/${key}.json`,detailFile=`visual/details/${key}.json`,themeFiles={};
   const flags=edgeIds.map(id=>[structures[id]||0,steps[id]||0,(directions.length>id?directions.readInt8(id):0)]);
+  // Non-stair gradients above the cap are terrain-model errors (export_planner_data.py SLOPE_CAP); shown as missing.
+  const themes=rawThemes.map((values,index)=>values&&!flags[index][1]&&Math.abs(values[0])>DISPLAY_SLOPE_CAP?[null,...values.slice(1)]:values);
   stats.displayBytes+=write(pathsFile,{lines:display.lines||[],edgeIds,flags});stats.paths+=edgeIds.length;
   const trees=(shade.trees||[]).map(({p,r,h,evergreen})=>({p,r,h,...(evergreen?{evergreen:true}:{})}));
   stats.sceneBytes+=write(sceneFile,{trees});stats.trees+=trees.length;stats.oldSceneBytes+=fs.statSync(path.join(cityDirectory,definition.shadeFile||definition.file)).size;

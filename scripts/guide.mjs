@@ -47,9 +47,9 @@ export function guideContent(lang) {
    de ? 'Drück {go}. Änderst du danach Profil, Gehweise oder Uhrzeit, rechnet die App selbst neu.' : 'Press {go}. If you then change the profile, walking mode or time, the app recalculates by itself.',
    { go: K.text(de ? 'Route entdecken →' : 'Discover route →') }],
   [de ? 'Ergebnis lesen' : 'Read the result',
-   de ? 'Oben stehen Gehzeit, Kilometer und Schattenanteil. Auf der Karte ist die Route {red} rot. {orange} Orange Stücke passen nicht zu deinem Profil (z. B. eine Treppe), die App sagt darunter warum. Die gestrichelte Linie führt vom gewählten Punkt zum nächsten Gehweg. Passt gar keine Route, siehst du trotzdem die bestmögliche mit dem Hinweis „Keine Route erfüllt dein Profil vollständig“.'
-      : 'At the top you see walking time, kilometres and share of shade. On the map the route is {red} red. {orange} Orange pieces do not fit your profile (e.g. stairs); the app explains why below. The dashed line leads from your point to the nearest footway. If no route fits, you still get the best possible one with the note “No route fully meets your profile”.',
-   { red: K.chip('#d7191c'), orange: K.chip('#f28c28') }],
+   de ? 'Oben stehen Gehzeit, Kilometer und Schattenanteil. Auf der Karte ist die Route {red} blau. {orange} Orange Stücke passen nicht zu deinem Profil (z. B. eine Treppe). Tippe auf ein oranges Stück, dann siehst du den Grund, zum Beispiel die Steigung. Die gestrichelte Linie führt vom gewählten Punkt zum nächsten Gehweg. Passt gar keine Route, siehst du trotzdem die bestmögliche mit dem Hinweis „Keine Route erfüllt dein Profil vollständig“.'
+      : 'At the top you see walking time, kilometres and share of shade. On the map the route is {red} blue. {orange} Orange pieces do not fit your profile (e.g. stairs). Tap an orange piece to see why, for example the gradient. The dashed line leads from your point to the nearest footway. If no route fits, you still get the best possible one with the note “No route fully meets your profile”.',
+   { red: K.chip('#1a73e8'), orange: K.chip('#f28c28') }],
   [de ? 'Höhenprofil' : 'Elevation profile',
    de ? 'Fahr mit Maus oder Finger über die Kurve. Ein blauer Pfeil zeigt dir die Stelle auf der Karte.' : 'Move the mouse or your finger along the curve. A blue arrow shows the spot on the map.', {}],
   [de ? 'Route ansehen und teilen' : 'Watch and share the route',

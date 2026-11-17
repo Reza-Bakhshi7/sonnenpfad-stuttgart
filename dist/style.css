@@ -96,9 +96,9 @@ html[lang=en] .sidebar-body h2{font-size:20px;white-space:nowrap;letter-spacing:
 .slope-icons{display:flex;gap:4px;justify-content:space-between}
 .slope-icons button{flex:1;min-width:0;padding:4px!important;height:34px!important}
 .route-preview{width:100%;margin:8px 0;padding:8px 12px;border:1px solid #cad7df;border-radius:8px;background:#edf4f7;color:#143959;font-weight:650}
-.profile-map-point{width:14px;height:14px;border:3px solid #fff;border-radius:50%;background:#d7191c;box-shadow:0 0 0 2px #d7191c,0 2px 7px #0005;pointer-events:none}
+.profile-map-point{width:14px;height:14px;border:3px solid #fff;border-radius:50%;background:#1a73e8;box-shadow:0 0 0 2px #1a73e8,0 2px 7px #0005;pointer-events:none}
 #elevation-chart{touch-action:pan-y;cursor:crosshair}
-#elevation-cursor{stroke:#d7191c;stroke-width:1.5;stroke-dasharray:3 2;pointer-events:none}
+#elevation-cursor{stroke:#1a73e8;stroke-width:1.5;stroke-dasharray:3 2;pointer-events:none}
 .map-tools #explore-mode{width:auto;min-width:80px;font-size:11px;padding:0 9px;white-space:nowrap}
 .map-tools #explore-mode[aria-pressed=true]{background:#143959;color:#fff}
 .weather-main>#weather-condition{max-width:110px;overflow:hidden;text-overflow:ellipsis}
@@ -312,3 +312,14 @@ body.is-exploring .maplibregl-canvas-container.maplibregl-interactive:active{cur
 .guide-chips{display:inline-flex;gap:1px;margin-right:4px;vertical-align:middle}
 footer button#guide{color:var(--navy)}
 .guide-key.guide-glyph{font-size:19px;font-weight:500}
+
+.planner{margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid var(--line)}.planner h3{margin:0 0 9px;font-size:15px}
+.district-picker{border:1px solid var(--line);border-radius:9px;background:#fff}.district-picker summary{min-height:44px;display:flex;align-items:center;padding:0 12px;font-size:14px;font-weight:650;cursor:pointer}
+.district-actions{display:flex;gap:6px;padding:0 10px 6px}.district-actions button{height:32px;padding:0 12px;border:1px solid var(--line);border-radius:7px;background:var(--soft);font-size:12px}
+.district-options{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;max-height:260px;overflow-y:auto;padding:0 10px 10px}.district-option{display:flex;align-items:center;gap:7px;min-height:36px;font-size:13px}.district-option input,.planner-check input{width:18px;height:18px;flex:0 0 auto}
+.slope-filter{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 8px;margin:12px 0 4px}.slope-filter input[type=range]{grid-column:1/-1;width:100%}.slope-value input{width:62px;height:36px;padding:0 6px;border:1px solid var(--line);border-radius:7px;font-size:14px}
+.planner-check{display:flex;align-items:center;gap:8px;min-height:36px;font-size:13px}
+.planner-result{margin:10px 0 4px;padding:9px 11px;border-radius:8px;background:#eef4fb;color:var(--navy);font-size:13px;font-weight:650}.planner-result.is-empty{background:#fff4e5;color:#7a4b00}
+.planner-chip{position:absolute;z-index:3;top:104px;left:16px;display:flex;align-items:stretch;max-width:min(420px,calc(100% - 90px));border:1px solid #c9d8ef;border-radius:10px;background:#fff;box-shadow:0 2px 10px #102b451c;overflow:hidden}.planner-chip button{border:0;background:transparent}.planner-chip #planner-chip-open{padding:7px 10px;text-align:left;font-size:12px;font-weight:650;color:#1a56c4;line-height:1.3}.planner-chip #planner-chip-clear{width:40px;min-height:36px;border-left:1px solid #e3eaf5;font-size:18px;color:var(--muted)}
+@media(max-width:800px){.planner-chip{top:auto;bottom:calc(var(--mobile-dock-height,120px) + 12px);left:10px;max-width:calc(100% - 20px)}}
+.warning-card>strong{color:#a04d00}.warning-card .warning-name{display:block;margin:-5px 0 7px;font-size:12px;color:var(--muted)}.warning-card dl{grid-template-columns:1fr}.warning-card dt{font-weight:750;color:var(--ink)}.warning-card dd{max-width:none;text-align:left;font-weight:450;margin-bottom:4px}
