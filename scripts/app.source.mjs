@@ -4,6 +4,9 @@ const cityFetchPending=new Map();
 let displayManifest=null,displayManifestPending=null,displayStore=null,featurePopup=null,featureRequestId=0,poiImagesPending=null,cityScenePending=null;
 let displayShadeFrame=null,displayShadeQueue=null,displayShadeEpoch=0,displayObstacleKey='',displayTerrain=null;
 const shadowDisplayEnabled=true;
+let shadeOverlay=false;
+// The modelled shadow raster shows in 3D and, on request, in the flat 2D map.
+function shadeOverlayActive(){return shadowDisplayEnabled&&(is3D||shadeOverlay);}
 let displayShadeWorker=null,displayShadeId=0,displayShadeSignature='',weatherRefreshTimer=null,weatherLoadingPromise=null;
 const displayBaseURL=new URL('./city/',location.href);
 let viewTransitionId=0;
@@ -176,7 +179,7 @@ function ensureDisplayShadeWorker(){
  displayShadeWorker.onmessage=({data:d})=>{
   if(d.type==='error'){stopDisplayShadows();map?.setLayoutProperty('shade-fill','visibility','none');return;}
   if(d.type!=='frame')return;
-  if(d.epoch===displayShadeEpoch&&is3D&&shadowDisplayEnabled){
+  if(d.epoch===displayShadeEpoch&&shadeOverlayActive()){
    const canvas=$('shadow-canvas');canvas.width=d.bitmap.width;canvas.height=d.bitmap.height;canvas.getContext('2d').drawImage(d.bitmap,0,0);
    map.getSource('shade').setCoordinates([[d.bounds[0],d.bounds[3]],[d.bounds[2],d.bounds[3]],[d.bounds[2],d.bounds[1]],[d.bounds[0],d.bounds[1]]]);
    if(d.iso===selectedISO()){currentSun=d.sun;updateClock();}displayShadeFrame={iso:d.iso,renderMs:d.renderMs};map.setLayoutProperty('shade-fill','visibility','visible');updateWeatherOpacity();const source=map.getSource('shade');source.play();map.once('render',()=>source.pause());map.triggerRepaint();
@@ -186,13 +189,13 @@ function ensureDisplayShadeWorker(){
  displayShadeWorker.onerror=()=>{stopDisplayShadows();map?.setLayoutProperty('shade-fill','visibility','none');};
 }
 async function requestShade(recalculateRoute=false,{silent=false}={}){
- if(!ready||!is3D||!shadowDisplayEnabled||previewState||viewSwitching||map.getZoom()<14)return;
+ if(!ready||!shadeOverlayActive()||previewState||viewSwitching)return;if(map.getZoom()<14){map.setLayoutProperty('shade-fill','visibility','none');return;}
  const epoch=displayShadeEpoch,id=++displayShadeId;
  try{
   const visual=await ensureDisplayManifest(),b=map.getBounds(),c=map.getCenter(),bounds=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()],keys=selectDisplayTiles(visual,meta,bounds,[c.lng,c.lat],{limit:16,bearing:map.getBearing()}),key=keys.slice().sort().join(',');
   if(!keys.length)return;
   const selected=key===displayObstacleKey?null:await fetchObstacleTiles(keys);
-  if(epoch!==displayShadeEpoch||id!==displayShadeId||!is3D||!shadowDisplayEnabled)return;
+  if(epoch!==displayShadeEpoch||id!==displayShadeId||!shadeOverlayActive())return;
   ensureDisplayShadeWorker();
   if(selected){displayShadeWorker.postMessage({type:'obstacles',obstacles:{buildings:selected.flatMap(tile=>tile.buildings),trees:selected.flatMap(tile=>tile.trees)}});displayObstacleKey=key;}
   const canvas=map.getCanvas(),ratio=Math.min(2,globalThis.devicePixelRatio||1),scale=Math.min(1,2048/(Math.max(canvas.clientWidth,canvas.clientHeight)*ratio)),width=Math.max(1,Math.round(canvas.clientWidth*ratio*scale)),height=Math.max(1,Math.round(canvas.clientHeight*ratio*scale));
@@ -296,7 +299,7 @@ async function loadVisibleCityTiles({force=false}={}){
  // loading is an independent job and can never block a camera transition.
  if(demand.trees){const treeJob=async()=>{const layer=await ensureCityScene();if(id!==tileLoadId||!is3D)return;const input=[];let frame=0;const update=()=>{frame=0;if(id===tileLoadId&&is3D){layer.setTrees(input,local(centre));layer.setVisible(true);}};await Promise.allSettled(treeKeys.map(async key=>{const tile=await displayStore.get(visual.tiles[key].sceneFile,revision);if(id!==tileLoadId||!is3D)return;const placed=typeof placeDisplayTrees==='function'?await placeDisplayTrees((tile.trees||[]).filter(tree=>inPilot(ll(tree.p)))):(tile.trees||[]).filter(tree=>inPilot(ll(tree.p)));if(id!==tileLoadId||!is3D)return;input.push(...placed);if(!frame)frame=requestAnimationFrame(update);}));};treeJob().catch(error=>console.warn('Tree display postponed:',error));}
  if(demand.pois)await ensurePoiImages();let selected;try{selected=await Promise.all(tasks);}catch(error){if(id===tileLoadId)activeCityViewSignature='';throw error;}if(id!==tileLoadId)return;if(demand.paths)await updateVisibleCitySources(selected,theme);activeCityViewSignature=signature;activeTileKeys=keys.join(',');renderThemeLegend();
- if(is3D&&shadowDisplayEnabled&&!previewState){clearTimeout(cityShadeTimer);cityShadeTimer=setTimeout(()=>requestShade(false,{silent:true}),650);}
+ if(shadeOverlayActive()&&!previewState){clearTimeout(cityShadeTimer);cityShadeTimer=setTimeout(()=>requestShade(false,{silent:true}),650);}
 }
 let lastPreviewTileLoad=0;
 
@@ -314,7 +317,7 @@ async function init(){
   if(typeof maplibregl.Map!=='function')throw Error('MapLibre unavailable');
   map=new maplibregl.Map({container:'map',style:createBasemapStyle(),center:[9.1779,48.7775],zoom:cityManifest?12.2:15.2,minZoom:cityManifest?(isMobileMap()?11.7:10):12,maxZoom:20,maxBounds:cityManifest?(isMobileMap()?[[meta.bounds[0],meta.bounds[1]],[meta.bounds[2],meta.bounds[3]]]:[[meta.bounds[0]-.25,meta.bounds[1]-.15],[meta.bounds[2]+.25,meta.bounds[3]+.15]]):undefined,maxPitch:0,maxTileCacheSize:matchMedia('(pointer:coarse)').matches?96:192,maxTileCacheZoomLevels:8,cancelPendingTileRequestsWhileZooming:false,attributionControl:false,pitch:0,centerClampedToGround:true,canvasContextAttributes:{antialias:true}});map.touchPitch.disable();
   map.addControl(new maplibregl.NavigationControl({showCompass:true}),'top-right');map.addControl(new maplibregl.AttributionControl({compact:false,customAttribution:'Atlas: M. Bakhshi'}),'bottom-right');
-  map.on('load',()=>{setupLayers();updateMarkers();installDirectMapPicking();updateModeUI();$('loading-cover').hidden=true;worker=new Worker(URL.createObjectURL(new Blob([BUNDLED_WORKER],{type:'text/javascript'})));worker.onerror=()=>{status('modelFailed');$('calculate').disabled=true;};worker.onmessage=onWorker;if(cityManifest){worker.postMessage({type:'initCity',manifest:cityManifest,base:cityBaseURL.href});loadVisibleCityTiles().catch(console.warn);map.on('moveend',()=>{loadVisibleCityTiles().catch(error=>console.warn('Viewport display postponed:',error));});}else worker.postMessage({type:'init',meta,network,obstacles});map.on('rotate',updateSunDirection);map.on('click',e=>{if(pick===null||isMobileMap())return;chooseMapPoint([e.lngLat.lng,e.lngLat.lat],{forcedIndex:pick});});});
+  map.on('load',()=>{setupLayers();updateMarkers();installDirectMapPicking();updateModeUI();$('loading-cover').hidden=true;worker=new Worker(URL.createObjectURL(new Blob([BUNDLED_WORKER],{type:'text/javascript'})));worker.onerror=()=>{status('modelFailed');$('calculate').disabled=true;};worker.onmessage=onWorker;if(cityManifest){worker.postMessage({type:'initCity',manifest:cityManifest,base:cityBaseURL.href});loadVisibleCityTiles().catch(console.warn);map.on('moveend',()=>{loadVisibleCityTiles().catch(error=>console.warn('Viewport display postponed:',error));});}else worker.postMessage({type:'init',meta,network,obstacles});map.on('rotate',updateSunDirection);map.on('moveend',()=>{if(shadeOverlay&&!is3D&&!viewSwitching){clearTimeout(cityShadeTimer);cityShadeTimer=setTimeout(()=>requestShade(false,{silent:true}),650);}});map.on('click',e=>{if(pick===null||isMobileMap())return;chooseMapPoint([e.lngLat.lng,e.lngLat.lat],{forcedIndex:pick});});});
  }catch(e){const key=typeof maplibregl.GPUInitializationError==='function'&&e instanceof maplibregl.GPUInitializationError?'mapUnsupported':'loadFail';status(key);$('loading-cover').querySelector('span').textContent=t(key);$('loading-cover').querySelector('.spinner').hidden=true;console.error(e);}
 }
 
@@ -341,13 +344,13 @@ $('language').onclick=()=>{lang=lang==='de'?'en':'de';language();};
 $('calculate').onclick=()=>{calculate();if(innerWidth<=800&&points.every(Boolean)){$('sidebar-body').classList.remove('expanded');$('panel-toggle').setAttribute('aria-expanded','false');}};document.querySelectorAll('[data-pref]').forEach(b=>b.onclick=()=>setPreference(b.dataset.pref));$('mobility-profile').onchange=updateProfile;document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{$('mobility-profile').value=b.dataset.profile;updateProfile();});document.querySelectorAll('[data-slope]').forEach(b=>b.onclick=()=>{$('slope-mode').value=b.dataset.slope;updateSlopeChoice();});for(const id of ['steps','escalators','poor-surface','wheelchair-no'])$(id).onchange=()=>{if(result||serverRoutingPending)calculate();};$('panel-toggle').onclick=()=>{const open=$('sidebar-body').classList.toggle('expanded');$('panel-toggle').setAttribute('aria-expanded',String(open));};
 for(const [i,id]of ['pick-origin','pick-destination'].entries())$(id).onclick=()=>{if(!map)return;if(exploreMode)setExploreMode(false);stopRoutePreview(false);finishPickMode(pick===i?null:i);if(innerWidth<=800){$('sidebar-body').classList.remove('expanded');$('panel-toggle').setAttribute('aria-expanded','false');}if(!isMobileMap())showToast(i===0?'pickStart':'pickEnd');syncMobileDock();};
 $('swap').onclick=()=>{const p=points[0]?.slice(),originLabel=$('origin').value,destinationLabel=$('destination').value;if(!p&&!points[1])return;for(const [i,value,label]of [[0,points[1]?.slice(),destinationLabel],[1,p,originLabel]]){points[i]=value||null;$(i?'destination':'origin').value=value?label:'';markers[i]?.remove();markers[i]=null;}updateMarkers();invalidateRoute();};
-let debounce;function selectedTimeChanged(){const reroute=!exploreMode&&preference!=='balanced'&&Boolean(result||serverRoutingPending);if(reroute&&serverRoutingPending){routeId++;serverRouteController?.abort();serverRoutingPending=false;}updateImmediateSun();if(is3D&&shadowDisplayEnabled)requestShade(false,{silent:true});clearTimeout(debounce);if(reroute)debounce=setTimeout(()=>calculate(),250);}$('time').oninput=selectedTimeChanged;$('date').onchange=()=>{if($('date').checkValidity()&&$('date').value)selectedTimeChanged();};
+let debounce;function selectedTimeChanged(){const reroute=!exploreMode&&preference!=='balanced'&&Boolean(result||serverRoutingPending);if(reroute&&serverRoutingPending){routeId++;serverRouteController?.abort();serverRoutingPending=false;}updateImmediateSun();if(shadeOverlayActive())requestShade(false,{silent:true});clearTimeout(debounce);if(reroute)debounce=setTimeout(()=>calculate(),250);}$('time').oninput=selectedTimeChanged;$('date').onchange=()=>{if($('date').checkValidity()&&$('date').value)selectedTimeChanged();};
 $('now').onclick=()=>{const p=berlinParts(new Date());$('date').value=dateNow();$('time').value=Math.min(1439,+p.hour*60+ +p.minute);selectedTimeChanged();};
 $('fit').onclick=()=>{stopRoutePreview(false);fitRoute();};
 $('locate').onclick=()=>{if(!navigator.geolocation){status('locationFail');return;}navigator.geolocation.getCurrentPosition(pos=>{const p=[pos.coords.longitude,pos.coords.latitude];if(!inPilot(p)){showToast('outsideLocation');return;}hideToast();setCustom(0,p,lang==='de'?'Mein Standort':'My location');map.flyTo({center:p,zoom:16});},()=>status('locationFail'),{timeout:10000,maximumAge:60000});};
 $('map-toast-close').onclick=()=>{finishPickMode(null);hideToast();};
 $('weather-info').onclick=()=>{const details=$('weather-details'),open=details.hidden;details.hidden=!open;$('weather-info').setAttribute('aria-expanded',String(open));};
-$('weather-toggle').onclick=()=>{liveWeatherEnabled=!liveWeatherEnabled;renderWeather(true);if(!exploreMode&&preference!=='balanced'&&(result||serverRoutingPending))calculate();else if(is3D)requestShade(false,{silent:true});};
+$('weather-toggle').onclick=()=>{liveWeatherEnabled=!liveWeatherEnabled;renderWeather(true);if(!exploreMode&&preference!=='balanced'&&(result||serverRoutingPending))calculate();else if(shadeOverlayActive())requestShade(false,{silent:true});};
 $('share').onclick=async()=>{const url=shareURL();history.replaceState(null,'',url);try{await navigator.clipboard.writeText(url);status('copied');}catch{status('copyFail');}};
 $('about').onclick=()=>{$('about-content').innerHTML=aboutContent();$('about-dialog').showModal();};$('about-mobile').onclick=$('about').onclick;$('guide').onclick=$('guide-mobile').onclick=()=>{$('guide-content').replaceChildren(guideContent(lang));$('guide-dialog').showModal();};$('close-guide').onclick=$('close-guide-bottom').onclick=()=>$('guide-dialog').close();$('close-about').onclick=$('close-about-bottom').onclick=()=>$('about-dialog').close();
 // v0.7 presentation, terrain and routing UX extensions.
@@ -455,7 +458,22 @@ async function setMapViewMode(entering){
 $('view').onclick=()=>setMapViewMode(!is3D);
 
 $('basemap').onchange=()=>{if(!map?.getLayer('osm-raster'))return;const value=$('basemap').value;for(const [layer,selected]of [['osm-raster','osm'],['topo-raster','topo'],['aerial-raster','aerial']])map.setLayoutProperty(layer,'visibility',value===selected?'visible':'none');};
-setupRouteExperience();setupPlanner();updateImmediateSun();language();loadWeather();init();
+// 0.19: mobile steps, directions, live navigation and the 2D shade overlay.
+Object.assign(strings.de,{shadeToggle:'Schatten auf der Karte',shadeZoom:'Zoom näher heran, um die Schatten zu sehen.'});Object.assign(strings.en,{shadeToggle:'Shade on the map',shadeZoom:'Zoom in to see the shade.'});
+let shadeOverlayAuto=false;
+function setShadeOverlay(on){
+ shadeOverlay=on;const button=$('shade-toggle');if(button){button.setAttribute('aria-pressed',String(on));button.title=button.ariaLabel=t('shadeToggle');}
+ if(!map?.getLayer?.('shade-fill'))return;
+ if(!shadeOverlayActive()){stopDisplayShadows();map.setLayoutProperty('shade-fill','visibility','none');return;}
+ if(map.getZoom()<14)showToast('shadeZoom');requestShade(false,{silent:true});
+}
+const setPreferenceBase=setPreference;setPreference=p=>{setPreferenceBase(p);if(p!=='balanced'&&!shadeOverlayAuto&&ready){shadeOverlayAuto=true;setShadeOverlay(true);}};
+const setCustomBase=setCustom;setCustom=(i,p,label)=>{setCustomBase(i,p,label);if(isMobileMap())setMobileStep(points.every(Boolean)?2:1);};
+const invalidateRouteSteps=invalidateRoute;invalidateRoute=()=>{invalidateRouteSteps();renderDirections();if(mobileStep===3)setMobileStep(points.every(Boolean)?2:1,{open:false});};
+const onWorkerSteps=onWorker;onWorker=e=>{onWorkerSteps(e);const d=e.data;if(d.type!=='route'||d.id!==routeId)return;renderDirections();navigationRouteChanged();if(result&&!result.error){setMobileStep(3,{open:false});if(preference!=='balanced'&&!shadeOverlayAuto){shadeOverlayAuto=true;setShadeOverlay(true);}}};
+const languageSteps=language;language=()=>{languageSteps();renderMobileSteps();renderDirections();setShadeOverlay(shadeOverlay);};
+$('shade-toggle').onclick=()=>setShadeOverlay(!shadeOverlay);
+setupRouteExperience();setupPlanner();setupNavigation();updateImmediateSun();language();loadWeather();init();
 // Optional read-only WebMCP integration.
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_walking_route',description:'Read the visible walking route and forecast context.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({mode:exploreMode?'explore':'route',date:$('date').value,time:$('clock').textContent,weather:selectedWeather(),route:result&&!result.error?{metres:result.length,minutes:result.minutes,source:result.source}:null})})).catch(()=>{});}catch{}}
 // Production switches to server-only routing as soon as the Stage-2 server declares production readiness.

@@ -8,8 +8,8 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./style.css?v=6ea3208a7738a696">
-<script type="module" src="./app-v7.mjs?v=93c2227eca8f7c0a">
+<link rel="stylesheet" href="./style.css?v=6f6a8d668d63069e">
+<script type="module" src="./app-v7.mjs?v=b02e72ce3f2fb44a">
 </script>
 </head>
 <body>
@@ -242,6 +242,8 @@
 </span>
 </div>
 </div></div>
+<details id="directions" class="directions" hidden><summary id="directions-title">Wegbeschreibung</summary><ol id="directions-list"></ol></details>
+<button id="navigate" class="primary nav-start" type="button" hidden>▶ Navigation starten</button>
 <button id="share" class="text-button" data-i="share">Route als Link teilen ↗</button>
 </section>
 </div>
@@ -281,6 +283,7 @@
 <button id="explore-mode" class="explore-mode" aria-pressed="false" hidden>Entdecken</button>
 <button id="view" aria-pressed="false">3D</button>
 <button id="layers-toggle" aria-expanded="false" aria-controls="layers-panel" aria-label="Kartenebenen" title="Kartenebenen">◫</button>
+<button id="shade-toggle" aria-pressed="false" aria-label="Schatten auf der Karte" title="Schatten auf der Karte">◐</button>
 <button id="locate" aria-label="Mein Standort" title="Mein Standort">⌖</button>
 <button id="fit" aria-label="Gesamte Route anzeigen" title="Gesamte Route anzeigen">⤢</button>
 </div>
@@ -322,6 +325,7 @@
 </section>
 <aside class="theme-legend" id="theme-legend" hidden aria-live="polite"></aside>
 <div class="planner-chip" id="planner-chip" hidden><button type="button" id="planner-chip-open"></button><button type="button" id="planner-chip-clear" aria-label="Auswahl und Filter zurücksetzen">×</button></div>
+<div id="nav-banner" class="nav-banner" hidden role="status" aria-live="polite"><div id="nav-turn" class="nav-turn" aria-hidden="true">↑</div><div class="nav-text"><strong id="nav-instruction"></strong><span id="nav-remaining"></span></div><button id="nav-reroute" type="button" hidden>Neu berechnen</button><button id="nav-stop" type="button">Beenden</button></div>
 <div class="map-toast" id="map-toast" hidden role="status" aria-live="polite">
 <span id="map-toast-text"></span>
 <button id="map-toast-close" data-i-aria="close" type="button" aria-label="Schließen">×</button>

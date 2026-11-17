@@ -36,6 +36,37 @@ function setupMobileExperience(){
  // positions have the same DOM; no duplicated state or intercepted map taps.
  let start=null,lastDrag=-Infinity;const handle=$('panel-toggle');handle.style.touchAction='none';handle.addEventListener('pointerdown',e=>{if(!isMobileMap())return;start=e.clientY;handle.setPointerCapture(e.pointerId);});handle.addEventListener('pointerup',e=>{if(start===null)return;const delta=e.clientY-start;start=null;if(Math.abs(delta)>30){lastDrag=performance.now();sheet.classList.toggle('expanded',delta<0);handle.setAttribute('aria-expanded',String(delta<0));requestAnimationFrame(syncMobileDock);}});handle.addEventListener('pointercancel',()=>start=null);handle.addEventListener('click',e=>{if(performance.now()-lastDrag<500){e.preventDefault();e.stopImmediatePropagation();}},{capture:true});
  if(globalThis.ResizeObserver){new ResizeObserver(()=>requestAnimationFrame(syncMobileDock)).observe(dock);}
+ setupMobileSteps();
  window.addEventListener('resize',syncMobileDock);document.addEventListener('keydown',e=>{if(e.key==='Escape'){finishPickMode(null);hideToast();}if(e.key==='Control')document.body.classList.add('map-camera-key');});document.addEventListener('keyup',e=>{if(e.key==='Control')document.body.classList.remove('map-camera-key');});window.addEventListener('blur',()=>document.body.classList.remove('map-camera-key'));
  syncMobileDock();
+}
+
+// Mobile journey in three steps (1 where, 2 how, 3 route); the map stays visible above the sheet.
+let mobileStep=1;
+function mobileStepAllowed(step){return step===1||(step===2&&points.every(Boolean))||(step===3&&Boolean(result&&!result.error));}
+function renderMobileSteps(){
+ document.body.dataset.mobileStep=String(mobileStep);const de=lang==='de';
+ const labels=de?['Wohin?','Wie?','Route']:['Where?','How?','Route'];
+ document.querySelectorAll('#mobile-steps [data-step]').forEach(button=>{const step=+button.dataset.step;button.querySelector('span').textContent=labels[step-1];button.disabled=!mobileStepAllowed(step);button.setAttribute('aria-current',step===mobileStep?'step':'false');});
+ const next=$('mobile-next');if(next){next.disabled=!points.every(Boolean);next.textContent=de?'Weiter: Wie möchtest du gehen? →':'Next: how would you like to walk? →';}
+ const back=$('mobile-back');if(back)back.textContent=de?'‹ Start und Ziel ändern':'‹ Change start and destination';
+ const here=$('use-location');if(here)here.textContent=de?'⌖ Meinen Standort als Start':'⌖ Use my location as start';
+}
+function setMobileStep(step,{open=true}={}){
+ if(!mobileStepAllowed(step))step=points.every(Boolean)?2:1;mobileStep=step;renderMobileSteps();
+ if(open&&isMobileMap()&&!document.body.classList.contains('is-navigating')){$('sidebar-body').classList.add('expanded');$('panel-toggle').setAttribute('aria-expanded','true');$('sidebar-body').scrollTop=0;}
+ requestAnimationFrame(syncMobileDock);
+}
+function setupMobileSteps(){
+ const panel=$('journey-panel');if(!panel||$('mobile-steps'))return;
+ const steps=document.createElement('nav');steps.id='mobile-steps';steps.className='mobile-steps';steps.setAttribute('aria-label','Schritte');
+ steps.innerHTML='<button type="button" data-step="1"><b>1</b><span></span></button><button type="button" data-step="2"><b>2</b><span></span></button><button type="button" data-step="3"><b>3</b><span></span></button>';
+ panel.prepend(steps);steps.querySelectorAll('[data-step]').forEach(button=>button.onclick=()=>setMobileStep(+button.dataset.step));
+ const journey=panel.querySelector('.journey'),here=document.createElement('button');here.type='button';here.id='use-location';here.className='mobile-only text-button';here.onclick=()=>$('locate').click();journey.querySelector('#pick-hint').before(here);
+ const next=document.createElement('button');next.type='button';next.id='mobile-next';next.className='primary mobile-only';next.onclick=()=>setMobileStep(2);journey.append(next);
+ const back=document.createElement('button');back.type='button';back.id='mobile-back';back.className='text-button mobile-only';back.onclick=()=>setMobileStep(1);panel.querySelector('.preferences').prepend(back);
+ const go=document.createElement('button');go.type='button';go.id='mobile-navigate';go.hidden=true;$('mobile-edit-route').before(go);
+ $('mobile-edit-route').addEventListener('click',()=>setMobileStep(1));
+ renderMobileSteps();
+ if(isMobileMap()&&!points.every(Boolean))setMobileStep(1);
 }

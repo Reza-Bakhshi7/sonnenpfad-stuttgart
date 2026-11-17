@@ -20,7 +20,7 @@ function updateModeUI(){
  document.body.classList.toggle('is-exploring',exploreMode);document.body.classList.toggle('is-routing',!exploreMode);
  for(const [id,active] of [['mode-route',!exploreMode],['mode-explore',exploreMode]]){$(id)?.classList.toggle('selected',active);$(id)?.setAttribute('aria-pressed',String(active));}
  $('explore-panel').hidden=!exploreMode;$('journey-panel').hidden=exploreMode;$('layers-toggle').hidden=!exploreMode;if(!exploreMode){$('layers-panel').hidden=true;$('layers-toggle').setAttribute('aria-expanded','false');}
- if(map){applyTheme({reload:false});applyPoiFilter({reload:false});if(map.getLayer('shade-fill'))map.setLayoutProperty('shade-fill','visibility',shadowDisplayEnabled&&is3D&&Boolean(displayShadeFrame)?'visible':'none');}
+ if(map){applyTheme({reload:false});applyPoiFilter({reload:false});if(map.getLayer('shade-fill'))map.setLayoutProperty('shade-fill','visibility',shadeOverlayActive()&&Boolean(displayShadeFrame)?'visible':'none');}
  const heading=$('panel-toggle')?.lastElementChild;if(heading&&exploreMode)heading.textContent=lang==='de'?'Stuttgart entdecken':'Explore Stuttgart';else if(heading)heading.textContent=t('planRoute');
  updateExperienceLanguage();syncMobileDock();
 }
