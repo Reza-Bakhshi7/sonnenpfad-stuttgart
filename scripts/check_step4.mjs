@@ -37,7 +37,7 @@ assert(appSource.includes("setTimeout(()=>requestShade(false,{silent:true}),650)
 assert(appSource.includes("layout:{visibility:'none'},paint:{'raster-opacity':.34"), 'The shadow raster must be hidden in 2D.');
 assert(!appSource.includes('setTimeout(loadVisibleCityTiles,700)'), '2D/3D switching must not schedule a duplicate tile reload.');
 assert(!appSource.includes("id:'trees-fill'"), 'Tree geometry must not be rendered in 2D mode.');
-assert(appSource.includes("14.5,10,17,12.5,19,14"), 'The selected route must remain wider than the thematic lines.');
+assert(appSource.includes("11,5,14.5,11,17,14,20,19"), 'The selected route must remain wider than the thematic lines.');
 assert(appSource.includes("id:'stairs-treads'")&&appSource.includes("id:'stairs-halo'"), 'Known steps must be rendered as a white-on-black line pattern.');
 assert(appSource.includes("'icon-allow-overlap':true,'icon-ignore-placement':true"), 'Selected POIs must never be hidden by symbol collision.');
 assert(appSource.includes('structureFlags[edgeId]')&&appSource.includes("'#aeb8bd'"), 'Bridge and tunnel segments must be visually neutral and arrow-free.');

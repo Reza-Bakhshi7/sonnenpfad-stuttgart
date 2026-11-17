@@ -66,6 +66,9 @@ export function guideContent(lang) {
   [de ? 'Kartenebenen öffnen' : 'Open map layers',
    de ? 'Drück {layers} rechts auf der Karte (oder „Kartenebenen wählen“). Mit {close} schließt du das Fenster wieder.' : 'Press {layers} on the right of the map (or “Choose map layers”). {close} closes the window.',
    { layers: K.text('◫'), close: K.text('×') }],
+  [de ? 'Bezirke prüfen' : 'Check districts',
+   de ? 'Oben im Fenster wählst du einen oder mehrere Stadtbezirke und kannst „Nur Steigung über … %“ einschalten. Die Karte zeigt dann nur passende Wegabschnitte und zählt sie. Die aktive Auswahl steht oben links auf der Karte; {reset} setzt alles zurück.' : 'At the top of the window you choose one or more districts and can switch on “Only gradient above … %”. The map then shows and counts only matching sections. The active selection appears at the top left of the map; {reset} clears it.',
+   { reset: K.text('×') }],
   [de ? 'Ein Linienthema wählen' : 'Choose one line theme',
    de ? 'Die Wege werden nach genau einem Thema eingefärbt. Eine Legende oben links erklärt die Farben:' : 'Paths are coloured by exactly one theme. A legend at the top left explains the colours:', {}],
  ]));

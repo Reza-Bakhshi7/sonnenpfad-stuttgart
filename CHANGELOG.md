@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — planned large update
+
+- Explore mode: boundaries of the 23 Stuttgart districts, multi-selection of districts and a gradient filter on the thesis working network (ways cut at district borders, gradient regardless of direction, stairs and missing values shown on request). Active selection shown on the map and resettable with one tap. Test case: Wangen and Hedelfingen above 5 % = 710 sections (16 without a value).
+- Unrealistic gradients above 30 % (terrain-model errors) are removed from the explore display and the district data.
+- Route drawn thicker and in blue; tapping an orange section explains why it is not recommended for the chosen group (e.g. stairs, gradient 6.5 % with a 6 % limit).
+- Mobile: journey in three steps (where, how, route), directions list and live navigation that follows the walker's position with turn hints, off-route detection and recalculation.
+- Shade layer can be shown on the flat 2D map (button ◐); it switches on automatically for shade and sun routes.
+- Map zooms to street level (zoom 20).
+
 ## 0.18.0 — 17 November 2026
 
 - Desktop: zoom out to the whole city with a margin; in Explore, paths, themes and places stay visible down to zoom 10 with smaller symbols and lines.
