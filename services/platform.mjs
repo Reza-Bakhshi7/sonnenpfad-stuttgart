@@ -123,35 +123,106 @@ export async function rollup(env, now = Date.now()) {
   await env.DB.batch(statements);
 }
 
-// ---- Admin access: Cloudflare Access JWT, verified here again (fail closed) ----------------------
-let certs = null, certsAt = 0;
-const b64url = text => Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((text.length + 3) % 4)), c => c.charCodeAt(0));
-export async function verifyAccess(request, env, fetchImpl = fetch, now = Date.now()) {
-  if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD || !env.ADMIN_EMAIL) return {ok: false, reason: 'not-configured'};
-  const cookie = (request.headers.get('Cookie') || '').match(/(?:^|;\s*)CF_Authorization=([^;]+)/)?.[1];
-  const token = request.headers.get('Cf-Access-Jwt-Assertion') || cookie;
-  if (!token) return {ok: false, reason: 'no-token'};
-  const [head, payload, signature] = token.split('.');
-  try {
-    const header = JSON.parse(new TextDecoder().decode(b64url(head))), claims = JSON.parse(new TextDecoder().decode(b64url(payload)));
-    if (header.alg !== 'RS256') return {ok: false, reason: 'algorithm'};
-    if (!certs || now - certsAt > 3600000) {
-      const response = await fetchImpl(`https://${env.ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`);
-      if (!response.ok) return {ok: false, reason: 'certs'};
-      certs = (await response.json()).keys; certsAt = now;
-    }
-    const jwk = certs.find(key => key.kid === header.kid);
-    if (!jwk) return {ok: false, reason: 'key'};
-    const key = await crypto.subtle.importKey('jwk', jwk, {name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256'}, false, ['verify']);
-    const valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64url(signature), new TextEncoder().encode(head + '.' + payload));
-    const audience = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-    if (!valid) return {ok: false, reason: 'signature'};
-    if (!audience.includes(env.ACCESS_AUD)) return {ok: false, reason: 'audience'};
-    if (claims.iss !== `https://${env.ACCESS_TEAM_DOMAIN}`) return {ok: false, reason: 'issuer'};
-    if (!(claims.exp * 1000 > now)) return {ok: false, reason: 'expired'};
-    if (String(claims.email || '').toLowerCase() !== String(env.ADMIN_EMAIL).toLowerCase()) return {ok: false, reason: 'email'};
-    return {ok: true, email: claims.email};
-  } catch { return {ok: false, reason: 'malformed'}; }
+// ---- Admin access: password + TOTP (authenticator app), signed session cookie (fail closed) ----------
+// Worker secrets, never in the repository: ADMIN_PASSWORD_HASH ("pbkdf2$<iterations>$<salt>$<hash>"),
+// ADMIN_TOTP_SECRET (base32) and ADMIN_SESSION_KEY (random). Set with scripts/admin-setup.mjs.
+const SESSION_IDLE_MS = 30 * 60000, SESSION_MAX_MS = 8 * 3600000, LOCK_WINDOW_MS = 15 * 60000, MAX_FAILURES = 5;
+const COOKIE = '__Host-sp_admin';
+const b64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)));
+const unb64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
+const b64url = bytes => b64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64url = text => unb64(text.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((text.length + 3) % 4));
+function equalBytes(a, b) { if (a.length !== b.length) return false; let diff = 0; for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]; return diff === 0; }
+export function adminConfigured(env) { return Boolean(env.DB && env.ADMIN_PASSWORD_HASH && env.ADMIN_TOTP_SECRET && env.ADMIN_SESSION_KEY); }
+
+// shortcut: 20,000 PBKDF2 iterations keep a login inside the Workers free CPU budget; the TOTP code and the
+// login lock are the main defence. Raise the count if the Worker moves to a paid plan.
+export async function hashPassword(password, iterations = 20000, salt = crypto.getRandomValues(new Uint8Array(16))) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name: 'PBKDF2', hash: 'SHA-256', salt, iterations}, key, 256);
+  return `pbkdf2$${iterations}$${b64(salt)}$${b64(bits)}`;
+}
+export async function checkPassword(password, stored) {
+  const [kind, iterations, salt, hash] = String(stored || '').split('$');
+  if (kind !== 'pbkdf2' || !hash) return false;
+  const computed = (await hashPassword(String(password || ''), Number(iterations), unb64(salt))).split('$')[3];
+  return equalBytes(unb64(computed), unb64(hash));
+}
+function base32(text) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', clean = String(text).toUpperCase().replace(/[^A-Z2-7]/g, '');
+  let bits = 0, value = 0; const out = [];
+  for (const char of clean) { value = (value << 5) | alphabet.indexOf(char); bits += 5; if (bits >= 8) { out.push((value >>> (bits - 8)) & 255); bits -= 8; } }
+  return new Uint8Array(out);
+}
+// RFC 6238: 30-second steps, 6 digits, HMAC-SHA1 (what every authenticator app uses).
+export async function totpCode(secret, step) {
+  const key = await crypto.subtle.importKey('raw', base32(secret), {name: 'HMAC', hash: 'SHA-1'}, false, ['sign']);
+  const counter = new Uint8Array(8); let rest = step;
+  for (let i = 7; i >= 0; i--) { counter[i] = rest & 255; rest = Math.floor(rest / 256); }
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, counter)), offset = mac[19] & 15;
+  const number = ((mac[offset] & 127) << 24) | (mac[offset + 1] << 16) | (mac[offset + 2] << 8) | mac[offset + 3];
+  return String(number % 1000000).padStart(6, '0');
+}
+// Accepts the current and the neighbouring 30-s step; returns the matching step (to forbid reuse) or null.
+export async function checkTotp(secret, code, now = Date.now()) {
+  if (!/^\d{6}$/.test(String(code || ''))) return null;
+  const step = Math.floor(now / 30000);
+  for (const candidate of [step, step - 1, step + 1]) if (await totpCode(secret, candidate) === code) return candidate;
+  return null;
+}
+async function sign(env, payload) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.ADMIN_SESSION_KEY), {name: 'HMAC', hash: 'SHA-256'}, false, ['sign']);
+  return b64url(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload)));
+}
+async function sessionCookie(env, session) {
+  const payload = b64url(new TextEncoder().encode(JSON.stringify(session)));
+  return `${COOKIE}=${payload}.${await sign(env, payload)}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${Math.round(SESSION_MAX_MS / 1000)}`;
+}
+// Valid session: correct signature, not idle > 30 min, not older than 8 h, still listed in D1 (logout revokes).
+export async function verifySession(request, env, now = Date.now()) {
+  if (!adminConfigured(env)) return {ok: false, reason: 'not-configured'};
+  const raw = (request.headers.get('Cookie') || '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`))?.[1];
+  if (!raw) return {ok: false, reason: 'no-session'};
+  const [payload, signature] = raw.split('.');
+  if (!payload || !signature || !equalBytes(new TextEncoder().encode(await sign(env, payload)), new TextEncoder().encode(signature))) return {ok: false, reason: 'signature'};
+  let session; try { session = JSON.parse(new TextDecoder().decode(unb64url(payload))); } catch { return {ok: false, reason: 'malformed'}; }
+  if (!(now - session.created < SESSION_MAX_MS)) return {ok: false, reason: 'expired'};
+  const row = await env.DB.prepare('SELECT last FROM admin_sessions WHERE id = ?').bind(session.id).first();
+  if (!row) return {ok: false, reason: 'revoked'};
+  if (now - row.last > SESSION_IDLE_MS) { await env.DB.prepare('DELETE FROM admin_sessions WHERE id = ?').bind(session.id).run(); return {ok: false, reason: 'idle'}; }
+  await env.DB.prepare('UPDATE admin_sessions SET last = ? WHERE id = ?').bind(now, session.id).run();
+  return {ok: true, session};
+}
+const sameOrigin = request => { const origin = request.headers.get('Origin'); return !origin || origin === new URL(request.url).origin; };
+async function ipHash(request) { return (await sha256('security|' + berlinDay() + '|' + (request.headers.get('CF-Connecting-IP') || ''))).slice(0, 16); }
+export async function handleLogin(request, env, now = Date.now()) {
+  if (!adminConfigured(env)) return json({error: 'not-configured'}, 503);
+  if (request.method !== 'POST' || request.headers.get('X-Sonnenpfad-Admin') !== '1' || !sameOrigin(request) || !String(request.headers.get('Content-Type')).startsWith('application/json')) return json({error: 'bad-request'}, 400);
+  const who = await ipHash(request), since = now - LOCK_WINDOW_MS;
+  // Brute-force protection: 5 failures per address or 20 overall within 15 minutes lock the login.
+  const failures = await env.DB.prepare("SELECT SUM(CASE WHEN detail = ? THEN 1 ELSE 0 END) AS mine, COUNT(*) AS total FROM security WHERE kind = 'login-failed' AND ts > ?").bind(who, since).first();
+  if ((failures?.mine || 0) >= MAX_FAILURES || (failures?.total || 0) >= 4 * MAX_FAILURES) return json({error: 'locked', retryAfterMinutes: 15}, 429);
+  let body; try { body = JSON.parse((await request.text()).slice(0, 1024)); } catch { return json({error: 'bad-json'}, 400); }
+  const passwordOk = await checkPassword(body.password, env.ADMIN_PASSWORD_HASH), step = await checkTotp(env.ADMIN_TOTP_SECRET, String(body.code || ''), now);
+  const lastStep = Number(await env.DB.prepare("SELECT value FROM settings WHERE key = 'totpLastStep'").first('value') || 0);
+  if (!passwordOk || step === null || step <= lastStep) {
+    await env.DB.prepare('INSERT INTO security(ts, kind, detail) VALUES (?, ?, ?)').bind(now, 'login-failed', who).run();
+    return json({error: 'invalid'}, 401);
+  }
+  const session = {id: crypto.randomUUID(), created: now};
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO settings(key, value) VALUES ('totpLastStep', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(String(step)),
+    env.DB.prepare('INSERT INTO admin_sessions(id, created, last) VALUES (?, ?, ?)').bind(session.id, now, now),
+    env.DB.prepare('DELETE FROM admin_sessions WHERE last < ?').bind(now - SESSION_IDLE_MS),
+    env.DB.prepare('INSERT INTO security(ts, kind, detail) VALUES (?, ?, ?)').bind(now, 'login-ok', who),
+  ]);
+  return json({ok: true}, 200, {'Set-Cookie': await sessionCookie(env, session)});
+}
+async function handleLogout(request, env) {
+  if (request.method !== 'POST' || request.headers.get('X-Sonnenpfad-Admin') !== '1' || !sameOrigin(request)) return json({error: 'bad-request'}, 400);
+  const check = await verifySession(request, env);
+  if (check.ok) await env.DB.prepare('DELETE FROM admin_sessions WHERE id = ?').bind(check.session.id).run();
+  return json({ok: true}, 200, {'Set-Cookie': `${COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0`});
 }
 async function logSecurity(env, request, kind) {
   if (!env.DB) return;
@@ -161,9 +232,10 @@ async function logSecurity(env, request, kind) {
   } catch {}
 }
 const ADMIN_HEADERS = {'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-store'};
-function denied(reason) {
-  const configured = reason !== 'not-configured';
-  return new Response(configured ? 'Access denied.' : 'The admin area is not configured yet (Cloudflare Access).', {status: configured ? 403 : 503, headers: {'Content-Type': 'text/plain; charset=utf-8', ...ADMIN_HEADERS}});
+function denied(reason, path) {
+  if (reason === 'not-configured') return new Response('The admin area is not configured yet.', {status: 503, headers: {'Content-Type': 'text/plain; charset=utf-8', ...ADMIN_HEADERS}});
+  if (path.startsWith('/api/')) return json({error: 'login-required'}, 401, ADMIN_HEADERS);
+  return new Response(null, {status: 303, headers: {Location: '/admin/login.html', ...ADMIN_HEADERS}});
 }
 
 async function adminSummary(env, url) {
@@ -207,8 +279,17 @@ export async function handlePlatform(request, env) {
   const url = new URL(request.url), path = url.pathname;
   if (path === '/api/event') return handleEvent(request, env);
   if (path === '/admin' || path.startsWith('/admin/') || path.startsWith('/api/admin/')) {
-    const access = await verifyAccess(request, env);
-    if (!access.ok) { if (access.reason !== 'not-configured') await logSecurity(env, request, 'admin-denied:' + access.reason); return denied(access.reason); }
+    // The login page and its files are public; everything else needs a valid session.
+    if (['/admin/login.html', '/admin/login.js', '/admin/admin.css'].includes(path)) {
+      if (!adminConfigured(env)) return denied('not-configured', path);
+      const page = await env.ASSETS.fetch(request), response = new Response(page.body, page);
+      for (const [key, value] of Object.entries(ADMIN_HEADERS)) response.headers.set(key, value);
+      return response;
+    }
+    if (path === '/api/admin/login') return handleLogin(request, env);
+    if (path === '/api/admin/logout') return handleLogout(request, env);
+    const access = await verifySession(request, env);
+    if (!access.ok) { if (!['not-configured', 'no-session'].includes(access.reason)) await logSecurity(env, request, 'admin-denied:' + access.reason); return denied(access.reason, path); }
     if (path === '/api/admin/summary') return adminSummary(env, url);
     if (path === '/api/admin/server') return adminServer(env);
     if (path === '/api/admin/settings') return adminSettings(request, env);

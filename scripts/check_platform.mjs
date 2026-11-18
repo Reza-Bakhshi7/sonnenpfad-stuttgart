@@ -3,12 +3,12 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {handlePlatform,handleEvent,rollup,verifyAccess,cleanEvents,agentFamily,berlinDay,resetSettingsCache} from '../services/platform.mjs';
+import {handlePlatform,handleEvent,rollup,cleanEvents,agentFamily,berlinDay,resetSettingsCache,hashPassword,checkPassword,totpCode,handleLogin,verifySession} from '../services/platform.mjs';
 import {usageAllowed,districtAt} from './usage.mjs';
 
 // Minimal D1 stand-in with the subset of the API platform.mjs uses.
 function d1(){
- const db=new DatabaseSync(':memory:');db.exec(fs.readFileSync(new URL('../migrations/0001_platform.sql',import.meta.url),'utf8'));
+ const db=new DatabaseSync(':memory:');for(const file of ['0001_platform.sql','0002_admin_sessions.sql'])db.exec(fs.readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
  const statement=(sql,args=[])=>({bind:(...values)=>statement(sql,values),run:async()=>db.prepare(sql).run(...args),all:async()=>({results:db.prepare(sql).all(...args)}),first:async column=>{const row=db.prepare(sql).get(...args);return row?(column?row[column]:{...row}):null;}});
  return {raw:db,prepare:sql=>statement(sql),batch:async list=>{for(const item of list)await item.run();}};
 }
@@ -41,23 +41,31 @@ assert.equal(DB.raw.prepare('SELECT COUNT(*) AS n FROM visitors').get().n,0);
 assert.equal(DB.raw.prepare("SELECT COUNT(*) AS n FROM settings WHERE key LIKE 'salt:%'").get().n,0);
 assert.equal(DB.raw.prepare("SELECT n FROM counts WHERE metric='visitors' AND day=?").get(berlinDay()).n,2);
 
-// 5. Admin access: fail closed, then a real RS256 token from a test key.
+// 5. Admin login: fail closed, RFC 6238 TOTP, password, one-time codes, brute-force lock, sessions.
 let response=await handlePlatform(new Request('https://sonnenpfad-stuttgart.de/admin/'),env);assert.equal(response.status,503,'not configured: closed');
-const keys=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
-const jwk={...(await crypto.subtle.exportKey('jwk',keys.publicKey)),kid:'test-key'},fakeCerts=async()=>new Response(JSON.stringify({keys:[jwk]}));
-const enc=value=>Buffer.from(typeof value==='string'?value:JSON.stringify(value)).toString('base64url');
-async function token(claims){const head=enc({alg:'RS256',kid:'test-key'}),body=enc(claims),signature=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',keys.privateKey,new TextEncoder().encode(head+'.'+body));return `${head}.${body}.${Buffer.from(signature).toString('base64url')}`;}
-const access={ACCESS_TEAM_DOMAIN:'sonnenpfad.cloudflareaccess.com',ACCESS_AUD:'aud-123',ADMIN_EMAIL:'owner@example.org'},good={aud:['aud-123'],iss:'https://sonnenpfad.cloudflareaccess.com',email:'owner@example.org',exp:Math.floor(Date.now()/1000)+600};
-const check=async claims=>(await verifyAccess(new Request('https://x/admin/',{headers:{'Cf-Access-Jwt-Assertion':await token(claims)}}),access,fakeCerts)).reason||'ok';
-assert.equal(await check(good),'ok');
-assert.equal(await check({...good,email:'someone@example.org'}),'email');
-assert.equal(await check({...good,aud:['other']}),'audience');
-assert.equal(await check({...good,exp:Math.floor(Date.now()/1000)-5}),'expired');
-assert.equal(await check({...good,iss:'https://evil.example'}),'issuer');
-const tampered=(await token(good)).replace(/\.([^.]+)\./,(m,body)=>'.'+enc({...good,email:'owner@example.org',aud:['aud-123'],x:1})+'.');
-assert.equal((await verifyAccess(new Request('https://x/',{headers:{'Cf-Access-Jwt-Assertion':tampered}}),access,fakeCerts)).reason,'signature');
-response=await handlePlatform(new Request('https://sonnenpfad-stuttgart.de/api/admin/summary'),{...env,...access});assert.equal(response.status,403,'no token: denied');
-assert(DB.raw.prepare("SELECT COUNT(*) AS n FROM security WHERE kind LIKE 'admin-denied%'").get().n>=1,'denied access is logged');
+assert.equal(await totpCode('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',Math.floor(59/30)),'287082','RFC 6238 test vector');
+const secret='JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',admin={...env,ADMIN_PASSWORD_HASH:await hashPassword('correct horse battery'),ADMIN_TOTP_SECRET:secret,ADMIN_SESSION_KEY:'test-session-key-0123456789'};
+assert.equal(await checkPassword('correct horse battery',admin.ADMIN_PASSWORD_HASH),true);assert.equal(await checkPassword('wrong',admin.ADMIN_PASSWORD_HASH),false);
+const site='https://sonnenpfad-stuttgart.de',login=(password,code,headers={})=>handleLogin(new Request(site+'/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json','X-Sonnenpfad-Admin':'1',Origin:site,'CF-Connecting-IP':'192.0.2.9',...headers},body:JSON.stringify({password,code})}),admin);
+response=await handlePlatform(new Request(site+'/admin/'),admin);assert.equal(response.status,303);assert.equal(response.headers.get('Location'),'/admin/login.html','no session: to login');
+response=await handlePlatform(new Request(site+'/api/admin/summary'),admin);assert.equal(response.status,401);
+assert.equal((await login('correct horse battery','123456',{Origin:'https://evil.example'})).status,400,'cross-site login refused');
+const code=await totpCode(secret,Math.floor(Date.now()/30000));
+assert.equal((await login('wrong password',code)).status,401);
+response=await login('correct horse battery',code);assert.equal(response.status,200);
+const cookie=response.headers.get('Set-Cookie');assert(/^__Host-sp_admin=.+; Path=\/; Secure; HttpOnly; SameSite=Strict/.test(cookie),'secure session cookie');
+const session=cookie.split(';')[0];
+assert.equal((await login('correct horse battery',code)).status,401,'a code works only once');
+response=await handlePlatform(new Request(site+'/api/admin/summary?days=7',{headers:{Cookie:session}}),admin);assert.equal(response.status,200);assert.equal((await response.json()).configured,true);
+response=await handlePlatform(new Request(site+'/admin/',{headers:{Cookie:session}}),admin);assert.equal(response.status,200);assert.equal(response.headers.get('X-Frame-Options'),'DENY');
+const forged=session.replace(/\.[^.]+$/,'.AAAA');assert.equal((await verifySession(new Request(site,{headers:{Cookie:forged}}),admin)).reason,'signature');
+assert.equal((await verifySession(new Request(site,{headers:{Cookie:session}}),admin,Date.now()+31*60000)).reason,'idle','30 minutes idle end the session');
+response=await login('correct horse battery',await totpCode(secret,Math.floor(Date.now()/30000)+1));const session2=response.headers.get('Set-Cookie').split(';')[0];
+await handlePlatform(new Request(site+'/api/admin/logout',{method:'POST',headers:{Cookie:session2,'X-Sonnenpfad-Admin':'1',Origin:site}}),admin);
+assert.equal((await verifySession(new Request(site,{headers:{Cookie:session2}}),admin)).reason,'revoked','logout revokes the session');
+for(let i=0;i<5;i++)await login('guess'+i,'000000',{'CF-Connecting-IP':'198.51.100.66'});
+assert.equal((await login('correct horse battery',await totpCode(secret,Math.floor(Date.now()/30000)),{'CF-Connecting-IP':'198.51.100.66'})).status,429,'locked after 5 failures');
+assert(!JSON.stringify(DB.raw.prepare('SELECT * FROM security').all()).includes('198.51.100.66'),'no IP address in the security log');
 
 // 6. Runtime switches: browser-routing emergency switch and maintenance page (admin settings path tested via DB).
 DB.raw.prepare("INSERT INTO settings(key,value) VALUES ('browserRouting','true'),('maintenance','true')").run();
@@ -71,4 +79,4 @@ assert.equal(usageAllowed({location:{hostname:'763614aa-sonnenpfad-stuttgart.moh
 assert.equal(usageAllowed({location:{hostname:'sonnenpfad-stuttgart.de'},navigator:{globalPrivacyControl:true}}),false);
 const boundaries=JSON.parse(fs.readFileSync(new URL('../dist/city/planner/districts.json',import.meta.url),'utf8')).boundaries;
 assert.equal(districtAt([9.1779,48.7775],boundaries),1);assert.equal(districtAt([8.5,48.5],boundaries),null);
-console.log('Platform verified: no storage without D1, validated events, salted daily visitor hashes rolled up and deleted, no IP or user agent stored, RS256 admin token checked (email, audience, issuer, expiry, signature), denied access logged, emergency switch and maintenance page.');
+console.log('Platform verified: no storage without D1, validated events, salted daily visitor hashes rolled up and deleted, no IP or user agent stored, password + TOTP login (RFC 6238 vector, one-time codes, cross-site refusal, 5-failure lock, signed HttpOnly session, 30-min idle end, logout revocation), emergency switch and maintenance page.');

@@ -4,17 +4,18 @@
 
 ## Protection
 
-1. **Cloudflare Access** in front of `/admin*` and `/api/admin/*`: only the owner's e-mail address, login via GitHub
-   (GitHub's two-factor authentication applies) or one-time PIN; session limit set in Access.
-2. **Worker check** (`services/platform.mjs`, `verifyAccess`): every admin request is verified again — RS256
-   signature against the Access certificates, audience, issuer, expiry and e-mail. Without configuration the area
-   stays closed (503); failed attempts are logged (hashed, no IP address).
-3. Settings changes need same-origin JSON with a custom header (CSRF), all values are validated; the dashboard
-   writes text only with `textContent` (no HTML injection); `X-Frame-Options: DENY`, no caching.
-4. The dashboard logs out after 30 minutes without interaction.
+1. **Login with password and TOTP code** (any authenticator app: Google/Microsoft Authenticator, 2FAS, Aegis …).
+   One admin account only, no registration. The password is stored as a PBKDF2-SHA256 hash, the TOTP key and a
+   session key as Cloudflare Worker secrets — never in the repository, the page or a log.
+2. Every code works once (replay refused); 5 failed logins from one address or 20 overall within 15 minutes lock
+   the login for 15 minutes; failures and logins are logged with a daily hashed address (no IP address).
+3. Session: signed `__Host-` cookie (HttpOnly, Secure, SameSite=Strict), ends after 30 minutes without activity or
+   8 hours at most; logout revokes it on the server. Every `/admin` page and `/api/admin/*` call is checked by the
+   Worker; without configuration the area stays closed (503).
+4. Login, logout and settings need same-origin JSON with a custom header (CSRF); all values are validated; the
+   dashboard writes text only with `textContent` (no HTML injection); `X-Frame-Options: DENY`, no caching.
 
-No credential is stored in the repository or the page. Worker secrets: `ADMIN_EMAIL`, `ACCESS_TEAM_DOMAIN`,
-`ACCESS_AUD`, `OPS_TOKEN`; variable `OPS_URL`.
+Worker secrets: `ADMIN_PASSWORD_HASH`, `ADMIN_TOTP_SECRET`, `ADMIN_SESSION_KEY`, `OPS_TOKEN`; variable `OPS_URL`.
 
 ## Usage statistics (privacy)
 
@@ -45,15 +46,16 @@ header (otherwise 404); the token lives in `/etc/sonnenpfad-ops/token` (root onl
 - Emergency browser routing: overrides `serverRouting` in `/city-config.json` without a Git change.
 - Statistics retention.
 
-## One-time setup
+## One-time setup (owner, in a terminal in the repository folder)
 
-1. `npx wrangler login` (owner signs in in the browser).
-2. `npx wrangler d1 create sonnenpfad-platform` → add the binding `DB` with its id to `wrangler.jsonc`,
-   then `npx wrangler d1 migrations apply sonnenpfad-platform --remote`.
-3. Cloudflare Zero Trust → Access → Applications → *Self-hosted*: domain `sonnenpfad-stuttgart.de`, paths `admin`
-   and `api/admin`; policy *Allow* for the owner's e-mail; login method GitHub (or one-time PIN). Copy the
-   *Application Audience (AUD) tag* and the team domain (`<team>.cloudflareaccess.com`).
-4. Secrets (values are typed or piped, never printed):
-   `npx wrangler secret put ADMIN_EMAIL`, `… ACCESS_TEAM_DOMAIN`, `… ACCESS_AUD`,
-   `ssh sonnenpfad-vm 'sudo cat /etc/sonnenpfad-ops/token' | npx wrangler secret put OPS_TOKEN`;
-   variable `OPS_URL` = `https://138.2.184.1/ops/metrics` in `wrangler.jsonc` (`vars`).
+```sh
+npx wrangler login
+npm run admin-setup
+```
+
+The script creates the free D1 database `sonnenpfad-platform`, applies the migrations, asks for the new admin
+password (hidden), shows the TOTP key for the authenticator app, checks a current code and stores the secrets
+(including the server-health token, read from the VM without being shown). It adds the database binding and
+`OPS_URL` to `wrangler.jsonc`; that change is then published like any other release.
+
+To change the password or the authenticator later, run `npm run admin-setup` again.

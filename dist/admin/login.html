@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Sonnenpfad — Anmeldung</title>
+<link rel="stylesheet" href="./admin.css">
+<script type="module" src="./login.js"></script>
+</head>
+<body class="login-page">
+<main class="login-card">
+ <h1>Sonnenpfad · Verwaltung</h1>
+ <form id="login" autocomplete="on">
+  <label for="password">Passwort</label>
+  <input id="password" name="password" type="password" autocomplete="current-password" required>
+  <label for="code">Code aus der Authenticator-App</label>
+  <input id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+  <button type="submit">Anmelden</button>
+  <p id="message" class="login-message" role="alert" hidden></p>
+ </form>
+ <p class="muted">Nach 5 Fehlversuchen ist die Anmeldung 15 Minuten gesperrt.</p>
+ <p><a href="/">Zurück zu Sonnenpfad</a></p>
+</main>
+</body>
+</html>

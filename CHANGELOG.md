@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Admin area at `/admin/` (link "Verwaltung" in About): visitors per day/week/month/year, sessions, usage time, hours and weekdays, devices, browsers, systems, languages; feature usage (modes, routes by profile, failed routes, filters, layers, 3D, shade, exports, navigation) and rarely used features; districts in analyses and of route starts/destinations; explored 1 km map cells; server health (CPU, memory, disk, network, uptime, database, routing-API load, latency and errors, services, backup) with 7-day history; maintenance mode, emergency browser routing and statistics retention; security events.
-- Protected twice: Cloudflare Access (owner only, GitHub or one-time PIN) and a server-side RS256 token check; closed until configured.
+- Own login for the owner only: password (PBKDF2 hash) plus TOTP code from an authenticator app; one-time codes, lock after 5 failures, signed HttpOnly session ending after 30 minutes without activity; closed until set up with `npm run admin-setup`.
 - Privacy-friendly usage counts without cookies or device storage, no IP addresses or locations; daily visitor estimate with a salt deleted every night; nothing counted with Do Not Track / Global Privacy Control. Privacy text in About extended.
 - Server: IP-free timing log for the routing API and a token-protected health endpoint.
 

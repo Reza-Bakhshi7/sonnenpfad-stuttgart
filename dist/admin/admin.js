@@ -10,7 +10,8 @@ const PROFILES={standard:'Standard',wheelchair:'Rollstuhl',powerWheelchair:'E-Ro
 const PREFS={balanced:'Direkt',shade:'Schatten',sun:'Sonne'};
 let districtNames={},grid=null;
 
-async function getJSON(path){const response=await fetch(path,{credentials:'same-origin',headers:{Accept:'application/json'}});if(!response.ok)throw Error(`${path}: ${response.status}`);return response.json();}
+async function getJSON(path){const response=await fetch(path,{credentials:'same-origin',headers:{Accept:'application/json'}});if(response.status===401){location.href='/admin/login.html';throw Error('login');}if(!response.ok)throw Error(`${path}: ${response.status}`);return response.json();}
+async function logout(){try{await fetch('/api/admin/logout',{method:'POST',credentials:'same-origin',headers:{'X-Sonnenpfad-Admin':'1'}});}finally{location.href='/admin/login.html';}}
 function notice(text){$('notice').textContent=text;$('notice').hidden=!text;}
 
 function sum(rows,metric,dim){return rows.filter(r=>r.metric===metric&&(dim===undefined||r.dim===dim)).reduce((total,r)=>total+r.n,0);}
@@ -111,6 +112,7 @@ async function load(){
 }
 $('refresh').onclick=load;$('days').onchange=load;
 load();setInterval(()=>{if(document.visibilityState==='visible')load();},60000);
-// Inactivity: after 30 minutes without interaction the session ends (Cloudflare Access logout).
-let idleTimer;const idle=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(()=>{location.href='/cdn-cgi/access/logout';},30*60000);};
+// Inactivity: after 30 minutes without interaction the session ends (the server enforces the same limit).
+$('logout').onclick=logout;
+let idleTimer;const idle=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(logout,30*60000);};
 for(const type of ['pointerdown','keydown','scroll'])addEventListener(type,idle,{passive:true});idle();
