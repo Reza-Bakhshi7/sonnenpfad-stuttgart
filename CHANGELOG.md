@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Languages: all interface texts moved to one central German/English dictionary (`scripts/i18n.mjs`); no interface code chooses a language inline any more. Fixed German texts in the English version (address search placeholder, tooltips, weather labels, map picking, MapLibre zoom and popup labels) and English labels in the German version. OSM values in English popups are shown as readable words.
+- New automatic check `check_i18n.mjs` keeps both languages complete.
+
 ## 0.20.1 — 18 November 2026
 
 - Desktop: the mobile step buttons ("Next", "Use my location", step bar) no longer appear in the sidebar once a route result is shown.

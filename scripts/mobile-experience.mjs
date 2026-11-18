@@ -1,9 +1,10 @@
+import {tr} from './i18n.mjs';
 // Mobile map gestures never edit endpoints. Choosing a point is a separate,
 // explicit centre-and-confirm transaction, cancelled after one committed point.
 function isMobileMap(){return innerWidth<=800;}
 function syncMapInteraction(){
  document.body.classList.toggle('is-picking',pick!==null);
- const bar=$('map-pick-bar');if(bar){bar.hidden=pick===null||!isMobileMap();$('map-pick-label').textContent=lang==='de'?(pick===0?'Karte verschieben · Start festlegen':'Karte verschieben · Ziel festlegen'):(pick===0?'Move map · choose start':'Move map · choose destination');}
+ const bar=$('map-pick-bar');if(bar){bar.hidden=pick===null||!isMobileMap();$('map-pick-label').textContent=tr(pick===0?'pickBarStart':'pickBarEnd');}
  if(map){map.getCanvas().style.cursor=pick!==null&&!isMobileMap()?'crosshair':exploreMode?'default':'';}
 }
 function syncMobileDock(){
@@ -16,7 +17,7 @@ function syncMobileDock(){
  if(mobile){const profile=$('elevation-profile'),slot=previewState?$('mobile-preview-slot'):$('profile-home');if(profile.parentElement!==slot)slot.append(profile);}
  document.body.classList.toggle('has-route',Boolean(result&&!result.error));document.body.classList.toggle('preview-active',Boolean(previewState));
  const summary=$('mobile-route-summary');if(summary){summary.hidden=!result||Boolean(result.error);if(result&&!result.error){$('mobile-route-time').textContent=formatWalkDuration(result.minutes,lang);$('mobile-route-distance').textContent=(result.length/1000).toLocaleString(lang,{maximumFractionDigits:2})+' km';}}
- if(mobile)$('panel-toggle').lastElementChild.textContent=result&&!result.error?(document.body.classList.contains('route-editing')?(lang==='de'?'Route bearbeiten':'Edit route'):t('yourRoute')):t('planRoute');
+ if(mobile)$('panel-toggle').lastElementChild.textContent=result&&!result.error?(document.body.classList.contains('route-editing')?(tr('editRoute')):t('yourRoute')):t('planRoute');
  if(mobile){const height=Math.ceil(dock.getBoundingClientRect().height);document.documentElement.style.setProperty('--mobile-dock-height',`${height}px`);}
  syncMapInteraction();
 }
@@ -46,11 +47,11 @@ let mobileStep=1;
 function mobileStepAllowed(step){return step===1||(step===2&&points.every(Boolean))||(step===3&&Boolean(result&&!result.error));}
 function renderMobileSteps(){
  document.body.dataset.mobileStep=String(mobileStep);const de=lang==='de';
- const labels=de?['Wohin?','Wie?','Route']:['Where?','How?','Route'];
+ const labels=[tr('stepWhere'),tr('stepHow'),tr('stepRoute')];
  document.querySelectorAll('#mobile-steps [data-step]').forEach(button=>{const step=+button.dataset.step;button.querySelector('span').textContent=labels[step-1];button.disabled=!mobileStepAllowed(step);button.setAttribute('aria-current',step===mobileStep?'step':'false');});
- const next=$('mobile-next');if(next){next.disabled=!points.every(Boolean);next.textContent=de?'Weiter: Wie möchtest du gehen? →':'Next: how would you like to walk? →';}
- const back=$('mobile-back');if(back)back.textContent=de?'‹ Start und Ziel ändern':'‹ Change start and destination';
- const here=$('use-location');if(here)here.textContent=de?'⌖ Meinen Standort als Start':'⌖ Use my location as start';
+ const next=$('mobile-next');if(next){next.disabled=!points.every(Boolean);next.textContent=tr('nextHowWouldYouLike');}
+ const back=$('mobile-back');if(back)back.textContent=tr('changeStartAndDestination');
+ const here=$('use-location');if(here)here.textContent=tr('useMyLocationAsStart');
 }
 function setMobileStep(step,{open=true}={}){
  if(!mobileStepAllowed(step))step=points.every(Boolean)?2:1;mobileStep=step;renderMobileSteps();

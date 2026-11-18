@@ -30,7 +30,7 @@ for (const color of ['#2E7D32', '#F9A825', '#C62828', '#9E9E9E']) {
 }
 assert.ok(appSource.includes("const CROSSING_CLASSES="));
 assert.ok(appSource.includes("['match',['get','q'],3,'poi-1-q3',2,'poi-1-q2',1,'poi-1-q1','poi-1-q0']"));
-assert.ok(appSource.includes('Rollstuhleignung'));
+assert.ok(fs.readFileSync(path.join(root, 'scripts', 'i18n.mjs'), 'utf8').includes('Rollstuhleignung'));
 assert.ok(appStyles.includes('.poi-toggle[data-kind="1"] .poi-symbol'));
 assert.ok(appHtml.includes('id="crossing-legend"'));
 

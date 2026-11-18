@@ -21,7 +21,7 @@ const scene=fs.readFileSync(path.join(root,'scripts/city-scene.mjs'),'utf8');ass
 assert(source.includes('function installFeatureCards'),'desktop feature cards must be installed');
 assert(source.includes('visual.tiles[item.properties._tile]?.detailFile'),'feature details must load from a clicked tile shard');
 assert(!source.includes("map.on('mousemove','poi-points'")&&!source.includes("map.on('mousemove','network-line'"),'feature information must be click-only on all pointer types');
-assert(source.includes('Quelle: Fußgängeratlas Stuttgart')&&source.includes('Source: Stuttgart Pedestrian Atlas'),'detail cards must expose provenance');
+{const dictionary=fs.readFileSync(path.join(root,'scripts/i18n.mjs'),'utf8');assert(source.includes("tr('atlasSource'")&&dictionary.includes('Quelle: Fußgängeratlas Stuttgart')&&dictionary.includes('Source: Stuttgart Pedestrian Atlas'),'detail cards must expose provenance');}
 assert(styles.includes('.feature-card')&&styles.includes('.feature-hover'),'feature card styling is required');
 
 let poiCount=0;

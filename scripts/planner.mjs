@@ -1,3 +1,4 @@
+import {tr} from './i18n.mjs';
 // District planner in explore mode: district boundaries, multi-selection and the slope filter
 // on the thesis working network (dist/city/planner, scripts/export_planner_data.py).
 export const PLANNER_SLOPE_MAX=30;
@@ -26,12 +27,12 @@ const plannerState={districts:new Set(),slope:false,min:5,missing:true,stairs:fa
 let plannerLoadId=0,plannerInitialFit=true;
 
 function plannerText(key){const de=lang==='de',text={
- title:de?'Bezirke prüfen':'Check districts',all:de?'Alle Stadtbezirke':'All districts',districts:de?'Bezirke':'districts',
- slope:de?'Nur Steigung über':'Only gradient above',missing:de?'Abschnitte ohne Wert zeigen (grau)':'Show sections without a value (grey)',
- stairs:de?'Treppen einblenden':'Show stairs',reset:de?'Zurücksetzen':'Reset',loading:de?'Daten werden geladen …':'Loading data …',
- none:de?'Kein Abschnitt passt zu dieser Auswahl. Grenzwert senken oder andere Bezirke wählen.':'No section matches this selection. Lower the threshold or choose other districts.',
- selectAll:de?'Alle':'All',clear:de?'Keine':'None',source:de?'Grundlage: Arbeitsbestand der Bezirksauswertung, Wege an Bezirksgrenzen geschnitten. Steigung ohne Richtung; Werte über 30 % entfernt.':'Basis: thesis working network, ways cut at district borders. Gradient regardless of direction; values above 30 % removed.',
- failed:de?'Bezirksdaten konnten nicht geladen werden.':'District data could not be loaded.'}[key];return text;}
+ title:tr('checkDistricts'),all:tr('allDistricts'),districts:tr('districts'),
+ slope:tr('onlyGradientAbove'),missing:tr('showSectionsWithoutAValue'),
+ stairs:tr('showStairs'),reset:tr('reset'),loading:tr('loadingData'),
+ none:tr('noSectionMatchesThisSelection'),
+ selectAll:tr('all'),clear:tr('none'),source:tr('basisThesisWorkingNetworkWays'),
+ failed:tr('districtDataCouldNotBe')}[key];return text;}
 
 async function ensurePlannerIndex(){
  if(plannerIndex)return plannerIndex;
@@ -68,7 +69,7 @@ function renderPlannerControls(){
  $('slope-filter').checked=plannerState.slope;$('slope-min').value=String(plannerState.min);$('slope-range').value=String(plannerState.min);$('planner-missing').checked=plannerState.missing;$('planner-stairs').checked=plannerState.stairs;
  for(const id of ['slope-min','slope-range','planner-missing'])$(id).disabled=!plannerState.slope;
  $('planner-reset').hidden=!plannerFilterActive(plannerState)&&!plannerState.stairs;
- const chip=$('planner-chip');if(chip){chip.hidden=!exploreMode||!plannerFilterActive(plannerState);$('planner-chip-open').textContent=[plannerState.districts.size?plannerSummaryLabel():plannerText('all'),plannerState.slope?(lang==='de'?'Steigung > ':'Gradient > ')+plannerState.min.toLocaleString(lang)+' %':null].filter(Boolean).join(' · ');$('planner-chip-clear').setAttribute('aria-label',plannerText('reset'));}
+ const chip=$('planner-chip');if(chip){chip.hidden=!exploreMode||!plannerFilterActive(plannerState);$('planner-chip-open').textContent=[plannerState.districts.size?plannerSummaryLabel():plannerText('all'),plannerState.slope?(tr('gradient4'))+plannerState.min.toLocaleString(lang)+' %':null].filter(Boolean).join(' · ');$('planner-chip-clear').setAttribute('aria-label',plannerText('reset'));}
  for(const input of document.querySelectorAll('#district-options input'))input.checked=plannerState.districts.has(+input.value);
 }
 function renderPlannerResult(text,empty=false){const box=$('planner-result');box.textContent=text;box.classList.toggle('is-empty',empty);box.hidden=!text;}
@@ -102,7 +103,7 @@ async function applyPlanner({fit=false}={}){
  if(loaded!==plannerFeatures){plannerFeatures=loaded;map.getSource('planner').setData(fc(loaded));}
  const summary=plannerSummary(loaded,plannerState),de=lang==='de',km=(summary.metres/1000).toLocaleString(lang,{maximumFractionDigits:1});
  if(!summary.pieces)renderPlannerResult(plannerText('none'),true);
- else{const parts=wanted.length>1&&wanted.length<=4?' ('+wanted.map(d=>`${d.name} ${summary.perDistrict.get(d.id)||0}`).join(', ')+')':'';const gaps=summary.missing?(de?` · davon ${summary.missing} ohne Wert (grau)`:` · ${summary.missing} without a value (grey)`):'';renderPlannerResult(de?`${summary.pieces.toLocaleString(lang)} Abschnitte · ${km} km${parts}${gaps}`:`${summary.pieces.toLocaleString(lang)} sections · ${km} km${parts}${gaps}`);}
+ else{const parts=wanted.length>1&&wanted.length<=4?' ('+wanted.map(d=>`${d.name} ${summary.perDistrict.get(d.id)||0}`).join(', ')+')':'';const gaps=summary.missing?(tr('plannerMissing',{count:summary.missing})):'';renderPlannerResult(tr('plannerSections',{count:summary.pieces.toLocaleString(lang),km,parts,gaps}));}
  syncPlannerURL();
 }
 
