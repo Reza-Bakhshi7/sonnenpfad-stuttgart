@@ -23,7 +23,7 @@ for (const file of requiredFiles) {
 }
 
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-if (pkg.version !== '0.21.0') throw new Error(`Expected release baseline 0.21.0, found ${pkg.version}`);
+if (pkg.version !== '0.22.0') throw new Error(`Expected release baseline 0.22.0, found ${pkg.version}`);
 
 const wrangler = fs.readFileSync('wrangler.jsonc', 'utf8');
 if (!wrangler.includes('sonnenpfad-stuttgart')) throw new Error('Unexpected Cloudflare project configuration.');

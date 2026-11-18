@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.22.0 — 18 November 2026
 
 - Explore mode becomes an analysis tool: area (all of Stuttgart or any districts) plus combinable filters on every network attribute — numbers (greater, less, equal, between) and categories (only these / all except these) — with sections without a value handled separately. The result shows sections, length and share of the network; each filter can be removed on its own, everything can be reset, and the link reproduces the analysis.
 - Export of the filtered sections as CSV (WKT geometry, EPSG:4326, UTF-8) or GeoJSON for QGIS.
