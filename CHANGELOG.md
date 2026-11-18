@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Explore mode becomes an analysis tool: area (all of Stuttgart or any districts) plus combinable filters on every network attribute — numbers (greater, less, equal, between) and categories (only these / all except these) — with sections without a value handled separately. The result shows sections, length and share of the network; each filter can be removed on its own, everything can be reset, and the link reproduces the analysis.
+- Export of the filtered sections as CSV (WKT geometry, EPSG:4326, UTF-8) or GeoJSON for QGIS.
+- Detail popup of a section lists all recorded attributes (width, surface, smoothness, lighting, handrail, tactile paving, ramp, access, …).
+- Fixed: the access attribute was missing in the analysis data.
+
 ## 0.21.0 — 18 November 2026
 
 - Languages: all interface texts moved to one central German/English dictionary (`scripts/i18n.mjs`); no interface code chooses a language inline any more. Fixed German texts in the English version (address search placeholder, tooltips, weather labels, map picking, MapLibre zoom and popup labels) and English labels in the German version. OSM values in English popups are shown as readable words.

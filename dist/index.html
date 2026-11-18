@@ -8,8 +8,8 @@
 <title>Sonnenpfad — Stuttgart</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23143959'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23f4c542'/%3E%3Cpath d='M8 27V20Q8 15 14 15H18Q23 15 23 21V27' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./style.css?v=4378a08f6c5f3878">
-<script type="module" src="./app-v7.mjs?v=52468dd83e24a9d0">
+<link rel="stylesheet" href="./style.css?v=e78cb836db6f5afc">
+<script type="module" src="./app-v7.mjs?v=c5343a049c78e85b">
 </script>
 </head>
 <body>
@@ -293,20 +293,17 @@
 <button id="layers-close" data-i-aria="close" type="button" aria-label="Schließen">×</button>
 </div>
 <section id="planner" class="planner" aria-labelledby="planner-title" hidden>
-<h3 id="planner-title">Bezirke prüfen</h3>
+<h3 id="planner-title">Analyse</h3>
 <details id="district-picker" class="district-picker">
 <summary id="district-summary">Alle Stadtbezirke</summary>
-<div class="district-actions"><button type="button" id="district-all">Alle</button><button type="button" id="district-none">Keine</button></div>
+<div class="district-actions"><button type="button" id="district-all">Alle</button><button type="button" id="district-none">Ganz Stuttgart</button></div>
 <div id="district-options" class="district-options"></div>
 </details>
-<div class="slope-filter">
-<label class="planner-check"><input type="checkbox" id="slope-filter"><span id="slope-filter-label">Nur Steigung über</span></label>
-<span class="slope-value"><input type="number" id="slope-min" min="0" max="30" step="0.5" value="5" aria-labelledby="slope-filter-label"> %</span>
-<input type="range" id="slope-range" min="0" max="30" step="0.5" value="5" aria-labelledby="slope-filter-label">
-</div>
-<label class="planner-check"><input type="checkbox" id="planner-missing" checked><span id="planner-missing-label">Abschnitte ohne Wert zeigen (grau)</span></label>
-<label class="planner-check"><input type="checkbox" id="planner-stairs"><span id="planner-stairs-label">Treppen einblenden</span></label>
+<div class="filter-heading" id="filter-heading">Filter (alle Bedingungen gelten zugleich)</div>
+<div id="filter-list" class="filter-list"></div>
+<select id="filter-add" class="filter-add" aria-label="Filter hinzufügen" data-i-aria="filterAdd"><option value="">+ Filter hinzufügen</option></select>
 <p id="planner-result" class="planner-result" role="status" aria-live="polite" hidden></p>
+<div id="planner-export" class="planner-export" hidden><button type="button" id="export-csv">CSV</button><button type="button" id="export-geojson">GeoJSON</button><small id="export-note"></small></div>
 <button type="button" id="planner-reset" class="text-button" hidden>Zurücksetzen</button>
 <p id="planner-source" class="micro"></p>
 </section>

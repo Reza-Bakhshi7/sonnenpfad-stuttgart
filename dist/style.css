@@ -350,3 +350,10 @@ body.is-navigating .mode-switch,body.is-navigating .theme-legend,body.is-navigat
 }
 @media(min-width:801px){#sidebar-body #mobile-next,#sidebar-body #use-location,#sidebar-body #mobile-back,#sidebar-body #mobile-steps{display:none!important}}
 #city-screen-mask path{fill-opacity:.7}
+.filter-heading{margin:14px 0 6px;font-size:12px;font-weight:700;color:var(--muted)}
+.filter-list{display:grid;gap:8px}.filter-card{padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#fff}
+.filter-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.filter-head strong{font-size:13px}.filter-remove{width:36px;height:36px;border:0;border-radius:8px;background:var(--soft);font-size:18px;color:var(--muted)}
+.filter-row{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}.filter-row select,.filter-row input{height:36px;border:1px solid var(--line);border-radius:7px;background:#fff;font-size:13px;padding:0 6px}.filter-row input{width:84px}
+.filter-chips{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px}.filter-chip{display:flex;align-items:center;gap:6px;min-height:32px;font-size:12.5px}.filter-chip input{width:17px;height:17px}
+.filter-missing{min-height:30px;font-size:12px;color:var(--muted)}.filter-add{width:100%;height:40px;margin-top:8px;border:1px dashed #9db3cf;border-radius:9px;background:#f6f9fd;color:#1a56c4;font-weight:650;font-size:13px;padding:0 10px}
+.planner-export{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0}.planner-export button{height:36px;padding:0 14px;border:1px solid #c9d8ef;border-radius:8px;background:#fff;color:#1a56c4;font-weight:700;font-size:13px}.planner-export small{flex-basis:100%;color:var(--muted);font-size:11px}

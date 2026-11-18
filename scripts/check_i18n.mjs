@@ -32,7 +32,7 @@ for(const file of modules){
  const source=read(file);
  const inline=[...source.matchAll(/(?<![\w$.])(?:lang\s*===?\s*'de'|de)\s*\?\s*['"`]/g)].map(match=>source.slice(match.index,match.index+60));
  assert.deepEqual(inline,[],`${file}: inline language choice, move the text to i18n.mjs`);
- for(const [,key] of source.matchAll(/\btr\('(\w+)'/g))assert(key in UI_TEXT.de,`${file}: unknown tr key ${key}`);
+ for(const [,key] of source.matchAll(/\btr\('(\w+)'[,)]/g))assert(key in UI_TEXT.de,`${file}: unknown tr key ${key}`);
 }
 
 // 4. Static page: every data-i* key resolves; visible German texts carry a key.
