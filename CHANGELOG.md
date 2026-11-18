@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.20.1 — 18 November 2026
+
+- Desktop: the mobile step buttons ("Next", "Use my location", step bar) no longer appear in the sidebar once a route result is shown.
+
 ## 0.20.0 — 18 November 2026
 
 - Map: the same zoom range on desktop and mobile; zoomed out, all of Baden-Württemberg fits on the screen. Stuttgart stays in full colour, the rest of the state is shown at about 30 %, everything beyond is faded further; the state border (BKG VG25) is drawn dashed. Routing and analysis stay limited to Stuttgart.
