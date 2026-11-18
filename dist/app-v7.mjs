@@ -1272,7 +1272,8 @@ const label=item=>item?.[lang==='en'?'en':'de']||'';
 
 async function ensurePlannerIndex(){
  if(plannerIndex)return plannerIndex;
- plannerIndexPending??=fetch(new URL('planner/districts.json',cityBaseURL)).then(r=>{if(!r.ok)throw Error('planner-index');return r.json();}).then(value=>{if(value.version!==2||value.districts?.length!==23||!value.attributes?.length)throw Error('planner-contract');plannerIndex=value;return value;}).catch(error=>{plannerIndexPending=null;throw error;});
+ // The index is always revalidated (cheap 304); district files carry their content revision in the URL.
+ plannerIndexPending??=fetch(new URL('planner/districts.json',cityBaseURL),{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('planner-index');return r.json();}).then(value=>{if(value.version!==2||value.districts?.length!==23||!value.attributes?.length)throw Error('planner-contract');plannerIndex=value;return value;}).catch(error=>{plannerIndexPending=null;throw error;});
  return plannerIndexPending;
 }
 function featureProperties(data,i,district,schema,counter){
@@ -1286,7 +1287,7 @@ function featureProperties(data,i,district,schema,counter){
 async function plannerDistrictFeatures(district){
  if(plannerFiles.has(district.id))return plannerFiles.get(district.id);
  const schema=plannerIndex.attributes,counter=new Map();
- const job=fetch(new URL('planner/'+district.file,cityBaseURL)).then(r=>{if(!r.ok)throw Error(district.file);return r.json();}).then(data=>data.lines.map((coordinates,i)=>feature('LineString',coordinates,featureProperties(data,i,district,schema,counter))));
+ const job=fetch(new URL(`planner/${district.file}${district.rev?'?v='+district.rev:''}`,cityBaseURL)).then(r=>{if(!r.ok)throw Error(district.file);return r.json();}).then(data=>data.lines.map((coordinates,i)=>feature('LineString',coordinates,featureProperties(data,i,district,schema,counter))));
  plannerFiles.set(district.id,job);job.catch(()=>plannerFiles.delete(district.id));return job;
 }
 

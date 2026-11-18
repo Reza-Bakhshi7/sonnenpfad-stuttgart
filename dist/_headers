@@ -17,6 +17,10 @@
   ! Cache-Control
   Cache-Control: no-cache
 
+/city/planner/districts.json
+  ! Cache-Control
+  Cache-Control: no-cache
+
 /dem/*
   Cache-Control: public, max-age=604800, must-revalidate
 

@@ -8,6 +8,7 @@ Output: dist/city/planner/districts.json (schema, areas, boundaries) and one col
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import pathlib
@@ -217,8 +218,11 @@ def main() -> int:
     index = []
     for district in districts.values():
         payload = {key: district[key] for key in ("lines", "a", "nm", "s", "n", "c")}
-        (args.output / district["file"]).write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-        index.append({key: district[key] for key in ("id", "name", "file", "bbox", "label", "subdistricts")}
+        text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+        (args.output / district["file"]).write_text(text, encoding="utf-8")
+        # Content revision: the app requests file?v=rev, so a changed file is never served from an old cache.
+        district["rev"] = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+        index.append({key: district[key] for key in ("id", "name", "file", "rev", "bbox", "label", "subdistricts")}
                      | {"pieces": len(district["a"]), "km": round(sum(district["n"]["length"]) / 1000, 2)})
     index.sort(key=lambda item: item["name"])
     complete = lambda key, group: all(value is not None for district in districts.values() for value in district[group][key])
