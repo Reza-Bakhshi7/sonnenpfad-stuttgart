@@ -348,5 +348,5 @@ body.is-navigating .mode-switch,body.is-navigating .theme-legend,body.is-navigat
  body.is-navigating #mobile-dock{display:none!important}body.is-navigating .map-area{height:calc(100dvh - 60px)!important}
  .nav-banner{top:8px;left:8px;right:8px}
 }
-@media(min-width:801px){#sidebar-body .mobile-only,#sidebar-body .mobile-steps{display:none!important}}
+@media(min-width:801px){#sidebar-body #mobile-next,#sidebar-body #use-location,#sidebar-body #mobile-back,#sidebar-body #mobile-steps{display:none!important}}
 #city-screen-mask path{fill-opacity:.7}
