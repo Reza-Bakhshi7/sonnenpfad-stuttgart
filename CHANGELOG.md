@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.20.0 — 18 November 2026
 
 - Map: the same zoom range on desktop and mobile; zoomed out, all of Baden-Württemberg fits on the screen. Stuttgart stays in full colour, the rest of the state is shown at about 30 %, everything beyond is faded further; the state border (BKG VG25) is drawn dashed. Routing and analysis stay limited to Stuttgart.
 - Places (POIs) appear from zoom 10 on every device, without overlap while zoomed out; details still open only when zoomed in.
