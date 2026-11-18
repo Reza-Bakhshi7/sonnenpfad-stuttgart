@@ -78,5 +78,5 @@ self.onmessage=async({data:d})=>{try{
   return;
  }
  if(d.type==='route'){if(d.profileApi){const via=await profileV2Route(d);self.postMessage({type:'route',id:d.id,result:via.result,shortest:via.shortest||via.result});return;}await ensureNetwork();const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=best.result,shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
- }catch(e){if(d.type==='route')self.postMessage({type:'route',id:d.id,result:{error:'modelFailed'}});else self.postMessage({type:'error',message:e.message,id:d.id});}};
+ }catch(e){if(d.type==='route')self.postMessage({type:'route',id:d.id,result:{error:'modelFailed',detail:String(e?.stack||e).slice(0,600)}});else self.postMessage({type:'error',message:e.message,id:d.id});}};
 

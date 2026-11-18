@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Map: the same zoom range on desktop and mobile; zoomed out, all of Baden-Württemberg fits on the screen. Stuttgart stays in full colour, the rest of the state is shown at about 30 %, everything beyond is faded further; the state border (BKG VG25) is drawn dashed. Routing and analysis stay limited to Stuttgart.
+- Places (POIs) appear from zoom 10 on every device, without overlap while zoomed out; details still open only when zoomed in.
+- Without a ready routing server, routes now run in the browser instead of the retired API 0.2; the server is rechecked at most once a minute. Route errors in the browser are logged with their cause.
+- Operations: availability check every 15 minutes (GitHub issue on outage), daily GPG-encrypted backups to a private repository, restore guide.
+
 ## 0.19.0 — 17 November 2026
 
 - Explore mode: boundaries of the 23 Stuttgart districts, multi-selection of districts and a gradient filter on the thesis working network (ways cut at district borders, gradient regardless of direction, stairs and missing values shown on request). Active selection shown on the map and resettable with one tap. Test case: Wangen and Hedelfingen above 5 % = 710 sections (16 without a value).

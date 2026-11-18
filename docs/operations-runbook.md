@@ -7,6 +7,12 @@
 - Routing: Sonnenpfad server (Oracle Always Free VM) behind Nginx at `https://138.2.184.1/profile-v2/`; details, limits and the update procedure in [server-routing-release.md](server-routing-release.md).
 - Weather: Cloudflare Worker `/api/weather` (`services/weather-worker.mjs`), Open-Meteo with MET Norway fallback.
 
+## Monitoring and backups
+
+- Availability: the `uptime` GitHub Actions workflow checks the website and `/profile-v2/health` every 15 minutes. A failure opens one issue labelled `outage` (GitHub notifies the owner by e-mail); recovery closes it. GitHub pauses scheduled workflows after 60 days without repository activity; re-enable the workflow in the Actions tab if that happens.
+- Backups: daily, encrypted, see [backup-and-restore.md](backup-and-restore.md).
+- Without a production-ready routing server the app routes in the browser and rechecks the server at most once a minute; the retired API 0.2 (`/route`, port 8000) is no longer used by the app.
+
 ## Routine verification
 
 1. GitHub Actions passed for the deployed commit.

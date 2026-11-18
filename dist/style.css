@@ -349,3 +349,4 @@ body.is-navigating .mode-switch,body.is-navigating .theme-legend,body.is-navigat
  .nav-banner{top:8px;left:8px;right:8px}
 }
 @media(min-width:801px){.mobile-only,.mobile-steps{display:none!important}}
+#city-screen-mask path{fill-opacity:.7}

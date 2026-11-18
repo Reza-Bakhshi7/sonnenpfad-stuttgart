@@ -1,0 +1,10 @@
+[Unit]
+Description=Encrypted Sonnenpfad backup to GitHub
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/sonnenpfad-backup
+Nice=10
+IOSchedulingClass=idle

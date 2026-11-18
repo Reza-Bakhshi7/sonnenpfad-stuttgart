@@ -1,0 +1,50 @@
+name: uptime
+
+# External availability check every 15 minutes. A failure opens (or updates) one
+# GitHub issue labelled "outage", which notifies the owner; recovery closes it.
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check website and routing server
+        id: probe
+        run: |
+          set +e
+          fail=""
+          check() { # name url expected-text
+            body=$(curl -sS --max-time 20 --retry 2 --retry-delay 10 "$2")
+            if [ $? -ne 0 ] || ! printf '%s' "$body" | grep -q "$3"; then fail="$fail $1"; fi
+          }
+          check website https://sonnenpfad-stuttgart.de/ 'SONNENPFAD'
+          check routing-server https://138.2.184.1/profile-v2/health '"production_ready": *true'
+          echo "failed=${fail# }" >> "$GITHUB_OUTPUT"
+          echo "Failed checks: ${fail:-none}"
+      - name: Report outage or recovery
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED: ${{ steps.probe.outputs.failed }}
+        run: |
+          open=$(gh issue list -R "$GITHUB_REPOSITORY" --label outage --state open --json number --jq '.[0].number')
+          if [ -n "$FAILED" ]; then
+            gh label create outage -R "$GITHUB_REPOSITORY" --color B60205 --description "Automatic availability alert" 2>/dev/null || true
+            msg="$(date -u +%FT%TZ): not reachable: $FAILED. Emergency switch: set \"serverRouting\": false in dist/city-config.json (docs/operations-runbook.md)."
+            if [ -n "$open" ]; then gh issue comment "$open" -R "$GITHUB_REPOSITORY" -b "$msg";
+            else gh issue create -R "$GITHUB_REPOSITORY" --label outage -t "Outage: $FAILED" -b "$msg"; fi
+            exit 1
+          elif [ -n "$open" ]; then
+            gh issue close "$open" -R "$GITHUB_REPOSITORY" -c "$(date -u +%FT%TZ): all checks pass again."
+          fi
