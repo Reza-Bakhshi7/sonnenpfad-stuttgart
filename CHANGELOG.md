@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.22.1 — 18 November 2026
 
 - Fixed: browsers that had opened the district analysis before 0.22.0 kept the old district data for up to a day and showed “District data could not be loaded”. The data index is now always revalidated and every district file carries its content revision.
 
