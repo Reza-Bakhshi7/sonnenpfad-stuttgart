@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Admin area at `/admin/` (link "Verwaltung" in About): visitors per day/week/month/year, sessions, usage time, hours and weekdays, devices, browsers, systems, languages; feature usage (modes, routes by profile, failed routes, filters, layers, 3D, shade, exports, navigation) and rarely used features; districts in analyses and of route starts/destinations; explored 1 km map cells; server health (CPU, memory, disk, network, uptime, database, routing-API load, latency and errors, services, backup) with 7-day history; maintenance mode, emergency browser routing and statistics retention; security events.
+- Protected twice: Cloudflare Access (owner only, GitHub or one-time PIN) and a server-side RS256 token check; closed until configured.
+- Privacy-friendly usage counts without cookies or device storage, no IP addresses or locations; daily visitor estimate with a salt deleted every night; nothing counted with Do Not Track / Global Privacy Control. Privacy text in About extended.
+- Server: IP-free timing log for the routing API and a token-protected health endpoint.
+
 ## 0.22.1 — 18 November 2026
 
 - Fixed: browsers that had opened the district analysis before 0.22.0 kept the old district data for up to a day and showed “District data could not be loaded”. The data index is now always revalidated and every district file carries its content revision.

@@ -1,3 +1,4 @@
+import {handlePlatform,rollup} from './platform.mjs';
 import {weatherUrl,normalizeWeather,normalizeMetWeather,usableWeatherCache,WEATHER_CACHE_MS} from '../scripts/weather.mjs';
 
 const inFlight=new Map();
@@ -29,4 +30,12 @@ export async function handleWeather(request,{cache,fetchImpl=fetch,now=Date.now,
  try{return json(await refresh(),'miss');}catch{return new Response(JSON.stringify({error:'weather-refresh',retryAfter:60}),{status:503,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Retry-After':'60'}});}
 }
 
-export default {async fetch(request,env,ctx){if(new URL(request.url).pathname==='/api/weather')return handleWeather(request,{cache:caches.default,waitUntil:job=>ctx.waitUntil(job)});return env.ASSETS.fetch(request);}};
+export default {
+ async fetch(request,env,ctx){
+  if(new URL(request.url).pathname==='/api/weather')return handleWeather(request,{cache:caches.default,waitUntil:job=>ctx.waitUntil(job)});
+  // Platform paths (usage counts, admin, runtime switches); a platform error never takes the site down.
+  try{const response=await handlePlatform(request,env);if(response)return response;}catch(error){console.error('platform',error);if(new URL(request.url).pathname.startsWith('/api/'))return new Response(null,{status:503});}
+  return env.ASSETS.fetch(request);
+ },
+ async scheduled(event,env,ctx){ctx.waitUntil(rollup(env));},
+};

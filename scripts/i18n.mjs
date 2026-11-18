@@ -272,6 +272,8 @@ export const UI_TEXT={de:{
  filterIncludeMissing:'Abschnitte ohne Angabe einbeziehen',
  filterAdd:'+ Filter hinzufügen',
  networkShare:'{share} % des Netzes im Gebiet',
+ privacyUsage:'<strong>Nutzungsstatistik:</strong> Ohne Cookies und ohne etwas auf deinem Gerät zu speichern, zählen wir, welche Funktionen genutzt werden (z. B. „Route berechnet“ oder der Bezirk einer Analyse). IP-Adressen, Standorte und Routenpunkte werden nicht gespeichert; Besucher werden pro Tag über einen täglich gelöschten Zufallsschlüssel geschätzt. Mit „Do Not Track“ oder „Global Privacy Control“ wird nichts gezählt.',
+ adminLink:'Verwaltung',
 },en:{
  cached:'cached',
  locale:'en-GB',
@@ -544,6 +546,8 @@ export const UI_TEXT={de:{
  filterIncludeMissing:'Include sections without a value',
  filterAdd:'+ Add filter',
  networkShare:'{share} % of the network in the area',
+ privacyUsage:'<strong>Usage statistics:</strong> Without cookies and without storing anything on your device, we count which features are used (e.g. “route calculated” or the district of an analysis). IP addresses, locations and route points are not stored; visitors are estimated per day with a random key that is deleted daily. With “Do Not Track” or “Global Privacy Control” nothing is counted.',
+ adminLink:'Administration',
 }};
 // Display names of OpenStreetMap attribute values in detail popups.
 export const OSM_VALUES={de:{yes:'Ja',no:'Nein',limited:'Eingeschränkt',unknown:'Unbekannt',true:'Ja',false:'Nein',ja:'Ja',nein:'Nein','beide richtungen':'Beide Richtungen',travertine:'Travertin',brick:'Ziegel',metal_construction:'Metallkonstruktion',permit:'Mit Genehmigung',delivery:'Lieferverkehr',rolled:'Abgerundet',public_transport:'ÖPNV-Unterstand',lean_to:'Offener Unterstand',rolling:'Rolltor',uphill:'Bergauf',downhill:'Bergab',marked:'Markiert',timetable:'Fahrplanaushang',nondenominational:'Konfessionsunabhängig (Quellangabe)',wood:'Holz',metal:'Metall',steel:'Stahl',stainless_steel:'Edelstahl',concrete:'Beton',plastic:'Kunststoff',stone:'Stein',granite:'Granit',aluminium:'Aluminium',asphalt:'Asphalt',paved:'Befestigt',unpaved:'Unbefestigt',paving_stones:'Pflastersteine',sett:'Natursteinpflaster',cobblestone:'Kopfsteinpflaster',gravel:'Schotter',fine_gravel:'Feiner Kies',compacted:'Wassergebundene Decke',ground:'Naturboden',dirt:'Erde',grass:'Gras',sand:'Sand',rubber:'Gummi',raised:'Erhöht',lowered:'Abgesenkt',flush:'Bündig',up:'Aufwärts',down:'Abwärts',both:'Beide Richtungen',forward:'Vorwärts',backward:'Rückwärts',public:'Öffentlich',private:'Privat',permissive:'Geduldet',customers:'Nur für Kundschaft',designated:'Ausgewiesen',destination:'Anliegerverkehr',gate:'Tor',bollard:'Poller',cycle_barrier:'Umlaufsperre',lift_gate:'Schranke',kissing_gate:'Personenschleuse',swing_gate:'Schwenktor',bus_stop:'Bushaltestelle',weather_shelter:'Wetterschutzhütte',basic_hut:'Einfache Schutzhütte',picnic_shelter:'Picknickunterstand',building_passage:'Gebäudedurchgang',zebra:'Zebrastreifen',uncontrolled:'Ungeregelt',traffic_signals:'Ampel',unmarked:'Ohne Markierung'},en:{yes:'Yes',no:'No',limited:'Limited',unknown:'Unknown',true:'Yes',false:'No',ja:'Yes',nein:'No','beide richtungen':'Both directions'}};

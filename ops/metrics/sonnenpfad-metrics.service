@@ -1,0 +1,7 @@
+[Unit]
+Description=Sonnenpfad server health for the admin dashboard
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/sbin/sonnenpfad-metrics
+Nice=10

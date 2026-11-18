@@ -200,7 +200,7 @@ async function applyPlanner({fit=false}={}){
 }
 
 function exportAnalysis(format){
- if(!plannerIndex||!lastSummary?.pieces)return;
+ if(!plannerIndex||!lastSummary?.pieces)return;track('export',format);
  const schema=plannerIndex.attributes,matches=plannerFeatures.filter(item=>analysisMatches(item.properties,plannerState)),columns=exportColumns(schema);
  const stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,13).replace('T','-'),area=plannerState.districts.size?plannerIndex.districts.filter(d=>plannerState.districts.has(d.id)).map(d=>d.name).join('-'):'stuttgart';
  const slug=area.normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase().slice(0,60),name=`sonnenpfad-analyse_${slug}_${stamp}`;
@@ -223,7 +223,7 @@ function analysisDetailRows(p){
  return rows;
 }
 function addFilter(key){
- const attribute=plannerIndex?.attributes.find(a=>a.key===key);if(!attribute)return;
+ const attribute=plannerIndex?.attributes.find(a=>a.key===key);if(!attribute)return;track('filter',key);
  // Gradient keeps the earlier decision: sections without a value stay visible (grey) by default.
  plannerState.filters.push(attribute.type==='number'?{key,type:'number',op:'gt',value:NUMERIC_DEFAULTS[key]??0,missing:key==='slope'}:{key,type:'category',mode:'include',codes:new Set(attribute.categories.slice(0,1).map(item=>item.code)),missing:false});
  applyPlanner();
@@ -234,7 +234,7 @@ function setupPlanner(){
  for(const value of (query.get('bezirke')||'').split(',').map(Number))if(Number.isInteger(value)&&value>0)plannerState.districts.add(value);
  ensurePlannerIndex().then(index=>{
   const holder=$('district-options');holder.replaceChildren();
-  for(const d of index.districts){const item=document.createElement('label');item.className='district-option';item.innerHTML='<input type="checkbox"><span></span>';item.querySelector('input').value=d.id;item.querySelector('span').textContent=d.name;item.querySelector('input').onchange=event=>{event.target.checked?plannerState.districts.add(d.id):plannerState.districts.delete(d.id);applyPlanner({fit:true});};holder.append(item);}
+  for(const d of index.districts){const item=document.createElement('label');item.className='district-option';item.innerHTML='<input type="checkbox"><span></span>';item.querySelector('input').value=d.id;item.querySelector('span').textContent=d.name;item.querySelector('input').onchange=event=>{if(event.target.checked){plannerState.districts.add(d.id);track('district',d.id);}else plannerState.districts.delete(d.id);applyPlanner({fit:true});};holder.append(item);}
   for(const id of [...plannerState.districts])if(!index.districts.some(d=>d.id===id))plannerState.districts.delete(id);
   plannerState.filters=decodeAnalysis(query.get('filter'),index.attributes);
   // Links from 0.19–0.21: steigungAb=5 means gradient above 5 % without stairs, gaps shown.

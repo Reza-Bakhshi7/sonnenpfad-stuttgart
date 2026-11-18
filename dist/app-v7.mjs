@@ -369,6 +369,8 @@ const UI_TEXT={de:{
  filterIncludeMissing:'Abschnitte ohne Angabe einbeziehen',
  filterAdd:'+ Filter hinzufügen',
  networkShare:'{share} % des Netzes im Gebiet',
+ privacyUsage:'<strong>Nutzungsstatistik:</strong> Ohne Cookies und ohne etwas auf deinem Gerät zu speichern, zählen wir, welche Funktionen genutzt werden (z. B. „Route berechnet“ oder der Bezirk einer Analyse). IP-Adressen, Standorte und Routenpunkte werden nicht gespeichert; Besucher werden pro Tag über einen täglich gelöschten Zufallsschlüssel geschätzt. Mit „Do Not Track“ oder „Global Privacy Control“ wird nichts gezählt.',
+ adminLink:'Verwaltung',
 },en:{
  cached:'cached',
  locale:'en-GB',
@@ -641,6 +643,8 @@ const UI_TEXT={de:{
  filterIncludeMissing:'Include sections without a value',
  filterAdd:'+ Add filter',
  networkShare:'{share} % of the network in the area',
+ privacyUsage:'<strong>Usage statistics:</strong> Without cookies and without storing anything on your device, we count which features are used (e.g. “route calculated” or the district of an analysis). IP addresses, locations and route points are not stored; visitors are estimated per day with a random key that is deleted daily. With “Do Not Track” or “Global Privacy Control” nothing is counted.',
+ adminLink:'Administration',
 }};
 // Display names of OpenStreetMap attribute values in detail popups.
 const OSM_VALUES={de:{yes:'Ja',no:'Nein',limited:'Eingeschränkt',unknown:'Unbekannt',true:'Ja',false:'Nein',ja:'Ja',nein:'Nein','beide richtungen':'Beide Richtungen',travertine:'Travertin',brick:'Ziegel',metal_construction:'Metallkonstruktion',permit:'Mit Genehmigung',delivery:'Lieferverkehr',rolled:'Abgerundet',public_transport:'ÖPNV-Unterstand',lean_to:'Offener Unterstand',rolling:'Rolltor',uphill:'Bergauf',downhill:'Bergab',marked:'Markiert',timetable:'Fahrplanaushang',nondenominational:'Konfessionsunabhängig (Quellangabe)',wood:'Holz',metal:'Metall',steel:'Stahl',stainless_steel:'Edelstahl',concrete:'Beton',plastic:'Kunststoff',stone:'Stein',granite:'Granit',aluminium:'Aluminium',asphalt:'Asphalt',paved:'Befestigt',unpaved:'Unbefestigt',paving_stones:'Pflastersteine',sett:'Natursteinpflaster',cobblestone:'Kopfsteinpflaster',gravel:'Schotter',fine_gravel:'Feiner Kies',compacted:'Wassergebundene Decke',ground:'Naturboden',dirt:'Erde',grass:'Gras',sand:'Sand',rubber:'Gummi',raised:'Erhöht',lowered:'Abgesenkt',flush:'Bündig',up:'Aufwärts',down:'Abwärts',both:'Beide Richtungen',forward:'Vorwärts',backward:'Rückwärts',public:'Öffentlich',private:'Privat',permissive:'Geduldet',customers:'Nur für Kundschaft',designated:'Ausgewiesen',destination:'Anliegerverkehr',gate:'Tor',bollard:'Poller',cycle_barrier:'Umlaufsperre',lift_gate:'Schranke',kissing_gate:'Personenschleuse',swing_gate:'Schwenktor',bus_stop:'Bushaltestelle',weather_shelter:'Wetterschutzhütte',basic_hut:'Einfache Schutzhütte',picnic_shelter:'Picknickunterstand',building_passage:'Gebäudedurchgang',zebra:'Zebrastreifen',uncontrolled:'Ungeregelt',traffic_signals:'Ampel',unmarked:'Ohne Markierung'},en:{yes:'Yes',no:'No',limited:'Limited',unknown:'Unknown',true:'Yes',false:'No',ja:'Yes',nein:'No','beide richtungen':'Both directions'}};
@@ -651,6 +655,33 @@ function tr(key,vars=null,language=typeof lang==='string'?lang:'de'){
  const table=UI_TEXT[language==='en'?'en':'de'],text=table[key]??UI_TEXT.de[key]??key;
  return vars?text.replace(/\{(\w+)\}/g,(match,name)=>vars[name]??match):text;
 }
+
+// Anonymous usage counts for the admin dashboard (services/platform.mjs): no cookies, nothing stored on
+// the device, no coordinates. Only on the production hosts and never with Do Not Track / Global Privacy Control.
+const USAGE_HOSTS=new Set(['sonnenpfad-stuttgart.de','www.sonnenpfad-stuttgart.de','sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev']);
+function usageAllowed(environment=globalThis){
+ const nav=environment.navigator||{},host=environment.location?.hostname||'';
+ return USAGE_HOSTS.has(host)&&nav.doNotTrack!=='1'&&nav.globalPrivacyControl!==true;
+}
+// Districts are reported, never points: a route start counts for its district only.
+function districtAt(point,boundaries){
+ const inside=(p,ring)=>{let hit=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])hit=!hit;}return hit;};
+ for(const item of boundaries?.features||[]){if(item.properties?.level!=='district')continue;if(item.geometry.coordinates.some(polygon=>inside(point,polygon[0])&&!polygon.slice(1).some(ring=>inside(point,ring))))return item.properties.id;}
+ return null;
+}
+const usageQueue=[];let usageTimer=0;
+function track(type,value){
+ if(!usageAllowed())return;
+ usageQueue.push({t:type,v:String(value)});clearTimeout(usageTimer);
+ if(usageQueue.length>=15)flushUsage();else usageTimer=setTimeout(flushUsage,2000);
+}
+function flushUsage(){
+ if(!usageQueue.length)return;
+ const body=JSON.stringify({e:usageQueue.splice(0,20),d:isMobileMap()?'m':'d',l:lang});
+ try{if(navigator.sendBeacon?.('/api/event',new Blob([body],{type:'application/json'})))return;}catch{}
+ fetch('/api/event',{method:'POST',body,keepalive:true,credentials:'omit',headers:{'Content-Type':'application/json'}}).catch(()=>{});
+}
+if(typeof document!=='undefined'){addEventListener('pagehide',flushUsage);addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushUsage();});}
 
 
 // Mobile map gestures never edit endpoints. Choosing a point is a separate,
@@ -1389,7 +1420,7 @@ async function applyPlanner({fit=false}={}){
 }
 
 function exportAnalysis(format){
- if(!plannerIndex||!lastSummary?.pieces)return;
+ if(!plannerIndex||!lastSummary?.pieces)return;track('export',format);
  const schema=plannerIndex.attributes,matches=plannerFeatures.filter(item=>analysisMatches(item.properties,plannerState)),columns=exportColumns(schema);
  const stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,13).replace('T','-'),area=plannerState.districts.size?plannerIndex.districts.filter(d=>plannerState.districts.has(d.id)).map(d=>d.name).join('-'):'stuttgart';
  const slug=area.normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase().slice(0,60),name=`sonnenpfad-analyse_${slug}_${stamp}`;
@@ -1412,7 +1443,7 @@ function analysisDetailRows(p){
  return rows;
 }
 function addFilter(key){
- const attribute=plannerIndex?.attributes.find(a=>a.key===key);if(!attribute)return;
+ const attribute=plannerIndex?.attributes.find(a=>a.key===key);if(!attribute)return;track('filter',key);
  // Gradient keeps the earlier decision: sections without a value stay visible (grey) by default.
  plannerState.filters.push(attribute.type==='number'?{key,type:'number',op:'gt',value:NUMERIC_DEFAULTS[key]??0,missing:key==='slope'}:{key,type:'category',mode:'include',codes:new Set(attribute.categories.slice(0,1).map(item=>item.code)),missing:false});
  applyPlanner();
@@ -1423,7 +1454,7 @@ function setupPlanner(){
  for(const value of (query.get('bezirke')||'').split(',').map(Number))if(Number.isInteger(value)&&value>0)plannerState.districts.add(value);
  ensurePlannerIndex().then(index=>{
   const holder=$('district-options');holder.replaceChildren();
-  for(const d of index.districts){const item=document.createElement('label');item.className='district-option';item.innerHTML='<input type="checkbox"><span></span>';item.querySelector('input').value=d.id;item.querySelector('span').textContent=d.name;item.querySelector('input').onchange=event=>{event.target.checked?plannerState.districts.add(d.id):plannerState.districts.delete(d.id);applyPlanner({fit:true});};holder.append(item);}
+  for(const d of index.districts){const item=document.createElement('label');item.className='district-option';item.innerHTML='<input type="checkbox"><span></span>';item.querySelector('input').value=d.id;item.querySelector('span').textContent=d.name;item.querySelector('input').onchange=event=>{if(event.target.checked){plannerState.districts.add(d.id);track('district',d.id);}else plannerState.districts.delete(d.id);applyPlanner({fit:true});};holder.append(item);}
   for(const id of [...plannerState.districts])if(!index.districts.some(d=>d.id===id))plannerState.districts.delete(id);
   plannerState.filters=decodeAnalysis(query.get('filter'),index.attributes);
   // Links from 0.19–0.21: steigungAb=5 means gradient above 5 % without stairs, gaps shown.
@@ -1507,7 +1538,7 @@ function navigationMarker(){const el=document.createElement('div');el.className=
 function setNavBanner({arrow='↑',instruction='',remaining='',reroute=false}){$('nav-turn').textContent=arrow;$('nav-instruction').textContent=instruction;$('nav-remaining').textContent=remaining;$('nav-reroute').hidden=!reroute;}
 function startNavigation(){
  if(!result?.coords?.length||result.error||!navigator.geolocation||!map)return;
- stopRoutePreview(false);featurePopup?.remove();
+ stopRoutePreview(false);featurePopup?.remove();track('nav','start');
  nav={measure:routeMeasure(result.coords),maneuvers:routeManeuvers(result.coords),along:0,off:0,marker:navigationMarker(),lock:null,arrived:false,watch:null,rerouting:false};
  document.body.classList.add('is-navigating');$('nav-banner').hidden=false;$('sidebar-body').classList.remove('expanded');$('panel-toggle').setAttribute('aria-expanded','false');
  $('nav-stop').textContent=tr('end');$('nav-reroute').textContent=tr('recalculate');
@@ -1529,12 +1560,12 @@ function onNavigationPosition(position){
  nav.marker.setRotation(heading);map.easeTo({center:p,zoom:Math.max(map.getZoom(),17.5),bearing:heading,duration:900,essential:true});
  const remaining=Math.max(0,nav.measure.total-nav.along),minutes=Number.isFinite(result?.minutes)&&nav.measure.total?Math.max(1,Math.round(result.minutes*remaining/nav.measure.total)):null,summary=`${formatMetres(remaining)}${minutes?' · '+formatWalkDuration(minutes,lang):''}`;
  if(nav.off>=2){setNavBanner({arrow:'!',instruction:tr('youLeftTheRoute'),remaining:summary,reroute:true});return;}
- if(remaining<20){nav.arrived=true;setNavBanner({arrow:'⚑',instruction:tr('youHaveArrived'),remaining:''});return;}
+ if(remaining<20){if(!nav.arrived)track('nav','arrive');nav.arrived=true;setNavBanner({arrow:'⚑',instruction:tr('youHaveArrived'),remaining:''});return;}
  const next=nav.maneuvers.find(item=>item.at>nav.along+3)||nav.maneuvers.at(-1),distance=next.at-nav.along;
  setNavBanner({arrow:TURN_ARROWS[distance>150&&next.kind!=='arrive'?'straight':next.kind],instruction:distance>150&&next.kind!=='arrive'?`${maneuverText('straight',lang)} · ${formatMetres(distance)}`:`In ${formatMetres(distance)}: ${maneuverText(next.kind,lang)}`,remaining:summary});
 }
 function rerouteNavigation(){
- if(!nav)return;navigator.geolocation.getCurrentPosition(position=>{if(!nav)return;const p=[position.coords.longitude,position.coords.latitude];if(!inPilot(p)){showToast('outsideLocation');return;}nav.rerouting=true;setNavBanner({arrow:'⟳',instruction:tr('recalculating')});setCustom(0,p,tr('myLocation'));calculate();},()=>setNavBanner({arrow:'!',instruction:t('locationFail'),reroute:true}),{enableHighAccuracy:true,timeout:15000,maximumAge:5000});
+ if(!nav)return;track('nav','reroute');navigator.geolocation.getCurrentPosition(position=>{if(!nav)return;const p=[position.coords.longitude,position.coords.latitude];if(!inPilot(p)){showToast('outsideLocation');return;}nav.rerouting=true;setNavBanner({arrow:'⟳',instruction:tr('recalculating')});setCustom(0,p,tr('myLocation'));calculate();},()=>setNavBanner({arrow:'!',instruction:t('locationFail'),reroute:true}),{enableHighAccuracy:true,timeout:15000,maximumAge:5000});
 }
 // A new route while navigating (reroute or changed settings) continues the navigation on it.
 function navigationRouteChanged(){
@@ -1729,7 +1760,8 @@ function aboutContent(){
  const sources=(tr('data'))+'<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a> (<a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noreferrer">ODbL</a>), <a href="https://www.lgl-bw.de/" target="_blank" rel="noreferrer">LGL</a> DGM1/nDOM1 (<a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noreferrer">dl-de/by-2-0</a>), <a href="https://opendata.stuttgart.de/de/dataset/laermkartierung" target="_blank" rel="noreferrer">Landeshauptstadt Stuttgart, Lärmkartierung</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>), <a href="https://opendata.stuttgart.de/dataset/kleinraumige-gliederung" target="_blank" rel="noreferrer">Landeshauptstadt Stuttgart, Stadtmessungsamt, Kleinräumige Gliederung</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>), <a href="https://www.klimaatlas-bw.de/" target="_blank" rel="noreferrer">Klimaatlas BW der LUBW</a>, 2026 (<a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noreferrer">dl-de/by-2-0</a>), © <a href="https://www.bkg.bund.de/" target="_blank" rel="noreferrer">BKG</a> (2026) VG25 (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>, <a href="https://sgx.geodatenzentrum.de/web_public/gdz/datenquellen/datenquellen_vg25.pdf" target="_blank" rel="noreferrer">Datenquellen</a>), <a href="https://mobidata-bw.de/dataset/daten-barrierefreiheit" target="_blank" rel="noreferrer">MobiData BW / NVBW</a> (<a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noreferrer">dl-de/by-2-0</a>)'+(tr('modified'))+(tr('map'))+'<a href="https://openfreemap.org/" target="_blank" rel="noreferrer">OpenFreeMap</a> / <a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer">OpenMapTiles</a> / <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a>. '+(tr('aerialImagery'))+'<a href="https://www.lgl-bw.de/" target="_blank" rel="noreferrer">LGL-BW (2026)</a> · dl-de/by-2-0. '+(tr('weather'))+'<a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> / <a href="https://www.met.no/" target="_blank" rel="noreferrer">MET Norway</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>. '+'<a href="https://github.com/Reza-Bakhshi7/sonnenpfad-stuttgart/blob/main/SOURCES_AND_LICENCES.md" target="_blank" rel="noreferrer">{all}</a>'.replace('{all}',tr('allSourcesAndLicences'))+'.';
  const privacy=routingServer()?(tr('everyRouteIsCalculatedOn')):isRoutingPreview(location.hostname)?(tr('inThisPreviewRoutesAre')):(tr('standardDirectRoutesSendStart'));
  const body=tr('aboutBody',{atlas,author,privacy});
- return body+'<p class="micro">'+sources+'</p>';
+ // The admin entry is only a link: /admin is protected by Cloudflare Access and checked again in the Worker.
+ return body+'<p>'+tr('privacyUsage')+'</p><p class="micro">'+sources+'</p><p class="micro admin-entry"><a href="/admin/" rel="nofollow">'+tr('adminLink')+'</a></p>';
 }
 Object.assign(strings.de,{mobilityGroup:'Mobilitätsprofil',mapLabel:'Karte von Stuttgart',mapMode:'Kartenmodus'});Object.assign(strings.en,{mobilityGroup:'Mobility profile',mapLabel:'Map of Stuttgart',mapMode:'Map mode'});
 function language(){featureRequestId++;featurePopup?.remove();featurePopup=null;clearFeatureSelection();updateExperienceLanguage();document.documentElement.lang=lang;document.querySelectorAll('[data-i-aria]').forEach(el=>el.setAttribute('aria-label',t(el.dataset.iAria)));document.querySelectorAll('[data-i]').forEach(el=>el.textContent=t(el.dataset.i));document.querySelectorAll('[data-i-title]').forEach(el=>el.title=t(el.dataset.iTitle));document.querySelectorAll('[data-i-placeholder]').forEach(el=>el.placeholder=t(el.dataset.iPlaceholder));$('language').textContent=tr('de');$('language').setAttribute('aria-label',tr('aufDeutschWechseln'));$('about-content').innerHTML=aboutContent();status(statusKey);for(const [id,k]of [['swap','swap'],['pick-origin','pickOrigin'],['pick-destination','pickDestination'],['locate','locate'],['fit','fit'],['close-about','close']]){const element=$(id);if(element){element.setAttribute('aria-label',t(k));element.title=t(k);}}document.querySelectorAll('[data-profile],[data-slope]').forEach(button=>button.title=button.querySelector('[data-i]').textContent);$('origin').setAttribute('aria-label',t('from'));$('destination').setAttribute('aria-label',t('to'));if($('mobility-profile'))$('profile-description').textContent=profileDescriptions[lang][$('mobility-profile').value]||'';updateStep4Language();if(map){const locale=mapLibreLocale(lang);if(map._locale)Object.assign(map._locale,locale);map.getCanvas()?.setAttribute('aria-label',locale['Map.Title']);for(const [selector,key] of [['.maplibregl-ctrl-zoom-in','NavigationControl.ZoomIn'],['.maplibregl-ctrl-zoom-out','NavigationControl.ZoomOut'],['.maplibregl-ctrl-compass','NavigationControl.ResetBearing']]){const button=map.getContainer().querySelector(selector);if(button){button.title=locale[key];button.setAttribute('aria-label',locale[key]);}}}if(result)showResult();updateClock();renderWeather(true);if(typeof applyPlanner==='function')applyPlanner().catch(console.warn);}
@@ -1909,7 +1941,7 @@ async function init(){
   if(typeof maplibregl.Map!=='function')throw Error('MapLibre unavailable');
   map=new maplibregl.Map({locale:mapLibreLocale(lang),container:'map',style:createBasemapStyle(),center:[9.1779,48.7775],zoom:cityManifest?12.2:15.2,minZoom:cityManifest?MAP_MIN_ZOOM:12,maxZoom:20,maxBounds:cityManifest?MAP_BOUNDS:undefined,maxPitch:0,maxTileCacheSize:matchMedia('(pointer:coarse)').matches?96:192,maxTileCacheZoomLevels:8,cancelPendingTileRequestsWhileZooming:false,attributionControl:false,pitch:0,centerClampedToGround:true,canvasContextAttributes:{antialias:true}});map.touchPitch.disable();
   map.addControl(new maplibregl.NavigationControl({showCompass:true}),'top-right');map.addControl(new maplibregl.AttributionControl({compact:false,customAttribution:'Atlas: M. Bakhshi'}),'bottom-right');
-  map.on('load',()=>{setupLayers();updateMarkers();installDirectMapPicking();updateModeUI();$('loading-cover').hidden=true;worker=new Worker(URL.createObjectURL(new Blob([BUNDLED_WORKER],{type:'text/javascript'})));worker.onerror=event=>{console.error('Routing worker failed:',event.message,event.lineno);status('modelFailed');$('calculate').disabled=true;};worker.onmessage=onWorker;if(cityManifest){worker.postMessage({type:'initCity',manifest:cityManifest,base:cityBaseURL.href});loadVisibleCityTiles().catch(console.warn);map.on('moveend',()=>{loadVisibleCityTiles().catch(error=>console.warn('Viewport display postponed:',error));});}else worker.postMessage({type:'init',meta,network,obstacles});map.on('rotate',updateSunDirection);map.on('moveend',()=>{if(shadeOverlay&&!is3D&&!viewSwitching){clearTimeout(cityShadeTimer);cityShadeTimer=setTimeout(()=>requestShade(false,{silent:true}),650);}});map.on('click',e=>{if(pick===null||isMobileMap())return;chooseMapPoint([e.lngLat.lng,e.lngLat.lat],{forcedIndex:pick});});});
+  map.on('load',()=>{setupLayers();updateMarkers();installDirectMapPicking();updateModeUI();$('loading-cover').hidden=true;worker=new Worker(URL.createObjectURL(new Blob([BUNDLED_WORKER],{type:'text/javascript'})));worker.onerror=event=>{console.error('Routing worker failed:',event.message,event.lineno);status('modelFailed');$('calculate').disabled=true;};worker.onmessage=onWorker;if(cityManifest){worker.postMessage({type:'initCity',manifest:cityManifest,base:cityBaseURL.href});loadVisibleCityTiles().catch(console.warn);map.on('moveend',()=>{loadVisibleCityTiles().catch(error=>console.warn('Viewport display postponed:',error));});}else worker.postMessage({type:'init',meta,network,obstacles});map.on('rotate',updateSunDirection);map.on('moveend',trackView);map.on('moveend',()=>{if(shadeOverlay&&!is3D&&!viewSwitching){clearTimeout(cityShadeTimer);cityShadeTimer=setTimeout(()=>requestShade(false,{silent:true}),650);}});map.on('click',e=>{if(pick===null||isMobileMap())return;chooseMapPoint([e.lngLat.lng,e.lngLat.lat],{forcedIndex:pick});});});
  }catch(e){const key=typeof maplibregl.GPUInitializationError==='function'&&e instanceof maplibregl.GPUInitializationError?'mapUnsupported':'loadFail';status(key);$('loading-cover').querySelector('span').textContent=t(key);$('loading-cover').querySelector('.spinner').hidden=true;console.error(e);}
 }
 
@@ -2066,10 +2098,23 @@ function setShadeOverlay(on){
 const setPreferenceBase=setPreference;setPreference=p=>{setPreferenceBase(p);if(p!=='balanced'&&!shadeOverlayAuto&&ready){shadeOverlayAuto=true;setShadeOverlay(true);}};
 const setCustomBase=setCustom;setCustom=(i,p,label)=>{setCustomBase(i,p,label);if(isMobileMap())setMobileStep(points.every(Boolean)?2:1);};
 const invalidateRouteSteps=invalidateRoute;invalidateRoute=()=>{invalidateRouteSteps();renderDirections();if(mobileStep===3)setMobileStep(points.every(Boolean)?2:1,{open:false});};
-const onWorkerSteps=onWorker;onWorker=e=>{onWorkerSteps(e);const d=e.data;if(d.type!=='route'||d.id!==routeId)return;renderDirections();navigationRouteChanged();if(result&&!result.error){setMobileStep(3,{open:false});if(preference!=='balanced'&&!shadeOverlayAuto){shadeOverlayAuto=true;setShadeOverlay(true);}}};
+const onWorkerSteps=onWorker;onWorker=e=>{onWorkerSteps(e);const d=e.data;if(d.type!=='route'||d.id!==routeId)return;renderDirections();navigationRouteChanged();trackRoute();if(result&&!result.error){setMobileStep(3,{open:false});if(preference!=='balanced'&&!shadeOverlayAuto){shadeOverlayAuto=true;setShadeOverlay(true);}}};
 const languageSteps=language;language=()=>{languageSteps();renderMobileSteps();renderDirections();setShadeOverlay(shadeOverlay);};
-$('shade-toggle').onclick=()=>setShadeOverlay(!shadeOverlay);
-setupRouteExperience();setupPlanner();setupNavigation();updateImmediateSun();language();loadWeather();init();
+$('shade-toggle').onclick=()=>{setShadeOverlay(!shadeOverlay);if(shadeOverlay)track('shade','on');};
+// Anonymous usage counts (scripts/usage.mjs): districts and feature names only, never places or people.
+function trackRoute(){
+ if(!usageAllowed())return;
+ if(!result||result.error){if(result?.error)track('route_fail',result.error);return;}
+ track('route',`${$('mobility-profile').value||'standard'}|${preference}`);
+ const ends=points.filter(Boolean).map(p=>p.slice());ensurePlannerIndex().then(index=>{for(const p of ends){const id=districtAt(p,index.boundaries);if(id)track('route_area',id);}}).catch(()=>{});
+}
+const setExploreModeUsage=setExploreMode;setExploreMode=active=>{const changed=exploreMode!==active;setExploreModeUsage(active);if(changed)track('mode',active?'explore':'route');};
+const setMapViewModeUsage=setMapViewMode;setMapViewMode=entering=>{if(entering&&!is3D)track('view3d','on');return setMapViewModeUsage(entering);};
+let trackedTheme='';const applyThemeUsage=applyTheme;applyTheme=options=>{applyThemeUsage(options);if(exploreMode&&activeTheme!==trackedTheme){trackedTheme=activeTheme;track('layer',activeTheme);}};
+const trackedPois=new Set();const applyPoiFilterUsage=applyPoiFilter;applyPoiFilter=options=>{applyPoiFilterUsage(options);for(const kind of selectedPois)if(!trackedPois.has(kind)){trackedPois.add(kind);track('layer','poi'+kind);}};
+let lastViewCell='',viewTimer=0;
+function trackView(){clearTimeout(viewTimer);viewTimer=setTimeout(()=>{if(!exploreMode||!map||map.getZoom()<12)return;const c=map.getCenter(),p=local([c.lng,c.lat]),cell=`${Math.floor(p[0]/1000)}_${Math.floor(p[1]/1000)}`;if(cell!==lastViewCell&&inPilot([c.lng,c.lat])){lastViewCell=cell;track('view',cell);}},3000);}
+setupRouteExperience();setupPlanner();setupNavigation();updateImmediateSun();language();loadWeather();init();track('pv',exploreMode?'explore':'route');
 // Optional read-only WebMCP integration.
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_walking_route',description:'Read the visible walking route and forecast context.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({mode:exploreMode?'explore':'route',date:$('date').value,time:$('clock').textContent,weather:selectedWeather(),route:result&&!result.error?{metres:result.length,minutes:result.minutes,source:result.source}:null})})).catch(()=>{});}catch{}}
 // Production switches to server-only routing as soon as the Stage-2 server declares production readiness.

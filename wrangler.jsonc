@@ -6,8 +6,9 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/weather"],
+    "run_worker_first": ["/api/*", "/admin", "/admin/*", "/city-config.json", "/", "/index.html"],
     "not_found_handling": "single-page-application"
-  }
+  },
+  "triggers": {"crons": ["15 23 * * *"]}
 }
 

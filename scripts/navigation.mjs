@@ -65,7 +65,7 @@ function navigationMarker(){const el=document.createElement('div');el.className=
 function setNavBanner({arrow='↑',instruction='',remaining='',reroute=false}){$('nav-turn').textContent=arrow;$('nav-instruction').textContent=instruction;$('nav-remaining').textContent=remaining;$('nav-reroute').hidden=!reroute;}
 function startNavigation(){
  if(!result?.coords?.length||result.error||!navigator.geolocation||!map)return;
- stopRoutePreview(false);featurePopup?.remove();
+ stopRoutePreview(false);featurePopup?.remove();track('nav','start');
  nav={measure:routeMeasure(result.coords),maneuvers:routeManeuvers(result.coords),along:0,off:0,marker:navigationMarker(),lock:null,arrived:false,watch:null,rerouting:false};
  document.body.classList.add('is-navigating');$('nav-banner').hidden=false;$('sidebar-body').classList.remove('expanded');$('panel-toggle').setAttribute('aria-expanded','false');
  $('nav-stop').textContent=tr('end');$('nav-reroute').textContent=tr('recalculate');
@@ -87,12 +87,12 @@ function onNavigationPosition(position){
  nav.marker.setRotation(heading);map.easeTo({center:p,zoom:Math.max(map.getZoom(),17.5),bearing:heading,duration:900,essential:true});
  const remaining=Math.max(0,nav.measure.total-nav.along),minutes=Number.isFinite(result?.minutes)&&nav.measure.total?Math.max(1,Math.round(result.minutes*remaining/nav.measure.total)):null,summary=`${formatMetres(remaining)}${minutes?' · '+formatWalkDuration(minutes,lang):''}`;
  if(nav.off>=2){setNavBanner({arrow:'!',instruction:tr('youLeftTheRoute'),remaining:summary,reroute:true});return;}
- if(remaining<20){nav.arrived=true;setNavBanner({arrow:'⚑',instruction:tr('youHaveArrived'),remaining:''});return;}
+ if(remaining<20){if(!nav.arrived)track('nav','arrive');nav.arrived=true;setNavBanner({arrow:'⚑',instruction:tr('youHaveArrived'),remaining:''});return;}
  const next=nav.maneuvers.find(item=>item.at>nav.along+3)||nav.maneuvers.at(-1),distance=next.at-nav.along;
  setNavBanner({arrow:TURN_ARROWS[distance>150&&next.kind!=='arrive'?'straight':next.kind],instruction:distance>150&&next.kind!=='arrive'?`${maneuverText('straight',lang)} · ${formatMetres(distance)}`:`In ${formatMetres(distance)}: ${maneuverText(next.kind,lang)}`,remaining:summary});
 }
 function rerouteNavigation(){
- if(!nav)return;navigator.geolocation.getCurrentPosition(position=>{if(!nav)return;const p=[position.coords.longitude,position.coords.latitude];if(!inPilot(p)){showToast('outsideLocation');return;}nav.rerouting=true;setNavBanner({arrow:'⟳',instruction:tr('recalculating')});setCustom(0,p,tr('myLocation'));calculate();},()=>setNavBanner({arrow:'!',instruction:t('locationFail'),reroute:true}),{enableHighAccuracy:true,timeout:15000,maximumAge:5000});
+ if(!nav)return;track('nav','reroute');navigator.geolocation.getCurrentPosition(position=>{if(!nav)return;const p=[position.coords.longitude,position.coords.latitude];if(!inPilot(p)){showToast('outsideLocation');return;}nav.rerouting=true;setNavBanner({arrow:'⟳',instruction:tr('recalculating')});setCustom(0,p,tr('myLocation'));calculate();},()=>setNavBanner({arrow:'!',instruction:t('locationFail'),reroute:true}),{enableHighAccuracy:true,timeout:15000,maximumAge:5000});
 }
 // A new route while navigating (reroute or changed settings) continues the navigation on it.
 function navigationRouteChanged(){

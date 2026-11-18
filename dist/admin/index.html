@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Sonnenpfad — Verwaltung</title>
+<link rel="stylesheet" href="./admin.css">
+<script type="module" src="./admin.js"></script>
+</head>
+<body>
+<header class="top">
+ <div><strong>Sonnenpfad</strong><span>Verwaltung</span></div>
+ <div class="top-actions">
+  <label>Zeitraum <select id="days"><option value="7">7 Tage</option><option value="30" selected>30 Tage</option><option value="90">90 Tage</option><option value="365">1 Jahr</option></select></label>
+  <button id="refresh" type="button">Aktualisieren</button>
+  <a href="/cdn-cgi/access/logout" class="logout">Abmelden</a>
+ </div>
+</header>
+<p id="notice" class="notice" hidden></p>
+<main>
+ <section class="kpis" id="kpis" aria-label="Kennzahlen"></section>
+
+ <section class="card wide"><h2>Besucher und Aufrufe pro Tag</h2><div id="chart-days" class="chart"></div><div id="period-table" class="table-scroll"></div></section>
+ <section class="card"><h2>Nutzung nach Uhrzeit</h2><div id="chart-hours" class="chart"></div></section>
+ <section class="card"><h2>Nutzung nach Wochentag</h2><div id="chart-weekdays" class="chart"></div></section>
+ <section class="card"><h2>Geräte, Browser, Systeme, Sprachen</h2><div id="tech" class="bars-grid"></div></section>
+
+ <section class="card wide"><h2>Funktionen</h2><div id="features" class="bars-grid"></div><h3>Selten oder nie genutzt</h3><p id="unused" class="muted"></p></section>
+
+ <section class="card"><h2>Bezirke in der Analyse</h2><p class="muted">Digitale Auswahl in der App – keine Aussage über Besuche vor Ort.</p><div id="districts-analysis"></div></section>
+ <section class="card"><h2>Bezirke von Routen-Start und -Ziel</h2><p class="muted">Gezählt wird nur der Bezirk, nie der Punkt.</p><div id="districts-routes"></div></section>
+ <section class="card wide"><h2>Erkundete Kartenbereiche (1 km)</h2><p class="muted">Zusammengefasste Kartenansichten im Entdeckmodus.</p><div id="heatmap" class="heatmap"></div></section>
+
+ <section class="card wide"><h2>Server</h2><div id="server"></div></section>
+ <section class="card"><h2>Einstellungen</h2><div id="settings"></div></section>
+ <section class="card"><h2>Sicherheitsereignisse</h2><div id="security" class="table-scroll"></div></section>
+</main>
+<footer>Datensparsam: keine Cookies, keine IP-Adressen, keine Standorte gespeichert. Besucher werden pro Tag über einen täglich gelöschten Zufallsschlüssel geschätzt.</footer>
+</body>
+</html>
