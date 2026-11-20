@@ -1,4 +1,25 @@
-# Architecture — version 0.16
+# Architecture — version 0.23
+
+## System overview
+
+| Part | Where | What it does |
+| --- | --- | --- |
+| Web app | `dist/` (built from `scripts/*.mjs` by `scripts/build-cloudflare.mjs`) | MapLibre map, routing UI, explore/analysis, live navigation, DE/EN (`scripts/i18n.mjs`) |
+| Browser workers | embedded in `dist/app-v7.mjs` | shadow rasters; emergency routing engine on a copy of the server graph (`dist/city/routing/`) |
+| Cloudflare Worker | `services/weather-worker.mjs` + `services/platform.mjs` | static files, weather proxy, anonymous usage counts, admin login and API, maintenance and emergency switches |
+| Cloudflare D1 | `migrations/` | daily usage totals, admin sessions, settings, security events |
+| Routing server | Oracle VM (Frankfurt), `services/profile-api-v1` | FastAPI + in-memory graph from PostGIS, all profiles, shade model; Nginx `/profile-v2/` |
+| Server operations | `ops/backup`, `ops/metrics` | daily GPG-encrypted backups to a private repository; health metrics for the admin dashboard |
+| Monitoring | `.github/workflows/uptime.yml` | availability check every 15 minutes, GitHub issue on outage |
+| Data pipeline | `scripts/*.py` (local, reads the atlas GeoPackage) | city tiles, routing graph export, analysis data (`dist/city/planner/`), state outline |
+
+A route request: browser → `https://138.2.184.1/profile-v2/v1/route` → engine → GeoJSON with per-segment
+attributes and profile violations → blue line with orange sections. Without a ready server the same graph is
+routed in the browser. Explore/analysis reads static tiles and the per-district analysis files only; nothing
+is computed on a server. See also [admin.md](admin.md), [analysis.md](analysis.md), [i18n.md](i18n.md),
+[backup-and-restore.md](backup-and-restore.md), [operations-runbook.md](operations-runbook.md).
+
+## Details (written for 0.16, still valid unless noted)
 
 ## Two application modes
 
@@ -34,7 +55,7 @@ uses the existing local zoom pyramid 12–14 at 1× height, with a restrained
 hillshade. Tree bases sample the same immutable zoom-14 surface. Atlas route
 elevation remains in the routing metadata and chart. Building display estimates do not alter calculation heights.
 
-Atlas-wide modelled shadows are an explicit Explore checkbox in 3D. This loads
+Atlas-wide modelled shadows show in 3D and, since 0.19, on request in 2D (button ◐). This loads
 original obstacle tiles on demand into a separate worker, without loading a graph
 or changing routing weights. The raster has lighter opacity (maximum 0.24) and
 updates after the camera settles. Route shadow analysis stays in its own worker.

@@ -14,7 +14,16 @@ Run `npm ci`, `npm run build`, and then serve `dist/` over HTTP (for example `py
 
 Prepared application data is split into size-bounded static chunks so the browser can load it reliably and Cloudflare can cache it efficiently. Visual tiles and 3D shadow-obstacle tiles are separate, allowing 2D to avoid building and tree payloads. The shadow worker and the browser routing engine are embedded as a Blob. The browser engine is the emergency fallback and routes on an identical copy of the server graph (`dist/city/routing/`). The original GeoPackage is a local, read-only pipeline input and is not committed.
 
-## Included
+## What it does (0.23)
+
+- **Routing** for walking, wheelchair, power wheelchair, cane/walker, blind or low vision and pushchair, with direct, shade or sun preference; blue route, orange sections that break the profile (tap for the reason), directions and live navigation on phones.
+- **Explore and analysis** for planners: atlas themes and places, district selection, combinable filters on every network attribute, network share, CSV/GeoJSON export ([docs/analysis.md](docs/analysis.md)).
+- **Map** of all Baden-Württemberg for context (Stuttgart in full colour), 2D/3D, optional shade layer.
+- **Administration** with password + TOTP login, privacy-friendly usage statistics and server health ([docs/admin.md](docs/admin.md)).
+- **Operations**: availability monitoring, daily encrypted backups, emergency browser routing ([docs/operations-runbook.md](docs/operations-runbook.md)).
+- German and English throughout ([docs/i18n.md](docs/i18n.md)); fonts self-hosted, no external tracking; privacy policy and legal notice in `dist/`.
+
+## Included (details)
 
 - Full-municipality Stuttgart walking network, building footprints and heights, and trees.
 - Direct, shade-preferring and sun-preferring Dijkstra routes with separate uphill/downhill treatment.
@@ -22,7 +31,7 @@ Prepared application data is split into size-bounded static chunks so the browse
 - Photon-backed Stuttgart place/address search with explicit map picking and confirmed mobile endpoints.
 - Changing date/time updates solar geometry, the 3D shadow display and route weighting. The solar compass responds immediately while the time slider is dragged; automatic time animation is intentionally disabled.
 - Hourly Open-Meteo weather for a fixed Stuttgart reference point: condition, temperature, cloud cover, direct radiation, 10 m wind, forecast-valid time and retrieval time. Direct radiation transparently scales the optional sun/shade preference; details and limitations are documented in [Step 6 live weather](docs/step6-live-weather.md).
-- A worker rasterizes shadow polygons for 3D rendering. The 2D map never requests or draws map-wide shadow rasters. A sun/shade route still computes exact shade values for a narrow route corridor, independently of the current 2D/3D view.
+- A worker rasterizes shadow polygons for 3D rendering and, on request (◐), for the 2D map. A sun/shade route still computes exact shade values for a narrow route corridor, independently of the current 2D/3D view.
 - An unrestricted, tree- and shadow-free 2D basemap and a locally generated 3D terrain surface with bounded visible-tile loading, hillshade, building extrusion and rounded height-aware tree crowns.
 - Exactly one active atlas line theme for slope, surface, summer/winter shade, summer/winter UTCI, noise or relative wind exposure, each with a bilingual legend and explanation. Slope is the default; eligible segments receive at most one centred uphill arrow, while segments shorter than 24 m and colliding arrows are omitted.
 - Ten switchable citywide accessibility and comfort POI categories: signal crossings, elevators, ramps, escalators, stairs, barriers/gates, lowered and raised kerbs, benches and shelters. Signal crossings keep one layer toggle but use the atlas's four accessibility colours and expose sound, vibration, tactile, wheelchair and kerb attributes in their detail popup.
@@ -37,7 +46,7 @@ Prepared application data is split into size-bounded static chunks so the browse
 npm run build
 ```
 
-Requires Python with shapely, pyproj, NumPy, SciPy and Pillow. Input is read-only; it is not stored in the repository. The preparation step creates local `build_data/{meta,network,obstacles}.json`; `chunk_data.py` converts them into cacheable browser assets. `npm run build` embeds only the Web Worker and reconstructs the vendored MapLibre bundle. Bounds: 9.162–9.198 E, 48.765–48.790 N. Obstacle buffers extend beyond the routing area.
+Requires Python with shapely, pyproj, NumPy, SciPy and Pillow. Input is read-only; it is not stored in the repository. The preparation step creates local `build_data/{meta,network,obstacles}.json`; `chunk_data.py` converts them into cacheable browser assets. `npm run build` embeds only the Web Worker and reconstructs the vendored MapLibre bundle. The data covers the whole municipality of Stuttgart; obstacle buffers extend beyond its boundary.
 
 The script converts EPSG:25832 to WGS84, then to local equirectangular metres around Stuttgart for browser processing. Only geometric/data fields needed by the prototype are exported. It excludes explicit foot prohibitions and private/no access without explicit pedestrian permission, motorways, trunk roads, construction/proposed roads and indoor=yes.
 
