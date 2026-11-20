@@ -235,7 +235,7 @@ const ADMIN_HEADERS = {'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referre
 function denied(reason, path) {
   if (reason === 'not-configured') return new Response('The admin area is not configured yet.', {status: 503, headers: {'Content-Type': 'text/plain; charset=utf-8', ...ADMIN_HEADERS}});
   if (path.startsWith('/api/')) return json({error: 'login-required'}, 401, ADMIN_HEADERS);
-  return new Response(null, {status: 303, headers: {Location: '/admin/login.html', ...ADMIN_HEADERS}});
+  return new Response(null, {status: 303, headers: {Location: '/admin/login', ...ADMIN_HEADERS}});
 }
 
 async function adminSummary(env, url) {
@@ -280,7 +280,7 @@ export async function handlePlatform(request, env) {
   if (path === '/api/event') return handleEvent(request, env);
   if (path === '/admin' || path.startsWith('/admin/') || path.startsWith('/api/admin/')) {
     // The login page and its files are public; everything else needs a valid session.
-    if (['/admin/login.html', '/admin/login.js', '/admin/admin.css'].includes(path)) {
+    if (['/admin/login', '/admin/login.html', '/admin/login.js', '/admin/admin.css'].includes(path)) {
       if (!adminConfigured(env)) return denied('not-configured', path);
       const page = await env.ASSETS.fetch(request), response = new Response(page.body, page);
       for (const [key, value] of Object.entries(ADMIN_HEADERS)) response.headers.set(key, value);

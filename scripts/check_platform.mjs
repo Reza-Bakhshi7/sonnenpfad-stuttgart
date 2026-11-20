@@ -47,7 +47,7 @@ assert.equal(await totpCode('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',Math.floor(59/30)
 const secret='JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',admin={...env,ADMIN_PASSWORD_HASH:await hashPassword('correct horse battery'),ADMIN_TOTP_SECRET:secret,ADMIN_SESSION_KEY:'test-session-key-0123456789'};
 assert.equal(await checkPassword('correct horse battery',admin.ADMIN_PASSWORD_HASH),true);assert.equal(await checkPassword('wrong',admin.ADMIN_PASSWORD_HASH),false);
 const site='https://sonnenpfad-stuttgart.de',login=(password,code,headers={})=>handleLogin(new Request(site+'/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json','X-Sonnenpfad-Admin':'1',Origin:site,'CF-Connecting-IP':'192.0.2.9',...headers},body:JSON.stringify({password,code})}),admin);
-response=await handlePlatform(new Request(site+'/admin/'),admin);assert.equal(response.status,303);assert.equal(response.headers.get('Location'),'/admin/login.html','no session: to login');
+response=await handlePlatform(new Request(site+'/admin/'),admin);assert.equal(response.status,303);assert.equal(response.headers.get('Location'),'/admin/login','no session: to login');
 response=await handlePlatform(new Request(site+'/api/admin/summary'),admin);assert.equal(response.status,401);
 assert.equal((await login('correct horse battery','123456',{Origin:'https://evil.example'})).status,400,'cross-site login refused');
 const code=await totpCode(secret,Math.floor(Date.now()/30000));
