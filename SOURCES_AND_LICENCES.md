@@ -20,6 +20,8 @@ Modification notice for all sources above: data were selected for Stuttgart, cle
 
 Database licence: as a derived database of OpenStreetMap, the shipped data are made available under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/). The credits and modification notices of the other sources continue to apply.
 
+Interface fonts DM Sans and Manrope are served from this site (`dist/fonts/`) under the [SIL Open Font License 1.1](dist/fonts/OFL-DMSans.txt) ([Manrope](dist/fonts/OFL-Manrope.txt)); no font request goes to Google.
+
 ## Services used at runtime
 
 | Service | Purpose | Terms and credit |

@@ -4,5 +4,8 @@ const blocked=/(?:^|\/)(?:\.env(?:\..*)?|id_rsa|id_ed25519|credentials(?:\.json)
 const secret=/(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|AKIA[A-Z0-9]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)/;
 for(const file of files){assert(!blocked.test(file),`Forbidden public artifact: ${file}`);if(/\.(?:mjs|js|json|html|css|txt)$/.test(file))assert(!secret.test(fs.readFileSync(file,'utf8')),`Credential signature detected in ${file}`);}
 const headers=fs.readFileSync('dist/_headers','utf8');for(const rule of ["object-src 'none'","frame-ancestors 'none'","base-uri 'self'","script-src 'self'","worker-src 'self' blob:",'X-Content-Type-Options: nosniff','Permissions-Policy: camera=(), microphone=(), geolocation=(self)'])assert(headers.includes(rule));
-assert(!headers.includes("script-src 'self' 'unsafe-eval'"));assert(!headers.includes("script-src 'self' 'unsafe-inline'"));
+assert(!headers.includes("script-src 'self' 'unsafe-eval'"));
+// Legal pages must be complete before publishing; fonts are self-hosted (no request to Google).
+for(const page of ['dist/datenschutz.html','dist/impressum.html'])assert(!/\{\{[A-Z]+\}\}/.test(fs.readFileSync(page,'utf8')),`${page}: placeholder not filled (address / e-mail)`);
+assert(!headers.includes('fonts.googleapis.com')&&!headers.includes('fonts.gstatic.com')&&!fs.readFileSync('dist/style.css','utf8').includes('fonts.googleapis.com'),'fonts must be self-hosted');assert(!headers.includes("script-src 'self' 'unsafe-inline'"));
 console.log(`Public-artifact checks passed: ${files.length} files, no secret signatures, private files or source maps; explicit CSP, framing and device-permission restrictions.`);

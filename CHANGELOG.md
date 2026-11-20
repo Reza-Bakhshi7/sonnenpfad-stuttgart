@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Privacy: interface fonts are served from this site instead of Google Fonts (no visitor IP address goes to Google); Content-Security-Policy no longer allows Google font hosts.
+- New pages Datenschutz (privacy policy) and Impressum (legal notice), German and English, linked in the footer and on mobile.
+
 ## 0.23.0 — 20 November 2026
 
 - Admin area at `/admin/` (link "Verwaltung" in About): visitors per day/week/month/year, sessions, usage time, hours and weekdays, devices, browsers, systems, languages; feature usage (modes, routes by profile, failed routes, filters, layers, 3D, shade, exports, navigation) and rarely used features; districts in analyses and of route starts/destinations; explored 1 km map cells; server health (CPU, memory, disk, network, uptime, database, routing-API load, latency and errors, services, backup) with 7-day history; maintenance mode, emergency browser routing and statistics retention; security events.
