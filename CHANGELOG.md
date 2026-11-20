@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.23.1 — 20 November 2026
 
 - Privacy: interface fonts are served from this site instead of Google Fonts (no visitor IP address goes to Google); Content-Security-Policy no longer allows Google font hosts.
 - New pages Datenschutz (privacy policy) and Impressum (legal notice), German and English, linked in the footer and on mobile.
