@@ -9,6 +9,7 @@
     "run_worker_first": ["/api/*", "/admin", "/admin/*", "/city-config.json", "/", "/index.html"],
     "not_found_handling": "single-page-application"
   },
-  "triggers": {"crons": ["15 23 * * *"]}
+  "triggers": {"crons": ["15 23 * * *"]},
+  "d1_databases": [{"binding": "DB", "database_name": "sonnenpfad-platform", "database_id": "c0cd2fc5-864c-42b4-acd5-54f7ea067189", "migrations_dir": "migrations"}],
+  "vars": {"OPS_URL": "https://138.2.184.1/ops/metrics"}
 }
-

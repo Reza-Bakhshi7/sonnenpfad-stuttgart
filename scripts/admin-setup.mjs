@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import readline from 'node:readline';
 import {hashPassword,totpCode} from '../services/platform.mjs';
 
-const wrangler=(args,input)=>spawnSync('npx',['--yes','wrangler',...args],{input,encoding:'utf8',shell:process.platform==='win32',stdio:[input===undefined?'inherit':'pipe','pipe','pipe']});
+// Fixed, internal arguments only, passed as one command line (Windows needs the shell for npx.cmd).
+const wrangler=(args,input)=>spawnSync(['npx','--yes','wrangler',...args].join(' '),{input,encoding:'utf8',shell:true,stdio:[input===undefined?'inherit':'pipe','pipe','pipe']});
 const say=text=>process.stdout.write(text+'\n');
 function ask(question,hidden=false){
  return new Promise(resolve=>{
@@ -16,7 +17,7 @@ function ask(question,hidden=false){
  });
 }
 function base32(bytes){const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';let bits=0,value=0,out='';for(const byte of bytes){value=(value<<8)|byte;bits+=8;while(bits>=5){out+=alphabet[(value>>>(bits-5))&31];bits-=5;}}if(bits)out+=alphabet[(value<<(5-bits))&31];return out;}
-function putSecret(name,value){const result=wrangler(['secret','put',name],value);if(result.status!==0){say(`Fehler beim Speichern von ${name}:\n${result.stderr.slice(-400)}`);process.exit(1);}say(`✓ ${name} gespeichert`);}
+function putSecret(name,value){const result=wrangler(['versions','secret','put',name],value);if(result.status!==0){say(`Fehler beim Speichern von ${name}:\n${result.stderr.slice(-400)}`);process.exit(1);}say(`✓ ${name} gespeichert`);}
 
 say('Sonnenpfad · Einrichtung der Verwaltung\n');
 const who=wrangler(['whoami']);
