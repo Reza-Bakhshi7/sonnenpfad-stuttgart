@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.23.2 — 20 November 2026
+
+- Legal notice: project described as created as part of a master's thesis, without naming the university.
+
 ## 0.23.1 — 20 November 2026
 
 - Privacy: interface fonts are served from this site instead of Google Fonts (no visitor IP address goes to Google); Content-Security-Policy no longer allows Google font hosts.
