@@ -6,7 +6,7 @@ Autor und Inhaber von Sonnenpfad Stuttgart und Fußgängeratlas Stuttgart ist Mo
 
 Production: <https://sonnenpfad-stuttgart.de/> (Cloudflare alias: <https://sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev/>)
 
-Project rules are documented in [GOVERNANCE.md](GOVERNANCE.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [release process](docs/release-process.md). Architecture, operation and the server routing are described in `docs/`; all sources and licences in [SOURCES_AND_LICENCES.md](SOURCES_AND_LICENCES.md).
+Project rules are documented in [GOVERNANCE.md](GOVERNANCE.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [release process](docs/release-process.md). Architecture, operation and the server routing are described in `docs/`; a slide overview of the system architecture (German, also as PowerPoint) is in [docs/architektur](docs/architektur/README.md); all sources and licences in [SOURCES_AND_LICENCES.md](SOURCES_AND_LICENCES.md).
 
 ## Run and deploy
 
