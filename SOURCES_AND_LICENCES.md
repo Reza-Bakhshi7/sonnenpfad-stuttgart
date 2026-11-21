@@ -1,6 +1,6 @@
 # Sources and licences
 
-Status: 8 November 2026. This file lists every external source that Sonnenpfad Stuttgart uses or ships, with the required credit. The application code is MIT-licensed ([LICENSE](LICENSE)); that licence does not cover the data, fonts, icons or services below.
+Status: 21 November 2026. This file lists every external source that Sonnenpfad Stuttgart uses or ships, with the required credit. The application code is MIT-licensed ([LICENSE](LICENSE)); that licence does not cover the data, fonts, icons or services below.
 
 ## Data shipped in this repository
 
@@ -33,7 +33,6 @@ Interface fonts DM Sans and Manrope are served from this site (`dist/fonts/`) un
 | [Photon](https://photon.komoot.io/) by komoot | address and place search | search data © OpenStreetMap contributors (ODbL) |
 | [Open-Meteo](https://open-meteo.com/) | hourly weather | data under CC BY 4.0, credit Open-Meteo.com |
 | [MET Norway](https://api.met.no/) | weather fallback | data under CC BY 4.0, credit MET Norway |
-| [Google Fonts](https://fonts.google.com/) | DM Sans and Manrope (loaded, not shipped) | SIL Open Font License 1.1 |
 | Sonnenpfad server (Oracle Cloud, own) | route calculation | own service, see [README](README.md#privacy-and-attribution) |
 
 ## Software and icons shipped in this repository
