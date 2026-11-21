@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.23.3 — 21 November 2026
+
+- Desktop sidebar footer: help links in one row, privacy and legal notice centred below (no more cramped, wrapped links).
+
 ## 0.23.2 — 20 November 2026
 
 - Legal notice: project described as created as part of a master's thesis, without naming the university.
