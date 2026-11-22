@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.23.5 — 22 November 2026
 
 - Routing: when the server fails during a session the app calculates the route in the browser and returns to the server once it answers again.
 - Routing: a direct route calculated in the browser shows no shade share instead of a false 0 %.
