@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """Collect server health for the Sonnenpfad admin dashboard (every 5 minutes, systemd timer).
 
-Writes /var/lib/sonnenpfad-metrics/latest.json, served by Nginx at /ops/metrics only with the
-X-Ops-Token header. Standard library only; reads /proc, systemctl, PostgreSQL and the
+Writes /var/lib/sonnenpfad-metrics/latest.json and reports it to the Cloudflare Worker (/api/ops) with the
+X-Ops-Token header, because a Worker cannot fetch the server's bare IP address. Standard library only; reads /proc, systemctl, PostgreSQL and the
 IP-free API timing log (/var/log/nginx/sonnenpfad-api-metrics.log: msec status request_time uri).
 """
-import json, os, subprocess, time
+import json, os, subprocess, sys, time, urllib.request
 from datetime import datetime, timezone
 
 STATE = "/var/lib/sonnenpfad-metrics"
 API_LOG = "/var/log/nginx/sonnenpfad-api-metrics.log"
 SERVICES = ["sonnenpfad-profile-v2", "nginx", "postgresql", "sonnenpfad-backup.timer"]
 HISTORY_DAYS = 7
+REPORT_URL = "https://sonnenpfad-stuttgart.de/api/ops"
+TOKEN_FILE = "/etc/sonnenpfad-ops/token"
 
 
 def run(*args):
@@ -101,6 +103,20 @@ def backup():
     return {"last_result": props.get("Result") or None, "last_time": when}
 
 
+def report(body, url=REPORT_URL, token_file=TOKEN_FILE):
+    try:
+        with open(token_file) as f:
+            token = f.read().strip()
+        # Cloudflare answers 403 to urllib's default user agent.
+        request = urllib.request.Request(url, data=body.encode(), method="POST", headers={
+            "Content-Type": "application/json", "X-Ops-Token": token, "User-Agent": "sonnenpfad-metrics/1"})
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return response.status
+    except Exception as error:
+        print(f"report failed: {error}", file=sys.stderr)
+        return None
+
+
 def main():
     os.makedirs(STATE, exist_ok=True)
     state_file = os.path.join(STATE, "net-state.json")
@@ -136,10 +152,12 @@ def main():
         bucket["cpu"] += item["cpu"]; bucket["mem"] += item["mem"]; bucket["req"] = max(bucket["req"], item["req"]); bucket["n"] += 1
     metrics["history"] = [{"t": b["t"], "cpu": round(b["cpu"] / b["n"], 1), "mem": round(b["mem"] / b["n"], 1), "req": b["req"]} for b in hourly.values()]
     temporary = os.path.join(STATE, "latest.json.tmp")
+    body = json.dumps(metrics, separators=(",", ":"))
     with open(temporary, "w") as f:
-        json.dump(metrics, f, separators=(",", ":"))
+        f.write(body)
     os.chmod(temporary, 0o644)
     os.replace(temporary, os.path.join(STATE, "latest.json"))
+    report(body)
 
 
 if __name__ == "__main__":

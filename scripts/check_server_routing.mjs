@@ -49,6 +49,17 @@ assert.equal(posts.at(-1).serverPreview,undefined);
 const oracleCalls=requests.length;context.serverRoutingReady=true;context.routeOptions=()=>({preference:'balanced',mobilityProfile:'standard'});await context.runCalculate();
 assert.equal(requests.length,oracleCalls,'a production-ready server replaces Oracle API 0.2');assert.equal(posts.at(-1).profileApi,PROFILE_V2_API);assert.equal(posts.at(-1).serverPreview,false);
 console.log('Preview calculation goes to the Stage-2 server; production switches only after the server declares production readiness.');
+// Outage during a session: production recomputes in the browser; other errors and previews do not.
+runInNewContext(ui+';this.runFallback=fallBackToBrowser;',context);
+context.serverRoutingReady=true;
+for(const error of ['serverBusy','serverOutside','profileBlocked','disconnected','modelFailed'])assert.equal(context.runFallback(error),false,`${error} is no outage`);
+assert.equal(context.serverRoutingReady,true);
+context.location.hostname='server-routing-preview-sonnenpfad-stuttgart.mohammadreza-bakhshi.workers.dev';assert.equal(context.runFallback('serverUnavailable'),false,'previews report server failures');
+context.location.hostname='sonnenpfad-stuttgart.de';const before=posts.length;assert.equal(context.runFallback('serverUnavailable'),true);await new Promise(resolve=>setTimeout(resolve,0));
+assert.equal(posts.length,before+1);assert.equal(posts.at(-1).profileApi,null,'the failed route is recomputed in the browser');assert.equal(context.serverRoutingReady,false);assert(context.serverCheckedAt>0,'no immediate recheck of a failing server');
+assert.equal(context.runFallback('serverUnavailable'),false,'never loops');
+assert.match(source,/if\(result\.error\)\{if\(fallBackToBrowser\(result\.error\)\)return;/,'the worker answer triggers the fallback');
+console.log('Outage fallback passed: a failing production server hands the route to the browser once.');
 // Emergency switch: "serverRouting": false in city-config.json sends every route to the browser, previews included.
 const switchCode=source.slice(source.indexOf('function routingServer(){'),source.indexOf('}',source.indexOf('function routingServer(){'))+1);
 for(const [off,ready,preview,expected] of [[true,true,true,null],[false,true,false,'api'],[false,false,true,'api'],[false,false,false,null]])assert.equal(runInNewContext(switchCode+';routingServer()',{browserRoutingOnly:off,serverRoutingReady:ready,isRoutingPreview:()=>preview,location:{hostname:'h'},PROFILE_V2_API:'api'}),expected);

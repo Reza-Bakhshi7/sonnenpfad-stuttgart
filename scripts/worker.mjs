@@ -2,7 +2,7 @@ import {sunPosition,makeShadows,edgeShades,buildAdj,buildComponents,bestAvailabl
 import {adaptServerRoute} from './server-routing.mjs';
 import {buildProfileV1Request,supportsProfileV1,requestProfileV1,adaptProfileV1Route} from './profile-routing-v1.mjs';
 let profileCapabilities=null;
-// Preview: every route comes from the Stage-2 server; failures are reported, never recomputed locally.
+// Server route: failures are reported to the page, which alone decides about the browser fallback (production only).
 async function profileV2Route({profileApi,lonlat,options,iso,serverPreview=true}){
  try{
   const signal=AbortSignal.timeout(20000),toLocal=p=>[(p[0]-meta.origin[0])*meta.scale[0],(p[1]-meta.origin[1])*meta.scale[1]];
@@ -19,6 +19,8 @@ async function profileV2Route({profileApi,lonlat,options,iso,serverPreview=true}
 let network,obstacles={buildings:[],trees:[]},activeEdgeIds=null,activeTiles=null,meta,adj,componentCache=new Map(),shades=[];
 
 let cityLoadPromise=null,cityInit=null;
+// A direct city route never waits for shadow tiles, so its shade share is unknown, not 0 %.
+function unknownDirectShade(result,options,city=Boolean(cityInit)){return city&&!result.error&&(options?.preference||'balanced')==='balanced'?{...result,shade:null}:result;}
 async function ensureNetwork(){if(!cityInit)return;if(!cityLoadPromise)cityLoadPromise=loadCity(cityInit.manifest,cityInit.base).catch(error=>{cityLoadPromise=null;throw error;});await cityLoadPromise;}
 function finishNetwork(){adj=buildAdj(network);componentCache=new Map();shades=new Float32Array(network.edges.length);if(!cityInit)self.postMessage({type:'ready'});}
 
@@ -77,6 +79,6 @@ self.onmessage=async({data:d})=>{try{
   } catch(error){self.postMessage({type:'route',id:d.id,result:{error:'serverUnavailable'}});}
   return;
  }
- if(d.type==='route'){if(d.profileApi){const via=await profileV2Route(d);self.postMessage({type:'route',id:d.id,result:via.result,shortest:via.shortest||via.result});return;}await ensureNetwork();const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=best.result,shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
+ if(d.type==='route'){if(d.profileApi){const via=await profileV2Route(d);self.postMessage({type:'route',id:d.id,result:via.result,shortest:via.shortest||via.result});return;}await ensureNetwork();const componentsFor=options=>{const key=[options.avoidSteps,options.avoidEscalators,options.avoidPoorSurface,options.avoidWheelchairNo,options.maxSlope||0].map(value=>String(value??false)).join(':');if(!componentCache.has(key))componentCache.set(key,buildComponents(network,options));return componentCache.get(key);},best=bestAvailableRoute(network,adj,shades,d.start,d.end,d.options,componentsFor),result=unknownDirectShade(best.result,d.options),shortest=result.error||best.usedOptions.preference==='balanced'?result:route(network,adj,shades,d.start,d.end,{...best.usedOptions,preference:'balanced'});self.postMessage({type:'route',id:d.id,result,shortest});}
  }catch(e){if(d.type==='route')self.postMessage({type:'route',id:d.id,result:{error:'modelFailed',detail:String(e?.stack||e).slice(0,600)}});else self.postMessage({type:'error',message:e.message,id:d.id});}};
 

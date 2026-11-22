@@ -10,7 +10,7 @@
 | Cloudflare D1 | `migrations/` | daily usage totals, admin sessions, settings, security events |
 | Routing server | Oracle VM (Frankfurt), `services/profile-api-v1` | FastAPI + in-memory graph from PostGIS, all profiles, shade model; Nginx `/profile-v2/` |
 | Server operations | `ops/backup`, `ops/metrics` | daily GPG-encrypted backups to a private repository; health metrics for the admin dashboard |
-| Monitoring | `.github/workflows/uptime.yml` | availability check every 15 minutes, GitHub issue on outage |
+| Monitoring | `.github/workflows/uptime.yml` | availability check a few times a day (GitHub schedule, irregular), GitHub issue on outage |
 | Data pipeline | `scripts/*.py` (local, reads the atlas GeoPackage) | city tiles, routing graph export, analysis data (`dist/city/planner/`), state outline |
 
 A route request: browser → `https://138.2.184.1/profile-v2/v1/route` → engine → GeoJSON with per-segment
@@ -28,8 +28,8 @@ loads no Atlas paths, POIs, object attributes, DEM or shadow geometry merely to
 open or pan the map. Every profile is calculated on the Sonnenpfad server
 (Stage 2, `services/profile-api-v1`), including shade and sun weighting; the
 browser only draws the answer, its orange profile violations and the elevation
-profile. The browser routing engine stays bundled as a fallback for a page load
-during which the server was unreachable at start-up.
+profile. The browser routing engine stays bundled as a fallback for when the
+server is unreachable, at start-up or during a session.
 
 Explore retains camera/route state while exposing the Atlas themes and optional
 POIs. There is one selected theme, and only that theme's values are requested.

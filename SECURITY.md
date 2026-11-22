@@ -17,7 +17,7 @@ Do not publish credentials, private source data, precise personal locations or s
 
 ## Application privacy
 
-Every route request sends start, destination, profile and time over verified HTTPS to the Sonnenpfad Oracle service, which keeps no access log and stores no routes. The API must allow the exact production origin; do not replace that allowlist with a wildcard. The application does not intentionally persist selected routes or device positions. Shared route URLs contain coordinates and must be treated as location data. External map and live-data providers receive normal network request metadata.
+Every route request sends start, destination, profile and time over verified HTTPS to the Sonnenpfad Oracle service, which stores no routes and logs only time, status, duration and path of API requests (no IP address). The Nginx error log can contain IP addresses. The API must allow the exact production origin; do not replace that allowlist with a wildcard. The application does not intentionally persist selected routes or device positions. Shared route URLs contain coordinates and must be treated as location data. External map and live-data providers receive normal network request metadata.
 
 ## Incident response
 

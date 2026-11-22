@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Routing: when the server fails during a session the app calculates the route in the browser and returns to the server once it answers again.
+- Routing: a direct route calculated in the browser shows no shade share instead of a false 0 %.
+- Admin: the server reports its health itself every 5 minutes (a Cloudflare Worker cannot fetch a bare IP address).
+- Corrections: availability checks really run every 4-9 hours, not every 15 minutes; privacy policy names the web server error log; README, security policy, admin note and architecture slides corrected.
+
 ## 0.23.4 — 21 November 2026
 
 - Desktop sidebar footer in two tidy columns: guide and about on the left, privacy and legal notice on the right, all the same size.

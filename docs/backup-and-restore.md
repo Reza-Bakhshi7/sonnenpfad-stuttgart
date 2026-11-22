@@ -18,7 +18,7 @@ The **private** key exists only on the owner's PC in `C:\Thesis\App\backup-key\g
 (never in a repository, never on the server). Keep an additional offline copy of that folder
 (e.g. a USB stick): without it the backups cannot be read.
 
-A weekly copy to the PC (`C:\Thesis\App\backups\update-backups.ps1`) keeps the eight newest
+The copy to the PC (`C:\Thesis\App\backups\update-backups.ps1`, to be started by hand or by a scheduled task) keeps the eight newest
 snapshots in `C:\Thesis\App\backups\archive`.
 
 ## Check

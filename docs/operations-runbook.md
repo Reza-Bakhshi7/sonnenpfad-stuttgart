@@ -9,9 +9,9 @@
 
 ## Monitoring and backups
 
-- Availability: the `uptime` GitHub Actions workflow checks the website and `/profile-v2/health` every 15 minutes. A failure opens one issue labelled `outage` (GitHub notifies the owner by e-mail); recovery closes it. GitHub pauses scheduled workflows after 60 days without repository activity; re-enable the workflow in the Actions tab if that happens.
+- Availability: the `uptime` GitHub Actions workflow checks the website and `/profile-v2/health` a few times a day (scheduled every 15 minutes, but GitHub really starts it every 4-9 hours, measured 18-22 November 2026), so an outage can go unnoticed for hours. A failure opens one issue labelled `outage` (GitHub notifies the owner by e-mail); recovery closes it. GitHub pauses scheduled workflows after 60 days without repository activity; re-enable the workflow in the Actions tab if that happens.
 - Backups: daily, encrypted, see [backup-and-restore.md](backup-and-restore.md).
-- Without a production-ready routing server the app routes in the browser and rechecks the server at most once a minute; the retired API 0.2 (`/route`, port 8000) is no longer used by the app.
+- Without a production-ready routing server, and when a server route fails as unavailable, the app routes in the browser and rechecks the server at most once a minute; the retired API 0.2 (`/route`, port 8000) is no longer used by the app.
 
 ## Routine verification
 
@@ -26,7 +26,7 @@
 | Symptom | First check | Response |
 | --- | --- | --- |
 | Routes fail with a server message | `/profile-v2/health`, VM state in the Oracle console | Restart the VM or the service; if it stays broken, switch to browser routing (below) |
-| VM stopped by Oracle (idle reclamation) | Oracle console, instance state | Start the instance; the app routes in the browser while the server is unreachable at start-up |
+| VM stopped by Oracle (idle reclamation) | Oracle console, instance state | Start the instance; the app routes in the browser while the server is unreachable |
 | Blank or old site | Cloudflare deployment and browser cache | Verify the deployed commit; reload without cache |
 | Map unavailable | WebGL and the OpenFreeMap request | Check hardware acceleration; another base map can be selected |
 | Weather missing | `/api/weather` response | The app keeps working without weather; the providers recover on their own |

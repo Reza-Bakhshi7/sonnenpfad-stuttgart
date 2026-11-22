@@ -88,11 +88,11 @@ async function save(change){
 
 function renderServer(data){
  const box=$('server');box.replaceChildren();
- if(!data.configured){box.append(el('p',{class:'muted',text:'Server-Messwerte sind noch nicht verbunden (OPS_URL / OPS_TOKEN).'}));return;}
- if(!data.reachable){box.append(el('p',{},el('span',{class:'status bad',text:'Server nicht erreichbar'}),document.createTextNode(` ${data.status||data.error||''}`)));return;}
+ if(!data.configured){box.append(el('p',{class:'muted',text:'Server-Messwerte sind noch nicht verbunden (OPS_TOKEN).'}));return;}
+ if(!data.reachable){box.append(el('p',{},el('span',{class:'status bad',text:'Keine aktuelle Meldung vom Server'}),document.createTextNode(data.at?` Letzte Meldung: ${new Date(data.at).toLocaleString('de-DE')}`:' Noch keine Meldung erhalten.')));return;}
  const m=data.metrics,gauge=(title,value,pct,small)=>{const meter=el('div',{class:'meter'},el('i'));meter.firstChild.style.width=`${Math.min(100,pct||0)}%`;meter.firstChild.style.background=pct>85?'#c62828':pct>70?'#e98437':'#1a56c4';return el('div',{class:'gauge'},el('small',{text:title}),el('b',{text:value}),meter,el('small',{text:small||''}));};
- const age=Math.round((Date.now()-Date.parse(m.time))/60000);
- box.append(el('p',{class:'muted',text:`Stand ${new Date(m.time).toLocaleString('de-DE')} (${age} min alt) · Abruf ${data.fetchMs} ms · ${m.host}`}));
+ const age=Math.round((Date.now()-data.at)/60000);
+ box.append(el('p',{class:'muted',text:`Letzte Meldung ${new Date(data.at).toLocaleString('de-DE')} (vor ${age} min) · ${m.host}`}));
  const grid=el('div',{class:'server-grid'});
  grid.append(gauge('CPU',`${m.cpu_pct} %`,m.cpu_pct,`Last ${m.load.join(' / ')}`),gauge('Arbeitsspeicher',`${m.mem.pct} %`,m.mem.pct,`${fmt(m.mem.used_mb)} von ${fmt(m.mem.total_mb)} MB`),gauge('Festplatte',`${m.disk.pct} %`,m.disk.pct,`${m.disk.used_gb} von ${m.disk.total_gb} GB`),gauge('Netzwerk',`↓ ${m.net.rx_kbs} · ↑ ${m.net.tx_kbs} kB/s`,0,'Mittel der letzten 5 Minuten'),gauge('Laufzeit',`${Math.floor(m.uptime_s/86400)} Tage`,0,`seit ${new Date(Date.now()-m.uptime_s*1000).toLocaleDateString('de-DE')}`),gauge('Datenbank',`${fmt(m.db.size_mb)} MB`,0,`${m.db.connections} Verbindungen`),gauge('Routing-API (1 h)',`${fmt(m.api.requests_1h)} Anfragen`,0,`Median ${m.api.p50_ms ?? '–'} ms · 95 % ${m.api.p95_ms ?? '–'} ms`),gauge('Fehler (1 h)',`${fmt(m.api.errors_1h)}`,0,`busy/Überlast: ${fmt(m.api.busy_1h)} · 5xx: ${fmt(m.api.status_5xx_1h)}`));
  box.append(grid);

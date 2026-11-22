@@ -41,6 +41,17 @@ assert.equal(DB.raw.prepare('SELECT COUNT(*) AS n FROM visitors').get().n,0);
 assert.equal(DB.raw.prepare("SELECT COUNT(*) AS n FROM settings WHERE key LIKE 'salt:%'").get().n,0);
 assert.equal(DB.raw.prepare("SELECT n FROM counts WHERE metric='visitors' AND day=?").get(berlinDay()).n,2);
 
+// 4b. Server report: token only, size and shape checked.
+const opsEnv={...env,OPS_TOKEN:'0123456789abcdef0123456789abcdef'},opsBody={load:[0,0,0],mem:{},disk:{},net:{},db:{},api:{}};
+const opsPost=async(token,body,target=opsEnv)=>(await handlePlatform(new Request('https://sonnenpfad-stuttgart.de/api/ops',{method:'POST',headers:{'X-Ops-Token':token},body}),target)).status;
+const opsStored=()=>DB.raw.prepare("SELECT COUNT(*) AS n FROM settings WHERE key='opsReport'").get().n;
+assert.equal(await opsPost('',JSON.stringify(opsBody)),404);assert.equal(await opsPost('f'.repeat(32),JSON.stringify(opsBody)),404);
+assert.equal(await opsPost(opsEnv.OPS_TOKEN,JSON.stringify(opsBody),env),503,'closed without a configured token');
+for(const bad of ['{','null','{"load":[]}'])assert.equal(await opsPost(opsEnv.OPS_TOKEN,bad),400);
+assert.equal(await opsPost(opsEnv.OPS_TOKEN,'x'.repeat(65537)),413);assert.equal(opsStored(),0,'refused reports store nothing');
+assert.equal(await opsPost(opsEnv.OPS_TOKEN,JSON.stringify(opsBody)),204);assert.equal(opsStored(),1);
+await rollup(opsEnv,Date.now()+2*86400000);assert.equal(opsStored(),1,'the nightly clean-up keeps the latest report');
+
 // 5. Admin login: fail closed, RFC 6238 TOTP, password, one-time codes, brute-force lock, sessions.
 let response=await handlePlatform(new Request('https://sonnenpfad-stuttgart.de/admin/'),env);assert.equal(response.status,503,'not configured: closed');
 assert.equal(await totpCode('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',Math.floor(59/30)),'287082','RFC 6238 test vector');
@@ -57,6 +68,10 @@ const cookie=response.headers.get('Set-Cookie');assert(/^__Host-sp_admin=.+; Pat
 const session=cookie.split(';')[0];
 assert.equal((await login('correct horse battery',code)).status,401,'a code works only once');
 response=await handlePlatform(new Request(site+'/api/admin/summary?days=7',{headers:{Cookie:session}}),admin);assert.equal(response.status,200);assert.equal((await response.json()).configured,true);
+const server=async()=>(await handlePlatform(new Request(site+'/api/admin/server',{headers:{Cookie:session}}),{...admin,OPS_TOKEN:opsEnv.OPS_TOKEN})).json();
+assert.equal((await server()).reachable,true,'a fresh server report is shown');
+DB.raw.prepare("UPDATE settings SET value=json_set(value,'$.at',?) WHERE key='opsReport'").run(Date.now()-16*60000);
+assert.equal((await server()).reachable,false,'no report for 15 minutes shows as an outage');
 response=await handlePlatform(new Request(site+'/admin/',{headers:{Cookie:session}}),admin);assert.equal(response.status,200);assert.equal(response.headers.get('X-Frame-Options'),'DENY');
 const forged=session.replace(/\.[^.]+$/,'.AAAA');assert.equal((await verifySession(new Request(site,{headers:{Cookie:forged}}),admin)).reason,'signature');
 assert.equal((await verifySession(new Request(site,{headers:{Cookie:session}}),admin,Date.now()+31*60000)).reason,'idle','30 minutes idle end the session');

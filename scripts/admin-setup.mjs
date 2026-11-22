@@ -29,7 +29,7 @@ if(!config.includes('"d1_databases"')){
  say('Lege die kostenlose Datenbank „sonnenpfad-platform“ an …');
  const created=wrangler(['d1','create','sonnenpfad-platform']);const id=(created.stdout+created.stderr).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)?.[0];
  if(!id){say('Datenbank konnte nicht angelegt werden:\n'+(created.stdout+created.stderr).slice(-600));process.exit(1);}
- config=config.replace(/\n}\s*$/,`,\n  "d1_databases": [{"binding": "DB", "database_name": "sonnenpfad-platform", "database_id": "${id}", "migrations_dir": "migrations"}],\n  "vars": {"OPS_URL": "https://138.2.184.1/ops/metrics"}\n}\n`);
+ config=config.replace(/\n}\s*$/,`,\n  "d1_databases": [{"binding": "DB", "database_name": "sonnenpfad-platform", "database_id": "${id}", "migrations_dir": "migrations"}]\n}\n`);
  fs.writeFileSync(configFile,config);say('✓ Datenbank angelegt, wrangler.jsonc ergänzt');
 }
 const migrated=wrangler(['d1','migrations','apply','sonnenpfad-platform','--remote'],'y\n');

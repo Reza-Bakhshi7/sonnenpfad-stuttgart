@@ -1,6 +1,7 @@
 name: uptime
 
-# External availability check every 15 minutes. A failure opens (or updates) one
+# External availability check. GitHub delays and drops most runs of this 15-minute schedule
+# (measured 18-22 November 2026: one run every 4-9 hours). A failure opens (or updates) one
 # GitHub issue labelled "outage", which notifies the owner; recovery closes it.
 on:
   schedule:

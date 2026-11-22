@@ -15,7 +15,7 @@
 4. Login, logout and settings need same-origin JSON with a custom header (CSRF); all values are validated; the
    dashboard writes text only with `textContent` (no HTML injection); `X-Frame-Options: DENY`, no caching.
 
-Worker secrets: `ADMIN_PASSWORD_HASH`, `ADMIN_TOTP_SECRET`, `ADMIN_SESSION_KEY`, `OPS_TOKEN`; variable `OPS_URL`.
+Worker secrets: `ADMIN_PASSWORD_HASH`, `ADMIN_TOTP_SECRET`, `ADMIN_SESSION_KEY`, `OPS_TOKEN`.
 
 ## Usage statistics (privacy)
 
@@ -37,8 +37,10 @@ dialog describes this; have it checked legally before relying on it.
 
 `/usr/local/sbin/sonnenpfad-metrics` (every 5 minutes, [ops/metrics](../ops/metrics)) writes CPU, memory, disk,
 network, uptime, services, database size and connections, routing-API requests, latency and errors (from an IP-free
-timing log) and the backup result. Nginx serves it at `https://138.2.184.1/ops/metrics` only with the `X-Ops-Token`
-header (otherwise 404); the token lives in `/etc/sonnenpfad-ops/token` (root only).
+timing log) and the backup result, then posts it to `https://sonnenpfad-stuttgart.de/api/ops` with the `X-Ops-Token`
+header (otherwise 404). The Worker keeps only the latest report in D1; after 15 minutes without one the dashboard
+shows an outage. The server has to report itself because a Worker cannot fetch a bare IP address (Cloudflare error
+1003). The token lives in `/etc/sonnenpfad-ops/token` (root only) and as the Worker secret `OPS_TOKEN`.
 
 ## Controls
 
@@ -55,7 +57,7 @@ npm run admin-setup
 
 The script creates the free D1 database `sonnenpfad-platform`, applies the migrations, asks for the new admin
 password (hidden), shows the TOTP key for the authenticator app, checks a current code and stores the secrets
-(including the server-health token, read from the VM without being shown). It adds the database binding and
-`OPS_URL` to `wrangler.jsonc`; that change is then published like any other release.
+(including the server-health token, read from the VM without being shown). It adds the database binding
+to `wrangler.jsonc`; that change is then published like any other release.
 
 To change the password or the authenticator later, run `npm run admin-setup` again.

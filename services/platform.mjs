@@ -1,7 +1,7 @@
 // Platform services of the Sonnenpfad Worker: privacy-friendly usage counts, the protected admin API
 // and runtime switches (maintenance page, browser-routing emergency switch).
 // Without a D1 binding (env.DB) every part stays off and the site behaves exactly as before.
-// Privacy: no cookies, nothing stored on the visitor's device, no IP addresses or coordinates stored.
+// Privacy: no visitor cookies (admin login only), nothing stored on the visitor's device, no IP addresses or coordinates stored.
 // A visitor is counted per day by a hash of IP + browser with a random salt that is deleted after the day.
 
 const DAY_MS = 86400000;
@@ -246,13 +246,26 @@ async function adminSummary(env, url) {
   const security = (await env.DB.prepare('SELECT ts, kind, detail FROM security ORDER BY ts DESC LIMIT 50').all()).results;
   return json({configured: true, days, since, today, rows: results, live, security, settings: await readSettings(env)});
 }
+// The server reports itself every 5 minutes: Workers cannot fetch a bare IP address (Cloudflare error 1003).
+const OPS_MAX_BYTES = 65536, OPS_STALE_MS = 15 * 60000;
+async function handleOpsReport(request, env) {
+  if (request.method !== 'POST') return new Response(null, {status: 405, headers: {Allow: 'POST'}});
+  if (!env.DB || !env.OPS_TOKEN) return new Response(null, {status: 503});
+  const encode = text => new TextEncoder().encode(text);
+  if (!equalBytes(encode(request.headers.get('X-Ops-Token') || ''), encode(env.OPS_TOKEN))) return new Response(null, {status: 404});
+  const text = await request.text();
+  if (text.length > OPS_MAX_BYTES) return new Response(null, {status: 413});
+  let metrics; try { metrics = JSON.parse(text); } catch { return new Response(null, {status: 400}); }
+  if (!Array.isArray(metrics?.load) || ['mem', 'disk', 'net', 'db', 'api'].some(key => !metrics[key] || typeof metrics[key] !== 'object')) return new Response(null, {status: 400});
+  await env.DB.prepare("INSERT INTO settings(key, value) VALUES ('opsReport', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(JSON.stringify({at: Date.now(), metrics})).run();
+  return new Response(null, {status: 204});
+}
 async function adminServer(env) {
-  if (!env.OPS_URL || !env.OPS_TOKEN) return json({configured: false});
-  try {
-    const started = Date.now(), response = await fetch(env.OPS_URL, {headers: {'X-Ops-Token': env.OPS_TOKEN, Accept: 'application/json'}, signal: AbortSignal.timeout(8000)});
-    if (!response.ok) return json({configured: true, reachable: false, status: response.status});
-    return json({configured: true, reachable: true, fetchMs: Date.now() - started, metrics: await response.json()});
-  } catch (error) { return json({configured: true, reachable: false, error: String(error?.name || error)}); }
+  if (!env.DB || !env.OPS_TOKEN) return json({configured: false});
+  const stored = await env.DB.prepare("SELECT value FROM settings WHERE key = 'opsReport'").first('value');
+  if (!stored) return json({configured: true, reachable: false, at: null});
+  const {at, metrics} = JSON.parse(stored);
+  return json({configured: true, reachable: Date.now() - at <= OPS_STALE_MS, at, metrics});
 }
 async function adminSettings(request, env) {
   if (!env.DB) return json({configured: false}, 503);
@@ -278,6 +291,7 @@ const MAINTENANCE_PAGE = `<!doctype html><html lang="de"><meta charset="utf-8"><
 export async function handlePlatform(request, env) {
   const url = new URL(request.url), path = url.pathname;
   if (path === '/api/event') return handleEvent(request, env);
+  if (path === '/api/ops') return handleOpsReport(request, env);
   if (path === '/admin' || path.startsWith('/admin/') || path.startsWith('/api/admin/')) {
     // The login page and its files are public; everything else needs a valid session.
     if (['/admin/login', '/admin/login.html', '/admin/login.js', '/admin/admin.css'].includes(path)) {
