@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.23.6 — 23 November 2026
 
 - Accessibility (WCAG 2.2 AA audit): grey hint and label text darkened to a contrast of at least 4.5:1 in the app, legal pages and admin area.
 - Accessibility: footer and legal links have touch targets at least 24 px high.
