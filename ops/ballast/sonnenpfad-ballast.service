@@ -1,0 +1,23 @@
+[Unit]
+Description=Sonnenpfad memory ballast (keeps the Always Free VM above Oracle's idle threshold)
+After=sonnenpfad-profile-v2.service postgresql.service
+
+[Service]
+Type=simple
+Environment=BALLAST_MB=1800
+ExecStart=/usr/bin/python3 -B /usr/local/sbin/sonnenpfad-ballast
+DynamicUser=yes
+MemoryMax=2G
+CPUQuota=5%
+Nice=19
+OOMScoreAdjust=1000
+Restart=on-failure
+RestartSec=60
+NoNewPrivileges=yes
+PrivateNetwork=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
