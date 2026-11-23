@@ -11,7 +11,7 @@
 ## Verification already in place
 
 - `npm test`, `test_adapter`, `test_engine`, `test_shadows`, updater/installer tests (CI runs them; the Python service tests also run in the updater's staging step).
-- `smoke_v2.py` after every update: all seven profiles, engine equal to the SQL/pgRouting engine, sun/shade shares, Standard equal to API 0.2 or shorter only via restored ways.
+- `smoke_v2.py` after every update: all seven profiles, engine equal to the SQL/pgRouting engine, sun/shade shares and a far start that snaps to the network (the comparison with the retired API 0.2 was removed in November 2026).
 - Shadow parity with the browser on a real tile at four sun positions (`make_shade_fixture.mjs` → `shade_fixture.json`).
 
 ## Release order (only after an explicit "Freigabe")
