@@ -31,7 +31,7 @@ def resident_mb():
 
 
 def main():
-    megabytes = int(os.environ.get('BALLAST_MB', '1800'))
+    megabytes = int(os.environ.get('BALLAST_MB', '2400'))
     if not 64 <= megabytes <= 4096:
         sys.exit(f'BALLAST_MB must be between 64 and 4096, got {megabytes}')
     block = fill(megabytes)

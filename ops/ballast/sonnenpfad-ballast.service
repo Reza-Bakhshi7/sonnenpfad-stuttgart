@@ -4,10 +4,10 @@ After=sonnenpfad-profile-v2.service postgresql.service
 
 [Service]
 Type=simple
-Environment=BALLAST_MB=1800
+Environment=BALLAST_MB=2400
 ExecStart=/usr/bin/python3 -B /usr/local/sbin/sonnenpfad-ballast
 DynamicUser=yes
-MemoryMax=2G
+MemoryMax=3G
 CPUQuota=5%
 Nice=19
 OOMScoreAdjust=1000
