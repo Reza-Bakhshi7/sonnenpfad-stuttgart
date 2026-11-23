@@ -25,7 +25,7 @@ let mobileTimeHome=null,mobileSheetHome=null,mobileResultHome=null;
 function setupMobileExperience(){
  const time=document.querySelector('.time-panel'),sheet=$('sidebar-body');mobileTimeHome=document.createComment('time-home');time.before(mobileTimeHome);mobileSheetHome=document.createComment('sheet-home');sheet.before(mobileSheetHome);
  mobileResultHome=document.createComment('result-home');$('result').before(mobileResultHome);
- const dock=document.createElement('div');dock.id='mobile-dock';document.body.append(dock);
+ const dock=document.createElement('div');dock.id='mobile-dock';dock.setAttribute('role','region');dock.dataset.iAria='plannerPanel';dock.setAttribute('aria-label',tr('plannerPanel'));document.body.append(dock);
  const summary=document.createElement('div');summary.id='mobile-route-summary';summary.hidden=true;summary.innerHTML='<strong id="mobile-route-time"></strong><span id="mobile-route-distance"></span><button id="mobile-edit-route" type="button" aria-label="Start oder Ziel bearbeiten">✎</button>';$('panel-toggle').after(summary);
  $('mobile-edit-route').onclick=()=>{stopRoutePreview(false);document.body.classList.add('route-editing');sheet.classList.add('expanded');$('panel-toggle').setAttribute('aria-expanded','true');requestAnimationFrame(()=>{sheet.scrollTop=0;syncMobileDock();});};
  const slot=document.createElement('div');slot.id='mobile-preview-slot';summary.after(slot);

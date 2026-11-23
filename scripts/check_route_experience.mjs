@@ -120,3 +120,10 @@ console.log('Route experience checks passed: camera clipping, opaque persistent 
  assert(moved.after.includes('/other/manifest.json'),'a changed base loads its own manifest');assert.equal(moved.pending,null,'early boundaries of the old base are dropped');
  console.log('Faster start passed: parallel module preload; manifest and boundaries requested together with the config.');
 }
+
+// Mobile: the moved route sheet stays inside a named landmark (search fields, legal links).
+{
+ const mobile=fs.readFileSync(new URL('./mobile-experience.mjs',import.meta.url),'utf8');
+ assert.match(mobile,/dock\.setAttribute\('role','region'\);dock\.dataset\.iAria='plannerPanel';dock\.setAttribute\('aria-label',tr\('plannerPanel'\)\)/,'mobile dock is a named region in both languages');
+ console.log('Mobile landmark passed.');
+}

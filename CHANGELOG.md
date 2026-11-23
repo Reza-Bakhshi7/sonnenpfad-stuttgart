@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Accessibility: on phones the route sheet (search fields, legal links) is a named region for screen readers.
+
 ## 0.23.7 — 23 November 2026
 
 - Faster start on slow connections: the map library modules are preloaded in parallel instead of one after another (measured chain on a 1.6 Mbit/s connection: 4.5 s).
