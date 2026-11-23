@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.23.7 — 23 November 2026
 
 - Faster start on slow connections: the map library modules are preloaded in parallel instead of one after another (measured chain on a 1.6 Mbit/s connection: 4.5 s).
 - Faster start: the city manifest and the Stuttgart and Baden-Württemberg boundaries are requested together with the configuration instead of after it.
