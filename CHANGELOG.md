@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Accessibility (WCAG 2.2 AA audit): grey hint and label text darkened to a contrast of at least 4.5:1 in the app, legal pages and admin area.
+- Accessibility: footer and legal links have touch targets at least 24 px high.
+- Accessibility: the address search is announced as a combobox with open/closed state; arrow keys move through the suggestions, Escape closes them.
+- Accessibility: landmarks are named (route planning, legend, time and weather); the map credits are no longer marked as the page footer.
+
 ## 0.23.5 — 22 November 2026
 
 - Routing: when the server fails during a session the app calculates the route in the browser and returns to the server once it answers again.

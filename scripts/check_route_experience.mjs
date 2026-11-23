@@ -79,3 +79,22 @@ for(let i=0;i<12;i++){
 }
 assert.equal(events.filter(e=>e[0]==='load').length,24);assert(events.filter(e=>e[0]==='ease').every(([,options])=>options.zoom===12.2),'view switching must preserve overview zoom');assert(events.filter(e=>e[0]==='ease').every(([,options])=>!('center' in options)),'rotation/view switches must not recenter the map');
 console.log('Route experience checks passed: camera clipping, opaque persistent tree geometry, metre precision, 24 nonblocking view switches, replay completion/cancellation, exploration and profile rules.');
+
+// Address search by keyboard: ArrowDown enters the suggestions, arrows move, ArrowUp returns to the field, Escape closes.
+{
+ const app=fs.readFileSync(new URL('./app.source.mjs',import.meta.url),'utf8'),code=app.slice(app.indexOf('function populate(){'),app.indexOf('function setCustom('));
+ const node=id=>({id,hidden:false,value:'',attrs:{},setAttribute(k,v){this.attrs[k]=v;},getAttribute(k){return this.attrs[k];},focus(){doc.activeElement=this;}});
+ const doc={activeElement:null},els={origin:node('origin'),destination:node('destination'),'origin-results':node('origin-results'),'destination-results':node('destination-results')};
+ const options=[node('a'),node('b'),node('c')];for(const box of [els['origin-results'],els['destination-results']]){box.querySelector=()=>options[0];box.querySelectorAll=()=>options;}
+ vm.runInNewContext(code+';populate();',{$:id=>els[id],document:doc,points:[null,null],markers:[],invalidateRoute(){},searchPlaces(){},showSearchResults(){}});
+ const input=els.origin,box=els['origin-results'],key=(target,key)=>{let prevented=false;target.onkeydown({key,preventDefault(){prevented=true;}});return prevented;};
+ assert(key(input,'ArrowDown'));assert.equal(doc.activeElement,options[0],'ArrowDown moves into the suggestions');
+ key(box,'ArrowDown');key(box,'ArrowDown');key(box,'ArrowDown');assert.equal(doc.activeElement,options[2],'the last suggestion stops the movement');
+ key(box,'ArrowUp');key(box,'ArrowUp');key(box,'ArrowUp');assert.equal(doc.activeElement,input,'ArrowUp from the first suggestion returns to the field');
+ options[1].focus();key(box,'Escape');assert.equal(box.hidden,true);assert.equal(input.attrs['aria-expanded'],'false');assert.equal(doc.activeElement,input,'Escape closes and returns to the field');
+ doc.activeElement=input;assert.equal(key(input,'ArrowDown'),false,'a closed list keeps the cursor in the field');
+ const html=fs.readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
+ for(const id of ['origin','destination'])assert.match(html,new RegExp(`<input id="${id}" type="search" role="combobox" aria-expanded="false"`),`${id} is announced as a combobox`);
+ assert.match(app,/setAttribute\('aria-expanded',String\(!box\.hidden&&Boolean\(box\.querySelector\('\[role=option\]'\)\)\)\)/,'the field reports whether suggestions are open');
+ console.log('Address search keyboard passed: arrows, return to field, Escape, combobox state.');
+}
