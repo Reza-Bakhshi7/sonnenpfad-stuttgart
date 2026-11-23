@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Faster start on slow connections: the map library modules are preloaded in parallel instead of one after another (measured chain on a 1.6 Mbit/s connection: 4.5 s).
+- Faster start: the city manifest and the Stuttgart and Baden-Württemberg boundaries are requested together with the configuration instead of after it.
+
 ## 0.23.6 — 23 November 2026
 
 - Accessibility (WCAG 2.2 AA audit): grey hint and label text darkened to a contrast of at least 4.5:1 in the app, legal pages and admin area.

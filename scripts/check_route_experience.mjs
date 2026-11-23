@@ -98,3 +98,25 @@ console.log('Route experience checks passed: camera clipping, opaque persistent 
  assert.match(app,/setAttribute\('aria-expanded',String\(!box\.hidden&&Boolean\(box\.querySelector\('\[role=option\]'\)\)\)\)/,'the field reports whether suggestions are open');
  console.log('Address search keyboard passed: arrows, return to field, Escape, combobox state.');
 }
+
+// Faster start: modules preload in parallel; manifest and boundaries are requested before the config answers.
+{
+ const html=fs.readFileSync(new URL('../dist/index.html',import.meta.url),'utf8'),shared=fs.readFileSync(new URL('../dist/vendor/maplibre-gl.mjs',import.meta.url),'utf8');
+ for(const file of ['maplibre-gl.mjs','maplibre-gl-shared.mjs'])assert(html.includes(`<link rel="modulepreload" href="./vendor/${file}">`),`${file} is preloaded`);
+ assert(shared.includes('"./maplibre-gl-shared.mjs"'),'preload URL matches the real import');
+ const app=fs.readFileSync(new URL('./app.source.mjs',import.meta.url),'utf8'),code=app.slice(app.indexOf('let cityBoundaryPending=null;'),app.indexOf('\n}\n',app.indexOf('async function loadChunkedData(){'))+3);
+ const run=async base=>{
+  const asked=[];let releaseConfig;const config=new Promise(resolve=>releaseConfig=resolve);
+  const ctx={URL,location:{href:'https://sonnenpfad-stuttgart.de/'},cityBaseURL:new URL('https://sonnenpfad-stuttgart.de/city/'),browserRoutingOnly:false,cityManifest:null,
+   parseCityManifest:()=>({network:{edgeCount:1}}),fetch:url=>{asked.push(String(url).replace('https://sonnenpfad-stuttgart.de',''));return String(url).endsWith('city-config.json')?config:Promise.resolve({ok:true,text:async()=>'{}',json:async()=>({})});}};
+  vm.runInNewContext(code+';this.load=loadChunkedData;this.pending=()=>cityBoundaryPending;',ctx);
+  const done=ctx.load();await new Promise(r=>setTimeout(r,0));const before=[...asked];
+  releaseConfig({ok:true,json:async()=>({base})});await done;return {before,after:asked,pending:ctx.pending()};
+ };
+ const same=await run('./city/');
+ assert.deepEqual(same.before.sort(),['./city-config.json','/city/bw-boundary.json','/city/manifest.json','/city/stuttgart-boundary.json'],'all four start before the config answers');
+ assert.equal(same.after.length,4,'nothing is fetched twice');assert(same.pending,'boundaries are handed to init');
+ const moved=await run('./other/');
+ assert(moved.after.includes('/other/manifest.json'),'a changed base loads its own manifest');assert.equal(moved.pending,null,'early boundaries of the old base are dropped');
+ console.log('Faster start passed: parallel module preload; manifest and boundaries requested together with the config.');
+}

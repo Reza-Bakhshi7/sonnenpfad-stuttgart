@@ -80,9 +80,14 @@ let statusKey='loading';
 function status(k){statusKey=k;$('status').textContent=t(k);}
 Object.assign(strings.de,{choosePoints:'Wähle zuerst Start und Ziel.',planRoute:'Route planen',closePanel:'Karte anzeigen'});
 Object.assign(strings.en,{choosePoints:'Choose a start and destination first.',planRoute:'Plan a route',closePanel:'Show map'});
+// Manifest and boundaries for the default base start together with the config (one round trip instead of three).
+let cityBoundaryPending=null;
 async function loadChunkedData(){
+ const earlyBase=cityBaseURL.href,earlyManifest=fetch(new URL('manifest.json',cityBaseURL)).catch(()=>null),earlyCity=fetch(new URL('stuttgart-boundary.json',cityBaseURL));earlyCity.catch(()=>{});
+ cityBoundaryPending=Promise.all([earlyCity,fetch(new URL('bw-boundary.json',cityBaseURL)).catch(()=>null)]);
  const configResponse=await fetch('./city-config.json').catch(()=>null),config=configResponse?.ok?await configResponse.json().catch(()=>null):null;if(typeof config?.base==='string')cityBaseURL=new URL(config.base,location.href);browserRoutingOnly=config?.serverRouting===false;
- const cityResponse=await fetch(new URL('manifest.json',cityBaseURL)).catch(()=>null);
+ const sameBase=cityBaseURL.href===earlyBase;if(!sameBase)cityBoundaryPending=null;
+ const cityResponse=await (sameBase?earlyManifest:fetch(new URL('manifest.json',cityBaseURL)).catch(()=>null));
  const cityCandidate=cityResponse?.ok?parseCityManifest(await cityResponse.text().catch(()=>'')):null;
  if(cityCandidate){cityManifest=cityCandidate;cityManifest.edges=cityManifest.network.edgeCount;return [cityManifest,{nodes:[],edges:[]},{buildings:[],trees:[]}];}
  const response=await fetch('./data/manifest.json');if(!response.ok)throw Error('manifest');const manifest=await response.json();
@@ -313,7 +318,7 @@ async function ensurePoiImages(){
 
 async function init(){
  try{
-  const loaded=await loadChunkedData();[meta,network,obstacles]=loaded;if(cityManifest){strings.de.pilot='FUSSWEGE · STADTGEBIET';strings.en.pilot='WALKING · STUTTGART';strings.de.outsidePilot='Mindestens ein Punkt liegt außerhalb des Stadtgebiets Stuttgart.';strings.en.outsidePilot='At least one point is outside Stuttgart city limits.';const [response,stateResponse]=await Promise.all([fetch(new URL('stuttgart-boundary.json',cityBaseURL)),fetch(new URL('bw-boundary.json',cityBaseURL)).catch(()=>null)]);if(response.ok)cityBoundary=await response.json();if(stateResponse?.ok)stateBoundary=await stateResponse.json().catch(()=>null);}language();
+  const loaded=await loadChunkedData();[meta,network,obstacles]=loaded;if(cityManifest){strings.de.pilot='FUSSWEGE · STADTGEBIET';strings.en.pilot='WALKING · STUTTGART';strings.de.outsidePilot='Mindestens ein Punkt liegt außerhalb des Stadtgebiets Stuttgart.';strings.en.outsidePilot='At least one point is outside Stuttgart city limits.';const [response,stateResponse]=await (cityBoundaryPending||Promise.all([fetch(new URL('stuttgart-boundary.json',cityBaseURL)),fetch(new URL('bw-boundary.json',cityBaseURL)).catch(()=>null)]));if(response.ok)cityBoundary=await response.json();if(stateResponse?.ok)stateBoundary=await stateResponse.json().catch(()=>null);}language();
   if(typeof maplibregl.Map!=='function')throw Error('MapLibre unavailable');
   map=new maplibregl.Map({locale:mapLibreLocale(lang),container:'map',style:createBasemapStyle(),center:[9.1779,48.7775],zoom:cityManifest?12.2:15.2,minZoom:cityManifest?MAP_MIN_ZOOM:12,maxZoom:20,maxBounds:cityManifest?MAP_BOUNDS:undefined,maxPitch:0,maxTileCacheSize:matchMedia('(pointer:coarse)').matches?96:192,maxTileCacheZoomLevels:8,cancelPendingTileRequestsWhileZooming:false,attributionControl:false,pitch:0,centerClampedToGround:true,canvasContextAttributes:{antialias:true}});map.touchPitch.disable();
   map.addControl(new maplibregl.NavigationControl({showCompass:true}),'top-right');map.addControl(new maplibregl.AttributionControl({compact:false,customAttribution:'Atlas: M. Bakhshi'}),'bottom-right');
