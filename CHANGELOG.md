@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Accessibility: on phones the route sheet (search fields, legal links) is a named region for screen readers.
+- Phones: map buttons that the open route sheet would cover (my location, show route, zoom) are hidden until the sheet is closed, instead of lying half under it.
 
 ## 0.23.7 — 23 November 2026
 

@@ -702,6 +702,8 @@ function syncMapInteraction(){
  const bar=$('map-pick-bar');if(bar){bar.hidden=pick===null||!isMobileMap();$('map-pick-label').textContent=tr(pick===0?'pickBarStart':'pickBarEnd');}
  if(map){map.getCanvas().style.cursor=pick!==null&&!isMobileMap()?'crosshair':exploreMode?'default':'';}
 }
+// Map buttons the open route sheet would cover are hidden (and so not focusable) instead of lying half under it.
+function hideCoveredMapTools(mobile,dock){const limit=mobile?dock.getBoundingClientRect().top-6:Infinity;for(const element of document.querySelectorAll('.map-tools>button,.maplibregl-ctrl-top-right .maplibregl-ctrl')){element.style.visibility='';if(element.getBoundingClientRect().bottom>limit)element.style.visibility='hidden';}}
 function syncMobileDock(){
  const mobile=isMobileMap(),dock=$('mobile-dock'),sheet=$('sidebar-body'),time=document.querySelector('.time-panel'),controls=$('preview-controls');
  if(!dock)return;
@@ -714,6 +716,7 @@ function syncMobileDock(){
  const summary=$('mobile-route-summary');if(summary){summary.hidden=!result||Boolean(result.error);if(result&&!result.error){$('mobile-route-time').textContent=formatWalkDuration(result.minutes,lang);$('mobile-route-distance').textContent=(result.length/1000).toLocaleString(lang,{maximumFractionDigits:2})+' km';}}
  if(mobile)$('panel-toggle').lastElementChild.textContent=result&&!result.error?(document.body.classList.contains('route-editing')?(tr('editRoute')):t('yourRoute')):t('planRoute');
  if(mobile){const height=Math.ceil(dock.getBoundingClientRect().height);document.documentElement.style.setProperty('--mobile-dock-height',`${height}px`);}
+ hideCoveredMapTools(mobile,dock);
  syncMapInteraction();
 }
 let mobileTimeHome=null,mobileSheetHome=null,mobileResultHome=null;

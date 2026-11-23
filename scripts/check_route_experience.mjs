@@ -127,3 +127,17 @@ console.log('Route experience checks passed: camera clipping, opaque persistent 
  assert.match(mobile,/dock\.setAttribute\('role','region'\);dock\.dataset\.iAria='plannerPanel';dock\.setAttribute\('aria-label',tr\('plannerPanel'\)\)/,'mobile dock is a named region in both languages');
  console.log('Mobile landmark passed.');
 }
+
+// Mobile: map buttons under the open route sheet are hidden; all come back when it closes or on desktop.
+{
+ const mobile=fs.readFileSync(new URL('./mobile-experience.mjs',import.meta.url),'utf8'),code=mobile.slice(mobile.indexOf('function hideCoveredMapTools('),mobile.indexOf('function syncMobileDock('));
+ const button=(id,top,bottom)=>({id,style:{visibility:''},getBoundingClientRect:()=>({top,bottom})});
+ const tools=[button('view',107,149),button('shade',154,196),button('locate',201,243),button('fit',248,290),button('zoom',298,424)];
+ const ctx={document:{querySelectorAll:()=>tools}};vm.runInNewContext(code+';this.hide=hideCoveredMapTools;',ctx);
+ const visible=()=>tools.filter(t=>t.style.visibility!=='hidden').map(t=>t.id);
+ ctx.hide(true,{getBoundingClientRect:()=>({top:225})});assert.deepEqual(visible(),['view','shade'],'sheet open (top 225): locate, fit and zoom are hidden');
+ ctx.hide(true,{getBoundingClientRect:()=>({top:691})});assert.deepEqual(visible(),['view','shade','locate','fit','zoom'],'sheet closed: everything is back');
+ ctx.hide(false,{getBoundingClientRect:()=>({top:0})});assert.equal(visible().length,5,'desktop never hides map buttons');
+ assert.match(mobile,/hideCoveredMapTools\(mobile,dock\);\n syncMapInteraction\(\);/,'runs on every dock change');
+ console.log('Covered map buttons passed.');
+}
