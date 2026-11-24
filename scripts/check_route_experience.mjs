@@ -141,3 +141,14 @@ console.log('Route experience checks passed: camera clipping, opaque persistent 
  assert.match(mobile,/hideCoveredMapTools\(mobile,dock\);\n syncMapInteraction\(\);/,'runs on every dock change');
  console.log('Covered map buttons passed.');
 }
+
+// Route card: metres in the sun, and a note when the shade/sun route equals the direct route.
+{
+ const app=fs.readFileSync(new URL('./app.source.mjs',import.meta.url),'utf8');
+ assert.match(app,/leafOn:leafSeason\(\),options:routeOptions\(\)/,'server routes carry the leaf season');
+ const season=app.slice(app.indexOf('function leafSeason(){'),app.indexOf('async function calculate(){'));
+ for(const [date,expected] of [['2026-11-24',false],['2026-03-31',false],['2026-04-01',true],['2026-10-31',true]])assert.equal(vm.runInNewContext(season+';leafSeason()',{$:()=>({value:date})}),expected,date);
+ assert.match(app,/notes\.push\(tr\('metresInSun',\{metres:Math\.round\(result\.length\*\(1-result\.shade\)\)\}\)\)/);
+ assert.match(app,/Math\.abs\(result\.length-shortest\.length\)<1\)notes\.push\(tr\(preference==='sun'\?'noSunnierRoute':'noShadierRoute'\)\)/);
+ console.log('Shade display passed: leaf season, metres in the sun, same-as-direct note.');
+}

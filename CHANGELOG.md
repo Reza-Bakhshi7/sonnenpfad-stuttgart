@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Fixed: server routes ignored the season and counted deciduous trees as shade all year. From November to March only evergreen trees cast shade now, as in the shade map (example Stuttgart-Mitte, 24 November: shade share of the direct route 59 % instead of 94 %).
+- Route card: metres in the sun next to the shade share, and a note when the shade or sun route equals the direct route ("no shadier route is worth it").
+
 ## 0.23.8 — 23 November 2026
 
 - Accessibility: on phones the route sheet (search fields, legal links) is a named region for screen readers.
